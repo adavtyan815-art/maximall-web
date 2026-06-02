@@ -104,14 +104,20 @@ export class EC2Service {
     throw new Error(`AMI named ${name} (or fallback) not found`);
   }
 
-  async createInstance(instanceType: string, amiId: string): Promise<{ instanceId: string }> {
-    const command = new RunInstancesCommand({
+  async createInstance(
+    instanceType: string,
+    amiId: string,
+    subnetId?: string,
+    securityGroupId?: string
+  ): Promise<{ instanceId: string }> {
+    const finalSubnetId = subnetId || config.AWS_SUBNET_ID;
+    const finalSecurityGroupId = securityGroupId || config.AWS_SECURITY_GROUP_ID;
+
+    const runParams: any = {
       ImageId: amiId,
       InstanceType: instanceType as any,
       MinCount: 1,
       MaxCount: 1,
-      SecurityGroupIds: [config.AWS_SECURITY_GROUP_ID],
-      SubnetId: config.AWS_SUBNET_ID,
       TagSpecifications: [
         {
           ResourceType: 'instance',
@@ -120,7 +126,16 @@ export class EC2Service {
           ]
         }
       ]
-    });
+    };
+
+    if (finalSubnetId && !finalSubnetId.includes('xxxxx')) {
+      runParams.SubnetId = finalSubnetId;
+    }
+    if (finalSecurityGroupId && !finalSecurityGroupId.includes('xxxxx')) {
+      runParams.SecurityGroupIds = [finalSecurityGroupId];
+    }
+
+    const command = new RunInstancesCommand(runParams);
     const response = await this.client.send(command);
     const instanceId = response.Instances?.[0]?.InstanceId;
     if (!instanceId) throw new Error('Failed to create instance');

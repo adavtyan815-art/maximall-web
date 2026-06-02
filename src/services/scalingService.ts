@@ -55,10 +55,24 @@ export class ScalingService {
     try {
       console.log('[Scaling] Resolving LinuxClientAMI ID...');
       const amiId = await this.ec2Service.getAmiIdByName('LinuxClientAMI');
+      
+      // Discover valid config from any existing discovered instances in the database
+      const instances = this.db.getInstances();
+      const existingInst = Object.values(instances).find(inst => inst.ec2Config?.subnetId && inst.ec2Config?.securityGroupId);
+      
+      let subnetId = config.AWS_SUBNET_ID;
+      let securityGroupId = config.AWS_SECURITY_GROUP_ID;
+
+      if (existingInst && existingInst.ec2Config) {
+        subnetId = existingInst.ec2Config.subnetId;
+        securityGroupId = existingInst.ec2Config.securityGroupId;
+        console.log(`[Scaling] Dynamically cloning configuration from existing instance ${existingInst.instanceId}: Subnet=${subnetId}, SecurityGroup=${securityGroupId}`);
+      }
+
       console.log(`[Scaling] AMI resolved: ${amiId}. Spawning EC2 instance...`);
 
       // 1. Create the instance
-      const { instanceId } = await this.ec2Service.createInstance('g4dn.2xlarge', amiId);
+      const { instanceId } = await this.ec2Service.createInstance('g4dn.2xlarge', amiId, subnetId, securityGroupId);
       console.log(`[Scaling] Pre-warm instance created: ${instanceId}`);
 
       // 2. Register it in our in-memory DB as pending
@@ -77,8 +91,8 @@ export class ScalingService {
           instanceType: 'g4dn.2xlarge',
           region: config.AWS_REGION || 'eu-central-1',
           amiId,
-          securityGroupId: config.AWS_SECURITY_GROUP_ID,
-          subnetId: config.AWS_SUBNET_ID,
+          securityGroupId,
+          subnetId,
         },
         activeSessions: new Map(),
       });
