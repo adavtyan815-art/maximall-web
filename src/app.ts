@@ -40,6 +40,7 @@ app.use(session({
 import crypto from 'crypto';
 import { EC2Service } from './services/ec2Service';
 import { TimeTrackerService } from './services/timeTrackerService';
+import { ScalingService } from './services/scalingService';
 
 // Authentication Middleware
 app.use((req, res, next) => {
@@ -382,6 +383,11 @@ app.post('/api/instances/connect-available', async (req, res) => {
   // Atomically lock it so no other connect request grabs it
   inst.status = 'pending';
   await db.saveInstance(uuid, inst);
+
+  // Trigger pre-warm scale check to maintain exactly 1 idle buffer instance
+  ScalingService.getInstance().ensureBufferInstance().catch((err: any) => {
+    console.error('[Scaling] Startup pre-warm check failed:', err.message);
+  });
 
   // Return exactly the uuid and token
   res.json({ success: true, uuid, status: 'pending', hostToken });

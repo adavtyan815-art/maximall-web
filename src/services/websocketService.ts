@@ -6,6 +6,7 @@ import { EC2Service } from './ec2Service';
 import { DisplayStartData, HeartbeatData } from '../types/websocket.types';
 import { randomUUID } from 'crypto';
 import * as http from 'http';
+import { ScalingService } from './scalingService';
 
 export class WebSocketService {
   private io: SocketServer;
@@ -217,6 +218,11 @@ export class WebSocketService {
     });
 
     await this.db.saveInstance(targetUuid, targetInstance);
+
+    // Trigger pre-warm check since the buffer instance has been claimed
+    ScalingService.getInstance().ensureBufferInstance().catch((err: any) => {
+      console.error('[WS] Pre-warm trigger failed:', err.message);
+    });
 
     this.socketToSession.set(socket.id, { instanceUuid: targetUuid, hostToken });
     socket.emit('instance-assigned', { uuid: targetUuid, hostToken, rescued: false });
@@ -550,10 +556,18 @@ export class WebSocketService {
 
       const hasActive = Array.from(instance.activeSessions.values()).some(s => s.displayStarted);
       if (!hasActive) {
-        console.log(`[WS] Grace period expired for ${instanceUuid}. Stopping instance.`);
+        console.log(`[WS] Grace period expired for ${instanceUuid}. Terminating instance.`);
         instance.activeSessions.clear();
         await this.db.saveInstance(instanceUuid, instance);
-        await this.stopInstanceAndNotify(instanceUuid);
+        
+        // Notify clients that the instance is stopping/terminating
+        this.io.to(`instance:${instanceUuid}`).emit('instance-stopping', {
+          message: 'The server is shutting down.',
+          timestamp: Date.now(),
+        });
+        this.timeTracker.stopDisplayTimer(instanceUuid);
+        
+        await ScalingService.getInstance().terminateAndRemove(instanceUuid);
       } else {
         console.log(`[WS] Grace period expired but active viewers found — not stopping.`);
       }

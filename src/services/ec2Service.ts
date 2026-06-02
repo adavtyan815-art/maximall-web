@@ -5,6 +5,7 @@ import {
   DescribeInstancesCommand,
   RunInstancesCommand,
   TerminateInstancesCommand,
+  DescribeImagesCommand,
   Filter,
 } from '@aws-sdk/client-ec2';
 import { config } from '../config';
@@ -52,6 +53,18 @@ export class EC2Service {
     };
   }
 
+  async getAmiIdByName(name: string): Promise<string> {
+    const command = new DescribeImagesCommand({
+      Filters: [
+        { Name: 'name', Values: [name] }
+      ]
+    });
+    const response = await this.client.send(command);
+    const amiId = response.Images?.[0]?.ImageId;
+    if (!amiId) throw new Error(`AMI named ${name} not found`);
+    return amiId;
+  }
+
   async createInstance(instanceType: string, amiId: string): Promise<{ instanceId: string }> {
     const command = new RunInstancesCommand({
       ImageId: amiId,
@@ -60,6 +73,14 @@ export class EC2Service {
       MaxCount: 1,
       SecurityGroupIds: [config.AWS_SECURITY_GROUP_ID],
       SubnetId: config.AWS_SUBNET_ID,
+      TagSpecifications: [
+        {
+          ResourceType: 'instance',
+          Tags: [
+            { Key: 'Name', Value: 'LinuxClient' }
+          ]
+        }
+      ]
     });
     const response = await this.client.send(command);
     const instanceId = response.Instances?.[0]?.InstanceId;
