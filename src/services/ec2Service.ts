@@ -54,32 +54,54 @@ export class EC2Service {
   }
 
   async getAmiIdByName(name: string): Promise<string> {
-    const namesToTry = [name];
-    if (name === 'LinuxClientAMI') {
-      namesToTry.push('LinuxClient');
+    // 1. Try to search by Tag: Name (e.g. tag:Name=LinuxClientAMI)
+    try {
+      const command = new DescribeImagesCommand({
+        Owners: ['self'],
+        Filters: [
+          { Name: 'tag:Name', Values: [name] }
+        ]
+      });
+      const response = await this.client.send(command);
+      const amiId = response.Images?.[0]?.ImageId;
+      if (amiId) return amiId;
+    } catch (e: any) {
+      console.warn(`[EC2] DescribeImages by tag:Name failed: ${e.message}`);
     }
 
-    const command = new DescribeImagesCommand({
-      Owners: ['self'],
-      Filters: [
-        { Name: 'name', Values: namesToTry }
-      ]
-    });
-    const response = await this.client.send(command);
-    const images = response.Images || [];
-    
-    for (const targetName of namesToTry) {
-      const match = images.find(img => img.Name === targetName);
-      if (match?.ImageId) {
-        return match.ImageId;
+    // 2. Try to search by Image Name attribute (e.g. name=LinuxClientAMI)
+    try {
+      const command = new DescribeImagesCommand({
+        Owners: ['self'],
+        Filters: [
+          { Name: 'name', Values: [name] }
+        ]
+      });
+      const response = await this.client.send(command);
+      const amiId = response.Images?.[0]?.ImageId;
+      if (amiId) return amiId;
+    } catch (e: any) {
+      console.warn(`[EC2] DescribeImages by name failed: ${e.message}`);
+    }
+
+    // 3. Fallback: if name is 'LinuxClientAMI', try to search by Image Name 'LinuxClient'
+    if (name === 'LinuxClientAMI') {
+      try {
+        const command = new DescribeImagesCommand({
+          Owners: ['self'],
+          Filters: [
+            { Name: 'name', Values: ['LinuxClient'] }
+          ]
+        });
+        const response = await this.client.send(command);
+        const amiId = response.Images?.[0]?.ImageId;
+        if (amiId) return amiId;
+      } catch (e: any) {
+        console.warn(`[EC2] DescribeImages by fallback name failed: ${e.message}`);
       }
     }
 
-    if (images[0]?.ImageId) {
-      return images[0].ImageId;
-    }
-
-    throw new Error(`AMI named ${name} not found`);
+    throw new Error(`AMI named ${name} (or fallback) not found`);
   }
 
   async createInstance(instanceType: string, amiId: string): Promise<{ instanceId: string }> {
