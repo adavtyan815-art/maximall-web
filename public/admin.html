@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Панель администратора | ArchiTek Soft</title>
+  <link rel="icon" href="assets/images/favicon-black.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #f8fafc;
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --text-main: #334155;
+      --text-muted: #64748b;
+      --accent: #57A6FA;
+      --accent-hover: #3b8fd9;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --border: rgba(0, 0, 0, 0.1);
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      position: relative;
+    }
+    body::after {
+      content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url('assets/images/background_pattern.png');
+      background-repeat: repeat; opacity: 0.1; z-index: -1;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+    .brand img {
+      max-width: 100%; height: auto; max-height: 60px; object-fit: contain;
+    }
+
+    .nav-items { display: flex; flex-direction: column; gap: 1rem; flex: 1; }
+    .nav-item {
+      padding: 0.75rem 1rem; border-radius: 0.5rem; color: var(--text-muted);
+      text-decoration: none; font-weight: 500; transition: all 0.2s ease;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: rgba(87, 166, 250, 0.1); color: var(--accent);
+    }
+
+    /* Main Content */
+    .main-content { flex: 1; padding: 2rem 3rem; overflow-y: auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .header-title { font-size: 2rem; font-weight: 600; }
+
+    .btn {
+      padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none;
+      font-family: inherit; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+    }
+    .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 14px 0 rgba(87, 166, 250, 0.39); }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+    /* Cards & Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 1rem; padding: 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    .stat-title { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem; font-weight: 500; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+
+    /* Table */
+    .table-container {
+      background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+      border-radius: 1rem; backdrop-filter: blur(12px); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 1.25rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--accent); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+
+    .status-badge {
+      display: inline-block; padding: 0.25rem 0.75rem;
+      border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+    }
+    .status-running  { background: rgba(16, 185, 129, 0.2); color: #059669; }
+    .status-stopped  { background: rgba(239, 68, 68, 0.2);  color: #dc2626; }
+    .status-pending  { background: rgba(245, 158, 11, 0.2); color: #d97706; }
+    .status-stopping { background: rgba(245, 158, 11, 0.2); color: #d97706; }
+
+    .actions-cell { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn-action {
+      padding: 0.4rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem;
+      border: 1px solid var(--border); background: transparent; color: var(--text-main);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-action:hover    { background: rgba(0, 0, 0, 0.05); }
+    .btn-danger:hover    { background: var(--danger); border-color: var(--danger); color: white; }
+    
+    .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+    .grace-pulse {
+      display: inline-block; width: 8px; height: 8px; background: var(--warning);
+      border-radius: 50%; margin-left: 8px; vertical-align: middle;
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      animation: grace-dot-pulse 1.5s infinite;
+    }
+    @keyframes grace-dot-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal {
+      background: #ffffff; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      border-radius: 1rem; padding: 2rem; width: 100%; max-width: 450px;
+    }
+    .modal-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text-main); }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+    .form-control {
+      width: 100%; padding: 0.75rem; border-radius: 0.5rem;
+      background: #f1f5f9; border: 1px solid var(--border);
+      color: var(--text-main); font-family: inherit; font-size: 0.95rem;
+    }
+    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(87,166,250,0.2); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+    .btn-secondary { background: #f8fafc; border: 1px solid var(--border); color: var(--text-main); font-weight: 600; }
+    .btn-secondary:hover { background: #f1f5f9; }
+    
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 1rem; }
+      .brand { margin-bottom: 1rem; }
+      .nav-items { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+      .nav-item { margin-top: 0 !important; }
+      .main-content { padding: 1rem; }
+      .header-title { font-size: 1.5rem; }
+      .table-container { overflow-x: auto; }
+      table { min-width: 500px; }
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="assets/images/image05.png" alt="ArchiTek Soft Logo">
+    </div>
+    <div class="nav-items">
+      <a href="#" class="nav-item active" id="nav-dashboard" onclick="showTab('dashboard')">Панель управления</a>
+      <a href="#" class="nav-item" id="nav-settings" onclick="showTab('settings')">Настройки</a>
+      <a href="#" onclick="logoutUser(); return false;" class="nav-item" style="margin-top: auto;">Выйти</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard">
+      <div class="header">
+        <div class="header-title">Инстансы (Серверы)</div>
+        <div>
+          <button class="btn btn-secondary" onclick="copyLink()">Копировать общую ссылку</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-title">Всего инстансов</div>
+          <div class="stat-value" id="stat-total">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Работают сейчас</div>
+          <div class="stat-value" id="stat-active" style="color: #34d399;">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Доступно (Остановлены)</div>
+          <div class="stat-value" id="stat-stopped" style="color: #ef4444;">-</div>
+        </div>
+        <div class="stat-card" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div class="stat-title">Общее время</div>
+            <div class="stat-value" id="stat-total-time" style="color: var(--accent);">-</div>
+          </div>
+          <button class="btn-action" onclick="resetAllTime()" style="padding: 0.5rem 1rem;">Сбросить все</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Метка / UUID</th>
+              <th>ID инстанса EC2</th>
+              <th>Статус</th>
+              <th>Время работы (Реальное)</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="instances-body">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted);" class="loading-pulse">
+                Загрузка инстансов...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div> <!-- end tab-dashboard -->
+
+    <!-- Settings Tab -->
+    <div id="tab-settings" style="display: none;">
+      <div class="header">
+        <div class="header-title">Настройки</div>
+      </div>
+      <div class="table-container" style="padding: 2rem; max-width: 600px;">
+        <div class="form-group">
+          <label>Дата обновления (отображается на странице клиента)</label>
+          <input type="date" id="settingUpdateDate" class="form-control">
+        </div>
+        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="saveSettings()">Сохранить настройки</button>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Fallback Copy TextArea -->
+  <textarea id="copyHelper" style="position: absolute; left: -9999px;"></textarea>
+
+  <script>
+    function formatTime(seconds) {
+      if (!seconds) return '0ч 0м';
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      return `${h}ч ${m}м`;
+    }
+
+    let globalInstancesData = {};
+    let globalSettingsData  = {};
+
+    async function logoutUser() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    // ── Settings ──────────────────────────────────────────────────────────
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        globalSettingsData = await res.json();
+        
+        let existingDate = globalSettingsData.updateDate || '';
+        if (existingDate && existingDate.includes('/')) {
+           existingDate = existingDate.split('/').reverse().join('-');
+        }
+        document.getElementById('settingUpdateDate').value = existingDate;
+      } catch (err) { console.error('Failed to load settings', err); }
+    }
+
+    async function saveSettings() {
+      let updateDate = document.getElementById('settingUpdateDate').value;
+      if (updateDate && updateDate.includes('-')) {
+         updateDate = updateDate.split('-').reverse().join('/');
+      }
+      
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updateDate })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Настройки сохранены!');
+          globalSettingsData = data.settings;
+        }
+      } catch (err) { console.error('Failed to save settings', err); }
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────
+    function showTab(tab) {
+      document.getElementById('tab-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
+      document.getElementById('tab-settings').style.display  = tab === 'settings'  ? 'block' : 'none';
+      document.getElementById('nav-dashboard').classList.toggle('active', tab === 'dashboard');
+      document.getElementById('nav-settings').classList.toggle('active', tab === 'settings');
+    }
+
+    // ── Load instances ────────────────────────────────────────────────────
+    async function loadInstances() {
+      try {
+        const response = await fetch('/api/admin/instances');
+        globalInstancesData = await response.json();
+        
+        const tbody = document.getElementById('instances-body');
+        tbody.innerHTML = '';
+        let total = 0, active = 0, stopped = 0, totalTimeSeconds = 0;
+
+        for (const [uuid, inst] of Object.entries(globalInstancesData)) {
+          total++;
+          totalTimeSeconds += (inst.realTimeUsedSeconds || 0);
+          if (inst.status === 'running')  active++;
+          if (inst.status === 'stopped')  stopped++;
+
+          const tr = document.createElement('tr');
+          const statusClass = `status-${inst.status.toLowerCase()}`;
+          
+          tr.innerHTML = `
+            <td>
+              <div style="font-weight: 500;">${inst.assignedTo || 'Не назначено'}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${uuid.substring(0,8)}...</div>
+            </td>
+            <td style="font-family: monospace; font-size: 0.8rem;">${inst.instanceId || '—'}</td>
+            <td>
+              <span class="status-badge ${statusClass}">${inst.status.toUpperCase()}</span>
+              ${inst.inGracePeriod ? '<span class="grace-pulse" title="Grace Period (60s timer)"></span>' : ''}
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.85rem; color: var(--text-muted); min-width: 50px;">
+                  ${formatTime(inst.realTimeUsedSeconds)}
+                </span>
+                <button class="btn-action" style="padding: 0.2rem 0.5rem; font-size: 0.70rem;" title="Сбросить время" onclick="resetInstanceTime('${uuid}')">Сбросить</button>
+              </div>
+            </td>
+            <td class="actions-cell">
+              <button class="btn-action" onclick="toggleStatus('${uuid}', '${inst.status}')">
+                ${inst.status === 'running' ? 'Остановить' : 'Запустить'}
+              </button>
+              <button class="btn-action btn-danger" onclick="deleteInstance('${uuid}')">Удалить</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        if (total === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Инстансы не найдены. Убедитесь, что EC2 инстансы имеют тег <strong>Name=LinuxClient</strong> и перезапустите сервер.</td></tr>`;
+        }
+
+        document.getElementById('stat-total').innerText   = total;
+        document.getElementById('stat-active').innerText  = active;
+        document.getElementById('stat-stopped').innerText = stopped;
+        document.getElementById('stat-total-time').innerText = formatTime(totalTimeSeconds);
+
+      } catch (err) { console.error('Failed to load instances', err); }
+    }
+
+    async function toggleStatus(uuid, currentStatus) {
+      const action = currentStatus === 'running' ? 'stop' : 'start';
+      const actionRu = currentStatus === 'running' ? 'остановить' : 'запустить';
+      if (!confirm(`Вы уверены, что хотите ${actionRu} этот инстанс?`)) return;
+      await fetch(`/api/admin/instances/${uuid}/${action}`, { method: 'POST' });
+      loadInstances();
+    }
+
+    async function resetAllTime() {
+      if (!confirm("Вы уверены, что хотите сбросить время ВСЕХ инстансов?")) return;
+      await fetch('/api/admin/instances/reset-all-time', { method: 'POST' });
+      loadInstances();
+    }
+
+    async function resetInstanceTime(uuid) {
+      if (!confirm("Вы уверены, что хотите сбросить время этого инстанса?")) return;
+      await fetch(`/api/admin/instances/${uuid}/reset-time`, { method: 'POST' });
+      loadInstances();
+    }
+
+    async function deleteInstance(uuid) {
+      if (!confirm("Вы уверены, что хотите навсегда удалить этот инстанс?")) return;
+      await fetch(`/api/admin/instances/${uuid}`, { method: 'DELETE' });
+      loadInstances();
+    }
+
+    // Copy the shared landing-page link (no UUID — dynamic pool picks it)
+    function copyLink() {
+      const link = window.location.origin + '/';
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(link).then(() => alert('Ссылка на целевую страницу скопирована!'));
+      } else {
+        const helper = document.getElementById('copyHelper');
+        helper.value = link;
+        helper.select();
+        document.execCommand('copy');
+        alert('Ссылка на целевую страницу скопирована! (Резервный метод)');
+      }
+    }
+
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    loadSettings();
+    loadInstances();
+    setInterval(loadInstances, 5000);
+  </script>
+</body>
+</html>

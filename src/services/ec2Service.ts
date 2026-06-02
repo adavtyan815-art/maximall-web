@@ -1,0 +1,139 @@
+import {
+  EC2Client,
+  StartInstancesCommand,
+  StopInstancesCommand,
+  DescribeInstancesCommand,
+  RunInstancesCommand,
+  TerminateInstancesCommand,
+  Filter,
+} from '@aws-sdk/client-ec2';
+import { config } from '../config';
+import { InstanceWithSessions } from '../types/instance.types';
+import { randomUUID } from 'crypto';
+
+export class EC2Service {
+  private client: EC2Client;
+
+  constructor() {
+    this.client = new EC2Client({
+      region: config.AWS_REGION || 'eu-central-1',
+      credentials: {
+        accessKeyId: config.AWS_ACCESS_KEY_ID,
+        secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+
+  async startInstance(instanceId: string): Promise<{ success: boolean; state: string }> {
+    const command = new StartInstancesCommand({ InstanceIds: [instanceId] });
+    await this.client.send(command);
+    return { success: true, state: 'pending' };
+  }
+
+  async stopInstance(instanceId: string): Promise<{ success: boolean; state: string }> {
+    const command = new StopInstancesCommand({ InstanceIds: [instanceId] });
+    await this.client.send(command);
+    return { success: true, state: 'stopping' };
+  }
+
+  async terminateInstance(instanceId: string): Promise<{ success: boolean }> {
+    const command = new TerminateInstancesCommand({ InstanceIds: [instanceId] });
+    await this.client.send(command);
+    return { success: true };
+  }
+
+  async getInstanceStatus(instanceId: string): Promise<{ state: string; ip: string | null }> {
+    const command = new DescribeInstancesCommand({ InstanceIds: [instanceId] });
+    const response = await this.client.send(command);
+    const instance = response.Reservations?.[0]?.Instances?.[0];
+    return {
+      state: instance?.State?.Name || 'unknown',
+      ip: instance?.PublicIpAddress || null,
+    };
+  }
+
+  async createInstance(instanceType: string, amiId: string): Promise<{ instanceId: string }> {
+    const command = new RunInstancesCommand({
+      ImageId: amiId,
+      InstanceType: instanceType as any,
+      MinCount: 1,
+      MaxCount: 1,
+      SecurityGroupIds: [config.AWS_SECURITY_GROUP_ID],
+      SubnetId: config.AWS_SUBNET_ID,
+    });
+    const response = await this.client.send(command);
+    const instanceId = response.Instances?.[0]?.InstanceId;
+    if (!instanceId) throw new Error('Failed to create instance');
+    return { instanceId };
+  }
+
+  /**
+   * Discovers all EC2 instances that carry a specific Name tag value.
+   * Terminated instances are excluded automatically.
+   * Returns an array of InstanceWithSessions ready to be inserted into the DB.
+   */
+  async discoverInstancesByTag(tagName: string, tagValue: string): Promise<InstanceWithSessions[]> {
+    const filters: Filter[] = [
+      { Name: `tag:${tagName}`, Values: [tagValue] },
+      // Exclude terminated instances — they are gone for good
+      {
+        Name: 'instance-state-name',
+        Values: ['pending', 'running', 'stopping', 'stopped'],
+      },
+    ];
+
+    const command = new DescribeInstancesCommand({ Filters: filters });
+    const response = await this.client.send(command);
+
+    const discovered: InstanceWithSessions[] = [];
+
+    for (const reservation of response.Reservations ?? []) {
+      for (const ec2 of reservation.Instances ?? []) {
+        if (!ec2.InstanceId) continue;
+
+        // Use the EC2 instanceId as a stable UUID seed so restarts
+        // always produce the same UUID for the same physical machine.
+        const uuid = ec2.InstanceId;
+
+        // Read the Name tag as the display label
+        const nameTag = ec2.Tags?.find(t => t.Key === 'Name')?.Value ?? 'Без метки';
+
+        // Map AWS state → app status
+        const awsState = ec2.State?.Name ?? 'stopped';
+        type AppStatus = 'stopped' | 'running' | 'pending' | 'stopping' | 'terminated';
+        const stateMap: Record<string, AppStatus> = {
+          pending:  'pending',
+          running:  'running',
+          stopping: 'stopping',
+          stopped:  'stopped',
+          'shutting-down': 'stopping',
+          terminated: 'terminated',
+        };
+        const status: AppStatus = stateMap[awsState] ?? 'stopped';
+
+        discovered.push({
+          uuid,
+          instanceId: ec2.InstanceId,
+          displayLimitHours: 0,
+          realLimitHours: 0,
+          displayTimeUsedSeconds: 0,
+          realTimeUsedSeconds: 0,
+          status,
+          createdAt: ec2.LaunchTime?.toISOString() ?? new Date().toISOString(),
+          lastActiveAt: new Date().toISOString(),
+          assignedTo: nameTag,
+          ec2Config: {
+            instanceType: ec2.InstanceType ?? 'g4dn.2xlarge',
+            region: config.AWS_REGION || 'eu-central-1',
+            amiId: ec2.ImageId ?? '',
+            securityGroupId: ec2.SecurityGroups?.[0]?.GroupId ?? '',
+            subnetId: ec2.SubnetId ?? '',
+          },
+          activeSessions: new Map(),
+        });
+      }
+    }
+
+    return discovered;
+  }
+}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mock Pixel Streaming Player</title>
+  <link rel="icon" href="assets/images/favicon-white.png" type="image/png">
+  <!-- Load Socket.io exactly as requested in task.md -->
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <style>
+    body { background: #000; color: #0f0; font-family: monospace; padding: 2rem; }
+    #video-container { width: 100%; height: 60vh; border: 2px dashed #0f0; display: flex; align-items: center; justify-content: center;}
+  </style>
+</head>
+<body>
+  <h1>Mock Unreal Engine Pixel Stream</h1>
+  <p>This is a simulated AWS Pixel Streaming page running locally.</p>
+  <div id="video-container">
+    [ 3D Stream Canvas Placeholder ]
+  </div>
+  <!-- Run the modified player script we created -->
+  <script src="player.js"></script>
+</body>
+</html>

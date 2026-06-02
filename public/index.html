@@ -1,0 +1,569 @@
+<!DOCTYPE HTML>
+<html lang="hy">
+
+<head>
+  <title>Maxi Mall - 3D Демо</title>
+  <link rel="icon" href="assets/images/favicon-white.png" type="image/png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="assets/main.css" />
+  <style>
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('assets/images/background_pattern.png');
+      background-repeat: repeat;
+      opacity: 0.1;
+      z-index: -1;
+    }
+
+    .loader-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+    }
+
+    .cube-container {
+      width: 60px;
+      height: 60px;
+      position: relative;
+      perspective: 800px;
+      margin: 0 auto 25px auto;
+    }
+
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      transform-style: preserve-3d;
+      animation: rotateCube 4s infinite linear;
+    }
+
+    .face {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 2px solid #57A6FA;
+      background: rgba(87, 166, 250, 0.1);
+      box-shadow: 0 0 10px rgba(87, 166, 250, 0.5) inset;
+    }
+
+    .cube-warning .face {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5) inset;
+    }
+
+    .front {
+      transform: rotateY(0deg) translateZ(30px);
+    }
+
+    .back {
+      transform: rotateY(180deg) translateZ(30px);
+    }
+
+    .right {
+      transform: rotateY(90deg) translateZ(30px);
+    }
+
+    .left {
+      transform: rotateY(-90deg) translateZ(30px);
+    }
+
+    .top {
+      transform: rotateX(90deg) translateZ(30px);
+    }
+
+    .bottom {
+      transform: rotateX(-90deg) translateZ(30px);
+    }
+
+    @keyframes rotateCube {
+      0% {
+        transform: translateY(0) rotateX(0deg) rotateY(0deg);
+      }
+
+      50% {
+        transform: translateY(-10px) rotateX(180deg) rotateY(180deg);
+      }
+
+      100% {
+        transform: translateY(0) rotateX(360deg) rotateY(360deg);
+      }
+    }
+
+    #status-text {
+      color: #57A6FA;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    #tips-text {
+      color: #474747;
+      font-family: Arial, sans-serif;
+      font-size: 1.05rem;
+      max-width: 550px;
+      line-height: 1.6;
+      min-height: 3.5em;
+      transition: opacity 0.6s ease;
+      text-align: center;
+    }
+
+    .btn-disabled {
+      background-color: #ccc !important;
+      pointer-events: none;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* ── No-instance available screen ── */
+    #no-instance-ui {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .no-instance-icon {
+      margin-bottom: 1rem;
+    }
+
+    /* Fixed alignment for the top row */
+    #container02 .inner {
+      align-items: center !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+    }
+
+    #container02 .image-component.instance-5 img {
+      width: 220px !important;
+      height: auto !important;
+      transition: transform 0.3s ease;
+    }
+
+    #container02 .image-component.instance-5 img:hover {
+      transform: scale(1.02);
+    }
+
+    .no-instance-title {
+      font-family: Arial, sans-serif;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #334155;
+      margin-bottom: 0.75rem;
+    }
+
+    .no-instance-subtitle {
+      font-family: Arial, sans-serif;
+      font-size: 1rem;
+      color: #64748b;
+      max-width: 420px;
+      line-height: 1.7;
+    }
+
+    /* ── Mobile responsiveness ── */
+    @media (max-width: 640px) {
+      #container02 .inner {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 1rem;
+      }
+
+      #container02 .inner>div:first-child {
+        display: flex;
+        justify-content: center;
+      }
+
+      #container02 .image-component.instance-5 {
+        width: 160px !important;
+        max-width: 160px !important;
+      }
+
+      #container02 .image-component.instance-5 img {
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      #container02 .text-component.style-5 {
+        font-size: 1rem !important;
+        text-align: center !important;
+        padding: 0 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body class="is-loading">
+  <div class="site-wrapper">
+    <div class="site-main">
+      <div class="inner">
+
+        <div id="container02" class="container-component instance-2 architek-row columns full">
+          <div class="wrapper">
+            <div class="inner">
+              <div>
+                <div class="image-component instance-5" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.05));">
+                  <span class="frame">
+                    <img src="assets/images/image05.png" alt="Logo" />
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p class="text-component style-5">Откройте ваш 3D-проект за считанные секунды. Мы запускаем сверхмощный
+                  сервер специально для вас.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider-component instance-7">
+
+        <div id="dynamic-zone">
+          <!-- Launcher UI -->
+          <div id="launcher-ui">
+            <div id="image06" class="image-component instance-6">
+              <span class="frame enclosed"><img src="assets/images/image06.gif" alt="3D Preview" /></span>
+            </div>
+            <ul class="buttons-component instance-1 style-2">
+              <li><a href="#" id="btn" class="n01">ВОЙТИ В 3D КОМНАТУ</a></li>
+            </ul>
+          </div>
+
+          <!-- Loading UI -->
+          <div id="loading-ui" class="loader-container">
+            <div class="cube-container">
+              <div class="cube">
+                <div class="face front"></div>
+                <div class="face back"></div>
+                <div class="face right"></div>
+                <div class="face left"></div>
+                <div class="face top"></div>
+                <div class="face bottom"></div>
+              </div>
+            </div>
+            <div id="status-text">Обработка...</div>
+            <div id="tips-text"></div>
+          </div>
+
+          <!-- No available instance UI -->
+          <div id="no-instance-ui">
+            <div class="no-instance-icon">
+              <div class="cube-container cube-warning">
+                <div class="cube">
+                  <div class="face front"></div>
+                  <div class="face back"></div>
+                  <div class="face right"></div>
+                  <div class="face left"></div>
+                  <div class="face top"></div>
+                  <div class="face bottom"></div>
+                </div>
+              </div>
+            </div>
+            <div class="no-instance-title">Нет доступных серверов</div>
+            <div class="no-instance-subtitle">
+              В данный момент все 3D серверы заняты. Пожалуйста, попробуйте снова через несколько минут.<br><br>
+              Если проблема не решится, свяжитесь с Maxi Mall.
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider-component instance-11">
+
+        <div id="container10" class="container-component instance-10 architek-row columns full">
+          <div class="wrapper">
+            <div class="inner">
+              <div>
+                <p class="text-component instance-55"><strong>© Maxi Mall</strong> | Обновлено: <span
+                    id="update-date">18/04/2026</span></p>
+              </div>
+              <div>
+                <ul class="icons-component instance-4">
+                  <li><a class="n01" href="#"><svg>
+                        <use xlink:href="assets/icons.svg#facebook"></use>
+                      </svg></a></li>
+                  <li><a class="n02" href="#"><svg>
+                        <use xlink:href="assets/icons.svg#instagram"></use>
+                      </svg></a></li>
+                  <li><a class="n05" href="#"><svg>
+                        <use xlink:href="assets/icons.svg#email"></use>
+                      </svg></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // ── Load update date from settings ────────────────────────────────────
+    async function loadClientSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const settings = await res.json();
+        if (settings && settings.updateDate) {
+          const dateSpan = document.getElementById('update-date');
+          if (dateSpan) dateSpan.textContent = settings.updateDate;
+        }
+      } catch (err) { console.error('Failed to load settings', err); }
+    }
+    loadClientSettings();
+
+    // ── Element refs ──────────────────────────────────────────────────────
+    const btn = document.getElementById('btn');
+    const launcherUI = document.getElementById('launcher-ui');
+    const loadingUI = document.getElementById('loading-ui');
+    const noInstanceUI = document.getElementById('no-instance-ui');
+    const statusText = document.getElementById('status-text');
+    const tipsText = document.getElementById('tips-text');
+
+    let tipInterval = null;
+    let tipIndex = 0;
+
+    // Device Identification (Persistent)
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem('deviceId', deviceId);
+    }
+
+    // The UUID that was dynamically assigned during this session
+    let assignedUuid = sessionStorage.getItem('assignedUuid');
+    let globalHostToken = sessionStorage.getItem('global_hostToken');
+    let isRescuedRedirect = false;
+
+    const tips = [
+      "Подсказка: Для перемещения на компьютере используйте клавиши WASD и мышь.",
+      "Для управления на телефоне используйте виртуальные кнопки на экране.",
+      "В 3D-модели вы можете менять цвета и материалы мебели одним касанием.",
+      "Для наилучшего качества рекомендуется использовать стабильное интернет-соединение.",
+      "Окружение загружается на облачном сервере, чтобы не перегружать ваше устройство.",
+      "Четкость изображения зависит от скорости соединения с сервером: при слабом соединении качество может временно снизиться."
+    ];
+
+    // ── UI state helpers ──────────────────────────────────────────────────
+    function showLoadingUI() {
+      launcherUI.style.display = 'none';
+      loadingUI.style.display = 'flex';
+      noInstanceUI.style.display = 'none';
+      if (!tipInterval) startTips();
+    }
+
+    function showLauncherUI() {
+      launcherUI.style.display = 'block';
+      loadingUI.style.display = 'none';
+      noInstanceUI.style.display = 'none';
+      if (tipInterval) { clearInterval(tipInterval); tipInterval = null; }
+    }
+
+    function showNoInstanceUI() {
+      launcherUI.style.display = 'none';
+      loadingUI.style.display = 'none';
+      noInstanceUI.style.display = 'flex';
+      if (tipInterval) { clearInterval(tipInterval); tipInterval = null; }
+    }
+
+    function startTips() {
+      tipsText.textContent = tips[tipIndex];
+      tipsText.style.opacity = 1;
+      tipInterval = setInterval(() => {
+        tipIndex = (tipIndex + 1) % tips.length;
+        tipsText.style.opacity = 0;
+        setTimeout(() => {
+          tipsText.textContent = tips[tipIndex];
+          tipsText.style.opacity = 1;
+        }, 600);
+      }, 8000);
+    }
+
+    function showError(msg) {
+      statusText.textContent = msg;
+      statusText.style.color = '#ef4444';
+      showLauncherUI();
+    }
+
+    // ── Socket Events ──────────────────────────────────────────────────────
+
+    socket.on('connect_error', (err) => {
+      console.error('Connection Error:', err);
+      if (loadingUI.style.display === 'flex') {
+        statusText.style.color = '#ef4444';
+        statusText.innerText = "Ошибка сервера. Проверьте интернет.";
+      }
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      statusText.style.color = '#57A6FA';
+
+      // 1. Auto-Resume Check (Skip login button if active session exists)
+      socket.emit('check-active-session', { deviceId });
+
+      // Fallback for explicitly stored session
+      if (assignedUuid && globalHostToken) {
+        showLoadingUI();
+        statusText.innerText = "Восстановление сессии...";
+        socket.emit('resume-instance', {
+          instanceUuid: assignedUuid,
+          hostToken: globalHostToken,
+          deviceId: deviceId
+        });
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('Disconnected:', reason);
+      if (loadingUI.style.display === 'flex') {
+        statusText.style.color = '#f59e0b';
+        statusText.innerText = "Связь потеряна. Ожидание восстановления...";
+      }
+    });
+
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log('Attempting to reconnect:', attempt);
+      if (loadingUI.style.display === 'flex') {
+        statusText.innerText = `Переподключение (попытка ${attempt})...`;
+      }
+    });
+
+    socket.on('session-found', (data) => {
+      console.log('Active session detected on server. Auto-resuming...');
+      assignedUuid = data.uuid;
+      globalHostToken = data.hostToken;
+      sessionStorage.setItem('assignedUuid', assignedUuid);
+      sessionStorage.setItem('global_hostToken', globalHostToken);
+
+      showLoadingUI();
+      statusText.innerText = "Загрузка активной комнаты...";
+      socket.emit('resume-instance', {
+        instanceUuid: assignedUuid,
+        hostToken: globalHostToken,
+        deviceId: deviceId
+      });
+    });
+
+    socket.on('session-not-found', () => {
+      // Normal flow - show launcher if not already loading
+      if (!assignedUuid) showLauncherUI();
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
+    socket.on('instance-assigned', (data) => {
+      assignedUuid = data.uuid;
+      globalHostToken = data.hostToken;
+      sessionStorage.setItem('assignedUuid', assignedUuid);
+      sessionStorage.setItem('global_hostToken', globalHostToken);
+
+      if (data.rescued) {
+        isRescuedRedirect = true;
+        statusText.innerText = "Подключаемся к активному залу...";
+      } else {
+        isRescuedRedirect = false;
+        statusText.innerText = "Подключение к серверу...";
+      }
+    });
+
+    socket.on('no-instance-available', () => {
+      showNoInstanceUI();
+      btn.classList.remove('btn-disabled');
+    });
+
+    socket.on('instance-error', (data) => {
+      showError("Ошибка: " + data.message);
+      btn.classList.remove('btn-disabled');
+      btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+      assignedUuid = null;
+      sessionStorage.removeItem('assignedUuid');
+    });
+
+    socket.on('instance-status', (data) => {
+      const { status } = data;
+      if (status === 'stopped') {
+        showLauncherUI();
+        btn.classList.remove('btn-disabled');
+        btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+        assignedUuid = null;
+        sessionStorage.removeItem('assignedUuid');
+        if (data.lastError) showError("⚠️ Ошибка: " + data.lastError);
+      }
+      else if (status === 'stopping') {
+        showLauncherUI();
+        btn.classList.add('btn-disabled');
+        btn.textContent = "ОЖИДАЙТЕ ЗАВЕРШЕНИЯ...";
+      }
+      else if (status === 'pending') {
+        showLoadingUI();
+        statusText.textContent = "Запуск сервера... пожалуйста, подождите.";
+      }
+      else if (status === 'booting_server') {
+        showLoadingUI();
+        statusText.textContent = "Сервер активен: ожидание запуска 3D программы...";
+      }
+    });
+
+    socket.on('server-ready', (data) => {
+      statusText.textContent = "Сервер готов, перенаправление...";
+      tipsText.textContent = "Соединение установлено.";
+
+      // Prefer the Pinggy tunnel URL reported by the EC2 instance.
+      // Fall back to the raw IP only in local dev (no tunnel configured).
+      let targetUrl = data.pinggyUrl || data.ip || 'http://localhost:8000';
+      if (!targetUrl.startsWith('http')) targetUrl = `http://${targetUrl}:8000`;
+
+      const pixelStreamLink =
+        `${targetUrl}/player.html` +
+        `?backendUrl=${encodeURIComponent(window.location.origin)}` +
+        `&instanceUuid=${assignedUuid}` +
+        `&hostToken=${encodeURIComponent(globalHostToken)}` +
+        `&deviceId=${encodeURIComponent(deviceId)}`;
+
+      const delay = isRescuedRedirect ? 3000 : 1000;
+      setTimeout(() => { window.location.href = pixelStreamLink; }, delay);
+    });
+
+    // ── Button click: request server via WebSocket ──────────────────────────
+    btn.onclick = (e) => {
+      e.preventDefault();
+      if (btn.classList.contains('btn-disabled')) return;
+
+      if (!navigator.onLine) {
+        alert("Пожалуйста, проверьте подключение к интернету.");
+        return;
+      }
+
+      btn.classList.add('btn-disabled');
+      showLoadingUI();
+      statusText.style.color = '#57A6FA';
+      statusText.innerText = "Поиск доступного сервера...";
+
+      socket.emit('request-instance', {
+        hostToken: globalHostToken || undefined,
+        deviceId: deviceId
+      });
+    };
+  </script>
+  <script src="assets/main.js"></script>
+</body>
+
+</html>
