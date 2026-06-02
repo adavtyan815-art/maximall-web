@@ -435,14 +435,8 @@ app.post('/api/instances/:uuid/report-tunnel', async (req, res) => {
   await db.saveInstance(req.params.uuid, inst);
   console.log(`[Tunnel] Instance ${req.params.uuid} reported Pinggy URL: ${normalizedUrl}`);
 
-  // If the instance is already running, fire server-ready immediately
-  // so that any waiting WebSocket clients get redirected.
-  if (inst.status === 'running' && wsService) {
-    wsService.broadcastToInstance(req.params.uuid, 'server-ready', {
-      pinggyUrl: normalizedUrl,
-    });
-    console.log(`[Tunnel] Emitted server-ready to instance room ${req.params.uuid}`);
-  }
+  // Note: We no longer broadcast server-ready immediately here to prevent premature redirection.
+  // The websocket status poll will check for streamerConnected readiness via the status endpoint.
 
   res.json({ success: true, pinggyUrl: normalizedUrl });
 });

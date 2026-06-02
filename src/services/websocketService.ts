@@ -298,11 +298,46 @@ export class WebSocketService {
         return;
       }
 
-      // 1. If Pinggy URL is already reported, redirect immediately
+      const checkStreamerConnected = async (pinggyUrl: string): Promise<boolean> => {
+        return new Promise<boolean>((resolve) => {
+          const statusUrl = `${pinggyUrl}/api/status`;
+          const req = http.get(statusUrl, { timeout: 2000 }, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => {
+              try {
+                const data = JSON.parse(body);
+                const isConnected =
+                  data.streamerConnected === true ||
+                  data.hasStreamer === true ||
+                  (Array.isArray(data.streamers) && data.streamers.length > 0) ||
+                  (typeof data.activeStreamers === 'number' && data.activeStreamers > 0);
+                resolve(!!isConnected);
+              } catch (e) {
+                resolve(false);
+              }
+            });
+          });
+          req.on('error', () => resolve(false));
+          req.on('timeout', () => { req.destroy(); resolve(false); });
+        });
+      };
+
+      // 1. If Pinggy URL is already reported, verify if the streamer is connected
       if (instance.pinggyUrl) {
-        clearInterval(pollInterval);
-        socket.emit('server-ready', { pinggyUrl: instance.pinggyUrl });
-        return;
+        const isStreamerReady = await checkStreamerConnected(instance.pinggyUrl);
+        if (isStreamerReady) {
+          console.log(`[WS] Streamer is connected to signaling server at ${instance.pinggyUrl}. Redirecting client.`);
+          clearInterval(pollInterval);
+          socket.emit('server-ready', { pinggyUrl: instance.pinggyUrl });
+          return;
+        } else {
+          if (checkCount % 2 === 0) {
+            socket.emit('instance-status', { status: 'booting_server' });
+          }
+          checkCount++;
+          return;
+        }
       }
 
       try {
@@ -318,9 +353,18 @@ export class WebSocketService {
           // Check again if pinggyUrl was registered in the meantime
           const fresh = this.db.getInstance(uuid);
           if (fresh?.pinggyUrl) {
-            clearInterval(pollInterval);
-            socket.emit('server-ready', { pinggyUrl: fresh.pinggyUrl });
-            return;
+            const isStreamerReady = await checkStreamerConnected(fresh.pinggyUrl);
+            if (isStreamerReady) {
+              clearInterval(pollInterval);
+              socket.emit('server-ready', { pinggyUrl: fresh.pinggyUrl });
+              return;
+            } else {
+              if (checkCount % 2 === 0) {
+                socket.emit('instance-status', { status: 'booting_server' });
+              }
+              checkCount++;
+              return;
+            }
           }
 
           if (awsStatus.ip) {
@@ -337,14 +381,15 @@ export class WebSocketService {
               const pinggyUrl = fresh2?.pinggyUrl;
 
               if (pinggyUrl) {
-                // Tunnel is live — redirect via Pinggy
-                clearInterval(pollInterval);
-                socket.emit('server-ready', { pinggyUrl });
-              } else {
-                // Web server is up but Pinggy tunnel not yet registered — keep waiting
-                if (checkCount % 2 === 0) {
-                  socket.emit('instance-status', { status: 'booting_server' });
+                const isStreamerReady = await checkStreamerConnected(pinggyUrl);
+                if (isStreamerReady) {
+                  clearInterval(pollInterval);
+                  socket.emit('server-ready', { pinggyUrl });
+                  return;
                 }
+              }
+              if (checkCount % 2 === 0) {
+                socket.emit('instance-status', { status: 'booting_server' });
               }
             } else {
               if (checkCount % 2 === 0) socket.emit('instance-status', { status: 'booting_server' });
