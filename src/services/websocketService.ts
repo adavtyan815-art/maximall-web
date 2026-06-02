@@ -55,6 +55,7 @@ export class WebSocketService {
       for (const [uuid, instance] of Object.entries(instances)) {
         // Only care about active (non-stopped) instances
         if (instance.status === 'stopped' || instance.status === 'stopping') continue;
+        if (instance.assignedTo?.startsWith('Buffer')) continue;
 
         let instanceChanged = false;
 
@@ -219,6 +220,9 @@ export class WebSocketService {
 
     await this.db.saveInstance(targetUuid, targetInstance);
 
+    // Join the room for status updates
+    socket.join(`instance:${targetUuid}`);
+
     // Trigger pre-warm check since the buffer instance has been claimed
     ScalingService.getInstance().ensureBufferInstance().catch((err: any) => {
       console.error('[WS] Pre-warm trigger failed:', err.message);
@@ -265,6 +269,9 @@ export class WebSocketService {
       this.timeTracker.cancelGracePeriod(uuid);
     }
 
+    // Join the room for status updates
+    socket.join(`instance:${uuid}`);
+
     this.socketToSession.set(socket.id, { instanceUuid: uuid, hostToken });
 
     if (instance.status === 'pending' || instance.status === 'running') {
@@ -291,6 +298,13 @@ export class WebSocketService {
         return;
       }
 
+      // 1. If Pinggy URL is already reported, redirect immediately
+      if (instance.pinggyUrl) {
+        clearInterval(pollInterval);
+        socket.emit('server-ready', { pinggyUrl: instance.pinggyUrl });
+        return;
+      }
+
       try {
         const awsStatus = await this.ec2Service.getInstanceStatus(instance.instanceId);
 
@@ -299,6 +313,14 @@ export class WebSocketService {
             instance.status = 'running';
             this.timeTracker.startRealTimer(uuid);
             await this.db.saveInstance(uuid, instance);
+          }
+
+          // Check again if pinggyUrl was registered in the meantime
+          const fresh = this.db.getInstance(uuid);
+          if (fresh?.pinggyUrl) {
+            clearInterval(pollInterval);
+            socket.emit('server-ready', { pinggyUrl: fresh.pinggyUrl });
+            return;
           }
 
           if (awsStatus.ip) {
@@ -311,8 +333,8 @@ export class WebSocketService {
 
             if (isReady) {
               // Re-read instance to pick up pinggyUrl if /report-tunnel already fired
-              const fresh = this.db.getInstance(uuid);
-              const pinggyUrl = fresh?.pinggyUrl;
+              const fresh2 = this.db.getInstance(uuid);
+              const pinggyUrl = fresh2?.pinggyUrl;
 
               if (pinggyUrl) {
                 // Tunnel is live — redirect via Pinggy
@@ -553,6 +575,10 @@ export class WebSocketService {
     this.timeTracker.startGracePeriod(instanceUuid, async () => {
       const instance = this.db.getInstance(instanceUuid);
       if (!instance) return;
+      if (instance.assignedTo?.startsWith('Buffer')) {
+        console.log(`[WS] Skipping grace period expiry for buffer instance ${instanceUuid}`);
+        return;
+      }
 
       const hasActive = Array.from(instance.activeSessions.values()).some(s => s.displayStarted);
       if (!hasActive) {
