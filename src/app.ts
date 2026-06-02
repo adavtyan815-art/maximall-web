@@ -205,6 +205,42 @@ app.delete('/api/admin/instances/:uuid', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── Admin: sync instances with AWS ───────────────────────────────────────
+app.post('/api/admin/instances/sync', async (req, res) => {
+  try {
+    const db = DatabaseService.getInstance();
+    const discovered = await ec2Service.discoverInstancesByTag('Name', process.env.EC2_DISCOVERY_TAG ?? 'LinuxClient');
+    const currentInstances = db.getInstances();
+    const discoveredUuids = new Set<string>();
+
+    for (const inst of discovered) {
+      discoveredUuids.add(inst.uuid);
+      const existing = currentInstances[inst.uuid];
+      if (existing) {
+        inst.activeSessions = existing.activeSessions;
+        inst.realTimeUsedSeconds = existing.realTimeUsedSeconds;
+        inst.displayTimeUsedSeconds = existing.displayTimeUsedSeconds;
+        if (existing.pinggyUrl && !inst.pinggyUrl) {
+          inst.pinggyUrl = existing.pinggyUrl;
+        }
+      }
+      await db.saveInstance(inst.uuid, inst);
+    }
+
+    // Delete any instance from memory that wasn't found in AWS (excluding mocks)
+    for (const uuid of Object.keys(currentInstances)) {
+      if (!discoveredUuids.has(uuid) && !uuid.startsWith('i-mock')) {
+        await db.deleteInstance(uuid);
+      }
+    }
+
+    res.json({ success: true, count: discovered.length });
+  } catch (err: any) {
+    console.error('[Admin API] Instance sync failed:', err);
+    res.status(500).json({ success: false, error: err.message || 'Sync failed' });
+  }
+});
+
 // ── Admin: edit instance ─────────────────────────────────────────────────
 app.put('/api/admin/instances/:uuid', async (req, res) => {
   const db = DatabaseService.getInstance();

@@ -183,7 +183,8 @@
     <div id="tab-dashboard">
       <div class="header">
         <div class="header-title">Инстансы (Серверы)</div>
-        <div>
+        <div style="display: flex; gap: 1rem;">
+          <button class="btn btn-primary" id="btn-sync" onclick="syncInstances()">Синхронизировать с AWS</button>
           <button class="btn btn-secondary" onclick="copyLink()">Копировать общую ссылку</button>
         </div>
       </div>
@@ -405,6 +406,30 @@
         helper.select();
         document.execCommand('copy');
         alert('Ссылка на целевую страницу скопирована! (Резервный метод)');
+      }
+    }
+
+    async function syncInstances() {
+      const btn = document.getElementById('btn-sync');
+      if (btn.disabled) return;
+      
+      btn.disabled = true;
+      btn.innerText = 'Синхронизация...';
+      try {
+        const response = await fetch('/api/admin/instances/sync', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          alert(`Синхронизация успешна! Найдено инстансов: ${data.count}`);
+          loadInstances();
+        } else {
+          alert(`Ошибка синхронизации: ${data.error}`);
+        }
+      } catch (err) {
+        console.error('Failed to sync instances', err);
+        alert('Ошибка при выполнении запроса к серверу.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Синхронизировать с AWS';
       }
     }
 
