@@ -54,15 +54,32 @@ export class EC2Service {
   }
 
   async getAmiIdByName(name: string): Promise<string> {
+    const namesToTry = [name];
+    if (name === 'LinuxClientAMI') {
+      namesToTry.push('LinuxClient');
+    }
+
     const command = new DescribeImagesCommand({
+      Owners: ['self'],
       Filters: [
-        { Name: 'name', Values: [name] }
+        { Name: 'name', Values: namesToTry }
       ]
     });
     const response = await this.client.send(command);
-    const amiId = response.Images?.[0]?.ImageId;
-    if (!amiId) throw new Error(`AMI named ${name} not found`);
-    return amiId;
+    const images = response.Images || [];
+    
+    for (const targetName of namesToTry) {
+      const match = images.find(img => img.Name === targetName);
+      if (match?.ImageId) {
+        return match.ImageId;
+      }
+    }
+
+    if (images[0]?.ImageId) {
+      return images[0].ImageId;
+    }
+
+    throw new Error(`AMI named ${name} not found`);
   }
 
   async createInstance(instanceType: string, amiId: string): Promise<{ instanceId: string }> {
