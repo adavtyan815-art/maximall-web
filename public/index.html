@@ -125,6 +125,59 @@
       opacity: 0.6;
     }
 
+    /* ── Progress Bar Styles ── */
+    .progress-container {
+      width: 100%;
+      max-width: 450px;
+      margin: 15px auto 25px auto;
+      font-family: Arial, sans-serif;
+      padding: 0 10px;
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(87, 166, 250, 0.15);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #57A6FA 0%, #34d399 100%);
+      box-shadow: 0 0 12px rgba(87, 166, 250, 0.6);
+      border-radius: 6px;
+      transition: width 0.1s linear;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+
+    #progress-stage {
+      color: #57A6FA;
+      font-weight: bold;
+      transition: color 0.3s ease;
+    }
+
+    #progress-percent {
+      color: #34d399;
+      font-weight: bold;
+    }
+
+    .loader-container {
+      transition: opacity 0.5s ease;
+      opacity: 1;
+    }
+
     /* ── No-instance available screen ── */
     #no-instance-ui {
       display: none;
@@ -240,6 +293,8 @@
             <ul class="buttons-component instance-1 style-2">
               <li><a href="#" id="btn" class="n01">ВОЙТИ В 3D КОМНАТУ</a></li>
             </ul>
+            <!-- Error message banner -->
+            <div id="error-banner" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; padding: 12px; margin-top: 20px; max-width: 450px; margin-left: auto; margin-right: auto; font-family: Arial, sans-serif; font-size: 0.95rem; font-weight: bold; text-align: center;"></div>
           </div>
 
           <!-- Loading UI -->
@@ -254,7 +309,19 @@
                 <div class="face bottom"></div>
               </div>
             </div>
-            <div id="status-text">Обработка...</div>
+
+            <!-- Progress Bar Section -->
+            <div class="progress-container">
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+              </div>
+              <div class="progress-meta">
+                <span id="progress-stage">Запуск облачного сервера...</span>
+                <span id="progress-percent">0%</span>
+              </div>
+            </div>
+
+            <div id="status-text" style="display: none;">Обработка...</div>
             <div id="tips-text"></div>
           </div>
 
@@ -335,6 +402,12 @@
     const statusText = document.getElementById('status-text');
     const tipsText = document.getElementById('tips-text');
 
+    // Progress elements
+    const progressFill = document.getElementById('progress-fill');
+    const progressStage = document.getElementById('progress-stage');
+    const progressPercent = document.getElementById('progress-percent');
+    const errorBanner = document.getElementById('error-banner');
+
     let tipInterval = null;
     let tipIndex = 0;
 
@@ -359,18 +432,95 @@
       "Четкость изображения зависит от скорости соединения с сервером: при слабом соединении качество может временно снизиться."
     ];
 
+    // Progress Bar Simulation State
+    let currentPercent = 0;
+    let softCap = 20;
+    let progressTimer = null;
+
+    function getStageText(progress) {
+      if (progress < 25) {
+        return "Запуск облачного сервера...";
+      } else if (progress < 50) {
+        return "Инициализация системы...";
+      } else if (progress < 75) {
+        return "Запуск 3D пространства...";
+      } else {
+        return "Подключение к трансляции...";
+      }
+    }
+
+    function updateProgressUI() {
+      progressFill.style.width = currentPercent + '%';
+      progressPercent.textContent = Math.round(currentPercent) + '%';
+      progressStage.textContent = getStageText(currentPercent);
+    }
+
+    function startProgressSimulation() {
+      stopProgressSimulation();
+      currentPercent = 0;
+      softCap = 20;
+      updateProgressUI();
+      
+      progressTimer = setInterval(() => {
+        if (currentPercent < softCap) {
+          const diff = softCap - currentPercent;
+          let step = diff * 0.08;
+          if (step < 0.1) step = 0.1;
+          currentPercent += step;
+        } else if (currentPercent < 99) {
+          currentPercent += 0.02;
+        }
+        updateProgressUI();
+      }, 30);
+    }
+
+    function stopProgressSimulation() {
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
+    }
+
+    function setTargetStage(cap) {
+      softCap = cap;
+    }
+
+    function completeProgressSimulation(callback) {
+      stopProgressSimulation();
+      
+      progressTimer = setInterval(() => {
+        if (currentPercent < 100) {
+          currentPercent += (100 - currentPercent) * 0.25 + 0.5;
+          if (currentPercent >= 100) currentPercent = 100;
+          updateProgressUI();
+        } else {
+          stopProgressSimulation();
+          if (callback) callback();
+        }
+      }, 30);
+    }
+
     // ── UI state helpers ──────────────────────────────────────────────────
     function showLoadingUI() {
       launcherUI.style.display = 'none';
+      loadingUI.style.opacity = '1';
       loadingUI.style.display = 'flex';
       noInstanceUI.style.display = 'none';
+      errorBanner.style.display = 'none';
+      if (!progressTimer) {
+        startProgressSimulation();
+      }
       if (!tipInterval) startTips();
     }
 
-    function showLauncherUI() {
+    function showLauncherUI(keepError = false) {
       launcherUI.style.display = 'block';
       loadingUI.style.display = 'none';
       noInstanceUI.style.display = 'none';
+      stopProgressSimulation();
+      if (!keepError) {
+        errorBanner.style.display = 'none';
+      }
       if (tipInterval) { clearInterval(tipInterval); tipInterval = null; }
     }
 
@@ -378,6 +528,8 @@
       launcherUI.style.display = 'none';
       loadingUI.style.display = 'none';
       noInstanceUI.style.display = 'flex';
+      errorBanner.style.display = 'none';
+      stopProgressSimulation();
       if (tipInterval) { clearInterval(tipInterval); tipInterval = null; }
     }
 
@@ -395,9 +547,12 @@
     }
 
     function showError(msg) {
-      statusText.textContent = msg;
-      statusText.style.color = '#ef4444';
-      showLauncherUI();
+      stopProgressSimulation();
+      
+      errorBanner.textContent = msg;
+      errorBanner.style.display = 'block';
+      
+      showLauncherUI(true);
     }
 
     // ── Socket Events ──────────────────────────────────────────────────────
@@ -405,14 +560,14 @@
     socket.on('connect_error', (err) => {
       console.error('Connection Error:', err);
       if (loadingUI.style.display === 'flex') {
-        statusText.style.color = '#ef4444';
-        statusText.innerText = "Ошибка сервера. Проверьте интернет.";
+        stopProgressSimulation();
+        progressStage.style.color = '#ef4444';
+        progressStage.innerText = "Ошибка сервера. Проверьте интернет.";
       }
     });
 
     socket.on('connect', () => {
       console.log('Connected to server');
-      statusText.style.color = '#57A6FA';
 
       // 1. Auto-Resume Check (Skip login button if active session exists)
       socket.emit('check-active-session', { deviceId });
@@ -420,7 +575,6 @@
       // Fallback for explicitly stored session
       if (assignedUuid && globalHostToken) {
         showLoadingUI();
-        statusText.innerText = "Восстановление сессии...";
         socket.emit('resume-instance', {
           instanceUuid: assignedUuid,
           hostToken: globalHostToken,
@@ -432,15 +586,16 @@
     socket.on('disconnect', (reason) => {
       console.warn('Disconnected:', reason);
       if (loadingUI.style.display === 'flex') {
-        statusText.style.color = '#f59e0b';
-        statusText.innerText = "Связь потеряна. Ожидание восстановления...";
+        stopProgressSimulation();
+        progressStage.style.color = '#f59e0b';
+        progressStage.innerText = "Связь потеряна. Ожидание восстановления...";
       }
     });
 
     socket.on('reconnect_attempt', (attempt) => {
       console.log('Attempting to reconnect:', attempt);
       if (loadingUI.style.display === 'flex') {
-        statusText.innerText = `Переподключение (попытка ${attempt})...`;
+        progressStage.innerText = `Переподключение (попытка ${attempt})...`;
       }
     });
 
@@ -452,7 +607,6 @@
       sessionStorage.setItem('global_hostToken', globalHostToken);
 
       showLoadingUI();
-      statusText.innerText = "Загрузка активной комнаты...";
       socket.emit('resume-instance', {
         instanceUuid: assignedUuid,
         hostToken: globalHostToken,
@@ -461,12 +615,7 @@
     });
 
     socket.on('session-not-found', () => {
-      // Normal flow - show launcher if not already loading
       if (!assignedUuid) showLauncherUI();
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
     });
 
     socket.on('instance-assigned', (data) => {
@@ -477,10 +626,8 @@
 
       if (data.rescued) {
         isRescuedRedirect = true;
-        statusText.innerText = "Подключаемся к активному залу...";
       } else {
         isRescuedRedirect = false;
-        statusText.innerText = "Подключение к серверу...";
       }
     });
 
@@ -514,32 +661,32 @@
       }
       else if (status === 'pending') {
         showLoadingUI();
-        statusText.textContent = "Запуск сервера... пожалуйста, подождите.";
+        setTargetStage(49); // Cap at 49% during boot
       }
       else if (status === 'booting_server') {
         showLoadingUI();
-        statusText.textContent = "Сервер активен: ожидание запуска 3D программы...";
+        setTargetStage(79); // Cap at 79% during app start
       }
     });
 
     socket.on('server-ready', (data) => {
-      statusText.textContent = "Сервер готов, перенаправление...";
-      tipsText.textContent = "Соединение установлено.";
+      completeProgressSimulation(() => {
+        tipsText.textContent = "Соединение установлено.";
+        loadingUI.style.opacity = '0'; // Trigger fade-out
 
-      // Prefer the Pinggy tunnel URL reported by the EC2 instance.
-      // Fall back to the raw IP only in local dev (no tunnel configured).
-      let targetUrl = data.pinggyUrl || data.ip || 'http://localhost:8000';
-      if (!targetUrl.startsWith('http')) targetUrl = `http://${targetUrl}:8000`;
+        let targetUrl = data.pinggyUrl || data.ip || 'http://localhost:8000';
+        if (!targetUrl.startsWith('http')) targetUrl = `http://${targetUrl}:8000`;
 
-      const pixelStreamLink =
-        `${targetUrl}/player.html` +
-        `?backendUrl=${encodeURIComponent(window.location.origin)}` +
-        `&instanceUuid=${assignedUuid}` +
-        `&hostToken=${encodeURIComponent(globalHostToken)}` +
-        `&deviceId=${encodeURIComponent(deviceId)}`;
+        const pixelStreamLink =
+          `${targetUrl}/player.html` +
+          `?backendUrl=${encodeURIComponent(window.location.origin)}` +
+          `&instanceUuid=${assignedUuid}` +
+          `&hostToken=${encodeURIComponent(globalHostToken)}` +
+          `&deviceId=${encodeURIComponent(deviceId)}`;
 
-      const delay = isRescuedRedirect ? 3000 : 1000;
-      setTimeout(() => { window.location.href = pixelStreamLink; }, delay);
+        const delay = isRescuedRedirect ? 3000 : 500; // Delay redirect slightly to let visual fade-out finish
+        setTimeout(() => { window.location.href = pixelStreamLink; }, delay);
+      });
     });
 
     // ── Button click: request server via WebSocket ──────────────────────────
@@ -554,8 +701,6 @@
 
       btn.classList.add('btn-disabled');
       showLoadingUI();
-      statusText.style.color = '#57A6FA';
-      statusText.innerText = "Поиск доступного сервера...";
 
       socket.emit('request-instance', {
         hostToken: globalHostToken || undefined,
