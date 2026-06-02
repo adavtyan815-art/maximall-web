@@ -369,7 +369,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
     console.log(`[On-Demand] EC2 instance created: ${instanceId}`);
 
     const newInst = {
-      uuid,
+      uuid: instanceId,
       instanceId,
       displayLimitHours: 0,
       realLimitHours: 0,
@@ -395,8 +395,8 @@ app.post('/api/instances/connect-available', async (req, res) => {
       displayStarted: false
     });
 
-    await db.saveInstance(uuid, newInst);
-    res.json({ success: true, uuid, status: 'pending', hostToken });
+    await db.saveInstance(instanceId, newInst);
+    res.json({ success: true, uuid: instanceId, status: 'pending', hostToken });
 
   } catch (err: any) {
     const errMsg = err.message || 'Failed to spawn on-demand instance';

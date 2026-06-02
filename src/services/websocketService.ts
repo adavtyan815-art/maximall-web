@@ -216,7 +216,7 @@ export class WebSocketService {
       console.log(`[WS On-Demand] EC2 instance created: ${instanceId}`);
 
       const targetInstance = {
-        uuid: targetUuid,
+        uuid: instanceId,
         instanceId,
         displayLimitHours: 0,
         realLimitHours: 0,
@@ -245,16 +245,16 @@ export class WebSocketService {
         deviceId: deviceId,
       });
 
-      await this.db.saveInstance(targetUuid, targetInstance);
+      await this.db.saveInstance(instanceId, targetInstance);
 
       // Join the room for status updates
-      socket.join(`instance:${targetUuid}`);
+      socket.join(`instance:${instanceId}`);
 
-      this.socketToSession.set(socket.id, { instanceUuid: targetUuid, hostToken });
-      socket.emit('instance-assigned', { uuid: targetUuid, hostToken, rescued: false });
+      this.socketToSession.set(socket.id, { instanceUuid: instanceId, hostToken });
+      socket.emit('instance-assigned', { uuid: instanceId, hostToken, rescued: false });
 
       // Start status polling
-      this.startAwsStatusPoll(socket, targetUuid, hostToken);
+      this.startAwsStatusPoll(socket, instanceId, hostToken);
 
     } catch (err: any) {
       const errMsg = err.message || 'AWS Spawn Failed';
