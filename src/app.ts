@@ -341,70 +341,68 @@ app.get('/api/instances/:uuid/status', async (req, res) => {
   });
 });
 
-// ── Public: Atomically scan for STOPPED instance and connect ────────────
+// ── Public: On-Demand Dynamic EC2 instance spawn and connect ────────────
 app.post('/api/instances/connect-available', async (req, res) => {
   const db = DatabaseService.getInstance();
-  const instances = db.getInstances();
-  
-  // Find first STOPPED instance.
-  // By doing this and updating to 'pending' in the same sync tick, 
-  // we guarantee exclusive instance pairing (no race conditions).
-  const entry = Object.entries(instances).find(([, inst]) => inst.status === 'stopped');
-  
-  if (!entry) {
-    return res.json({ success: false, error: 'No available instances at this time.' });
-  }
+  const uuid = crypto.randomUUID();
+  let hostToken = req.body.hostToken || crypto.randomUUID();
 
-  const uuid = entry[0];
-  const inst = entry[1];
-  
-  let hostToken = req.body.hostToken;
+  try {
+    console.log('[On-Demand] Resolving LinuxClientAMI...');
+    const amiId = await ec2Service.getAmiIdByName('LinuxClientAMI');
 
-  // Purge stale sessions
-  const TIMEOUT = Number(config.HEARTBEAT_TIMEOUT_MS) || 30000;
-  for (const [token, session] of inst.activeSessions.entries()) {
-    if (Date.now() - session.lastSeenAt > TIMEOUT * 3) {
-      inst.activeSessions.delete(token);
+    // Discover valid config from any existing discovered instances in the database
+    const instances = db.getInstances();
+    const existingInst = Object.values(instances).find(inst => inst.ec2Config?.subnetId && inst.ec2Config?.securityGroupId);
+    
+    let subnetId = config.AWS_SUBNET_ID;
+    let securityGroupId = config.AWS_SECURITY_GROUP_ID;
+
+    if (existingInst && existingInst.ec2Config) {
+      subnetId = existingInst.ec2Config.subnetId;
+      securityGroupId = existingInst.ec2Config.securityGroupId;
+      console.log(`[On-Demand] Dynamically cloning configuration from existing instance ${existingInst.instanceId}: Subnet=${subnetId}, SecurityGroup=${securityGroupId}`);
     }
-  }
 
-  if (!hostToken || !inst.activeSessions.has(hostToken)) {
-    hostToken = crypto.randomUUID();
-    inst.activeSessions.set(hostToken, {
+    console.log(`[On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
+    const { instanceId } = await ec2Service.createInstance('g4dn.2xlarge', amiId, subnetId, securityGroupId);
+    console.log(`[On-Demand] EC2 instance created: ${instanceId}`);
+
+    const newInst = {
+      uuid,
+      instanceId,
+      displayLimitHours: 0,
+      realLimitHours: 0,
+      displayTimeUsedSeconds: 0,
+      realTimeUsedSeconds: 0,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+      assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
+      ec2Config: {
+        instanceType: 'g4dn.2xlarge',
+        region: config.AWS_REGION || 'eu-central-1',
+        amiId,
+        securityGroupId,
+        subnetId,
+      },
+      activeSessions: new Map(),
+    };
+
+    newInst.activeSessions.set(hostToken, {
       hostToken: hostToken,
       lastSeenAt: Date.now(),
       displayStarted: false
     });
-  } else {
-    const existing = inst.activeSessions.get(hostToken)!;
-    existing.lastSeenAt = Date.now();
+
+    await db.saveInstance(uuid, newInst);
+    res.json({ success: true, uuid, status: 'pending', hostToken });
+
+  } catch (err: any) {
+    const errMsg = err.message || 'Failed to spawn on-demand instance';
+    console.error('[On-Demand] Failed to connect-available:', errMsg);
+    res.status(500).json({ success: false, error: errMsg });
   }
-
-  // Atomically lock it so no other connect request grabs it
-  inst.status = 'pending';
-  await db.saveInstance(uuid, inst);
-
-  // Trigger pre-warm scale check to maintain exactly 1 idle buffer instance
-  ScalingService.getInstance().ensureBufferInstance().catch((err: any) => {
-    console.error('[Scaling] Startup pre-warm check failed:', err.message);
-  });
-
-  // Return exactly the uuid and token
-  res.json({ success: true, uuid, status: 'pending', hostToken });
-
-  // Boot the instance in background
-  ec2Service.startInstance(inst.instanceId).then(() => {
-    console.log(`[AWS] Instance ${inst.instanceId} start command accepted`);
-  }).catch(async (e: any) => {
-    const errMsg = e.message || 'Unknown AWS error';
-    console.error('[AWS] startInstance failed:', errMsg);
-    const current = db.getInstance(uuid);
-    if (current) {
-      current.status = 'stopped';
-      (current as any).lastError = errMsg;
-      await db.saveInstance(uuid, current).catch(() => {});
-    }
-  });
 });
 
 

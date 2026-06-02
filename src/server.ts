@@ -5,7 +5,6 @@ import { DatabaseService } from './services/databaseService';
 import { SettingsService } from './services/settingsService';
 import { WebSocketService } from './services/websocketService';
 import { EC2Service } from './services/ec2Service';
-import { ScalingService } from './services/scalingService';
 
 const PORT = config.PORT;
 
@@ -41,10 +40,6 @@ async function bootstrap() {
         }
         console.log(`[Server] ${discovered.length} instance(s) loaded into pool.`);
       }
-
-      // Dynamic Scaling: ensure we have exactly 1 idle/buffer instance
-      const scalingService = ScalingService.getInstance();
-      await scalingService.ensureBufferInstance();
 
     } catch (err: any) {
       // Discovery failure is non-fatal — server still starts, pool will just be empty

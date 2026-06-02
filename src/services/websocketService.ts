@@ -7,6 +7,7 @@ import { DisplayStartData, HeartbeatData } from '../types/websocket.types';
 import { randomUUID } from 'crypto';
 import * as http from 'http';
 import { ScalingService } from './scalingService';
+import { config } from '../config';
 
 export class WebSocketService {
   private io: SocketServer;
@@ -55,7 +56,6 @@ export class WebSocketService {
       for (const [uuid, instance] of Object.entries(instances)) {
         // Only care about active (non-stopped) instances
         if (instance.status === 'stopped' || instance.status === 'stopping') continue;
-        if (instance.assignedTo?.startsWith('Buffer')) continue;
 
         let instanceChanged = false;
 
@@ -192,60 +192,75 @@ export class WebSocketService {
       }
     }
 
-    // 2. Find a STOPPED instance to exclusively assign
-    // Rule: We MUST NOT give any instance that is not fully 'stopped' to a new user/IP.
-    const entry = Object.entries(instances).find(([, inst]) => inst.status === 'stopped');
-    if (!entry) {
-      socket.emit('no-instance-available');
-      return;
-    }
+    // 2. Spawn a fresh On-Demand instance dynamically
+    const targetUuid = randomUUID();
+    const hostToken = clientToken || randomUUID();
 
-    let targetUuid = entry[0];
-    let targetInstance = entry[1];
-    let hostToken = clientToken || randomUUID();
+    try {
+      console.log('[WS On-Demand] Resolving LinuxClientAMI...');
+      const amiId = await this.ec2Service.getAmiIdByName('LinuxClientAMI');
 
-    // Lock / Claim it immediately
-    targetInstance.status = 'pending';
-    targetInstance.activeSessions.clear();
+      // Discover network config from any existing active instances
+      const existingInst = Object.values(instances).find(inst => inst.ec2Config?.subnetId && inst.ec2Config?.securityGroupId);
+      let subnetId = config.AWS_SUBNET_ID;
+      let securityGroupId = config.AWS_SECURITY_GROUP_ID;
 
-    // Setup session basic
-    targetInstance.activeSessions.set(hostToken, {
-      hostToken,
-      lastSeenAt: Date.now(),
-      displayStarted: false,
-      socketId: socket.id,
-      ipAddress: socket.handshake.address,
-      deviceId: deviceId, // Bind to the hardware ID
-    });
-
-    await this.db.saveInstance(targetUuid, targetInstance);
-
-    // Join the room for status updates
-    socket.join(`instance:${targetUuid}`);
-
-    // Trigger pre-warm check since the buffer instance has been claimed
-    ScalingService.getInstance().ensureBufferInstance().catch((err: any) => {
-      console.error('[WS] Pre-warm trigger failed:', err.message);
-    });
-
-    this.socketToSession.set(socket.id, { instanceUuid: targetUuid, hostToken });
-    socket.emit('instance-assigned', { uuid: targetUuid, hostToken, rescued: false });
-
-    // Boot the instance
-    this.ec2Service.startInstance(targetInstance.instanceId).then(() => {
-      console.log(`[WS] AWS Instance ${targetInstance.instanceId} start accepted`);
-      this.startAwsStatusPoll(socket, targetUuid, hostToken);
-    }).catch(async (e: any) => {
-      const errMsg = e.message || 'Unknown AWS error';
-      console.error('[WS] startInstance failed:', errMsg);
-      const current = this.db.getInstance(targetUuid);
-      if (current) {
-        current.status = 'stopped';
-        (current as any).lastError = errMsg;
-        await this.db.saveInstance(targetUuid, current);
+      if (existingInst && existingInst.ec2Config) {
+        subnetId = existingInst.ec2Config.subnetId;
+        securityGroupId = existingInst.ec2Config.securityGroupId;
+        console.log(`[WS On-Demand] Dynamically cloning configuration from existing instance ${existingInst.instanceId}: Subnet=${subnetId}, SecurityGroup=${securityGroupId}`);
       }
+
+      console.log(`[WS On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
+      const { instanceId } = await this.ec2Service.createInstance('g4dn.2xlarge', amiId, subnetId, securityGroupId);
+      console.log(`[WS On-Demand] EC2 instance created: ${instanceId}`);
+
+      const targetInstance = {
+        uuid: targetUuid,
+        instanceId,
+        displayLimitHours: 0,
+        realLimitHours: 0,
+        displayTimeUsedSeconds: 0,
+        realTimeUsedSeconds: 0,
+        status: 'pending' as const,
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+        assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
+        ec2Config: {
+          instanceType: 'g4dn.2xlarge',
+          region: config.AWS_REGION || 'eu-central-1',
+          amiId,
+          securityGroupId,
+          subnetId,
+        },
+        activeSessions: new Map(),
+      };
+
+      targetInstance.activeSessions.set(hostToken, {
+        hostToken,
+        lastSeenAt: Date.now(),
+        displayStarted: false,
+        socketId: socket.id,
+        ipAddress: socket.handshake.address,
+        deviceId: deviceId,
+      });
+
+      await this.db.saveInstance(targetUuid, targetInstance);
+
+      // Join the room for status updates
+      socket.join(`instance:${targetUuid}`);
+
+      this.socketToSession.set(socket.id, { instanceUuid: targetUuid, hostToken });
+      socket.emit('instance-assigned', { uuid: targetUuid, hostToken, rescued: false });
+
+      // Start status polling
+      this.startAwsStatusPoll(socket, targetUuid, hostToken);
+
+    } catch (err: any) {
+      const errMsg = err.message || 'AWS Spawn Failed';
+      console.error('[WS On-Demand] Spawn failed:', errMsg);
       socket.emit('instance-error', { message: errMsg });
-    });
+    }
   }
 
   // ── Handle resume-instance ──────────────────────────────────────────────────
@@ -620,10 +635,6 @@ export class WebSocketService {
     this.timeTracker.startGracePeriod(instanceUuid, async () => {
       const instance = this.db.getInstance(instanceUuid);
       if (!instance) return;
-      if (instance.assignedTo?.startsWith('Buffer')) {
-        console.log(`[WS] Skipping grace period expiry for buffer instance ${instanceUuid}`);
-        return;
-      }
 
       const hasActive = Array.from(instance.activeSessions.values()).some(s => s.displayStarted);
       if (!hasActive) {
