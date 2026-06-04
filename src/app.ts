@@ -82,7 +82,7 @@ app.get('/api/admin/instances', (req, res) => {
 });
 
 // ── Admin: dashboard summary (categorized by pool role) ───────────────────────
-app.get('/api/admin/dashboard', (req, res) => {
+app.get('/api/admin/dashboard', async (req, res) => {
   const db = DatabaseService.getInstance();
   const scaling = ScalingService.getInstance();
   const timeTracker = TimeTrackerService.getInstance();
@@ -97,6 +97,33 @@ app.get('/api/admin/dashboard', (req, res) => {
   let totalTimeSeconds = 0;
 
   for (const [uuid, inst] of Object.entries(instances)) {
+    // Dynamic audit for pending/stopping states to avoid UI getting stuck on "pending"
+    if (inst.status === 'pending' || inst.status === 'stopping') {
+      try {
+        const awsStatus = await ec2Service.getInstanceStatus(inst.instanceId);
+        let updated = false;
+        if (inst.status === 'stopping' && (awsStatus.state === 'stopped' || awsStatus.state === 'terminated')) {
+          inst.status = 'stopped';
+          updated = true;
+        } else if (inst.status === 'pending' && awsStatus.state === 'running') {
+          inst.status = 'running';
+          updated = true;
+          // Start the session timer if this is a claimed active user session
+          if (inst.assignedTo !== 'Buffer' && inst.assignedTo !== 'Prewarm') {
+            timeTracker.startRealTimer(uuid);
+          }
+        } else if (inst.status === 'pending' && awsStatus.state === 'stopped') {
+          inst.status = 'stopped';
+          updated = true;
+        }
+        if (updated) {
+          await db.saveInstance(uuid, inst);
+        }
+      } catch (err: any) {
+        console.warn(`[Dashboard Audit] Failed to fetch state for instance ${inst.instanceId}:`, err.message);
+      }
+    }
+
     const base = {
       uuid,
       instanceId:  inst.instanceId,
@@ -108,14 +135,14 @@ app.get('/api/admin/dashboard', (req, res) => {
       realTimeUsedSeconds: inst.realTimeUsedSeconds || 0,
     };
 
-    if (inst.assignedTo === 'Buffer' && inst.status === 'stopped') {
+    if (inst.assignedTo === 'Buffer') {
       bufferReady.push(base);
     } else if (inst.assignedTo === 'Prewarm' || prewarmPhases.has(uuid)) {
       prewarm.push({
         ...base,
         phase: prewarmPhases.get(uuid) ?? 1,
       });
-    } else if (inst.assignedTo !== 'Buffer' && inst.assignedTo !== 'Prewarm') {
+    } else {
       // Real client session
       totalTimeSeconds += base.realTimeUsedSeconds;
       activeSessions.push(base);
@@ -283,38 +310,48 @@ app.post('/api/admin/instances/:uuid/abort-prewarm', async (req, res) => {
   }
 });
 
+// Helper to perform AWS sync and audit buffer pool to trigger prewarm loop if needed
+async function performAwsSyncAndBufferAudit(): Promise<number> {
+  const db = DatabaseService.getInstance();
+  const scaling = ScalingService.getInstance();
+  const discovered = await ec2Service.discoverInstancesByTag('Name', process.env.EC2_DISCOVERY_TAG ?? 'LinuxClient');
+  const currentInstances = db.getInstances();
+  const discoveredUuids = new Set<string>();
+
+  for (const inst of discovered) {
+    discoveredUuids.add(inst.uuid);
+    const existing = currentInstances[inst.uuid];
+    if (existing) {
+      // Preserve in-memory pool role assignment (e.g. Prewarm, Buffer, or User)
+      inst.assignedTo = existing.assignedTo;
+      inst.activeSessions = existing.activeSessions;
+      inst.realTimeUsedSeconds = existing.realTimeUsedSeconds;
+      inst.displayTimeUsedSeconds = existing.displayTimeUsedSeconds;
+      if (existing.pinggyUrl && !inst.pinggyUrl) {
+        inst.pinggyUrl = existing.pinggyUrl;
+      }
+    }
+    await db.saveInstance(inst.uuid, inst);
+  }
+
+  // Delete any instance from memory that wasn't found in AWS (excluding mocks)
+  for (const uuid of Object.keys(currentInstances)) {
+    if (!discoveredUuids.has(uuid) && !uuid.startsWith('i-mock')) {
+      await db.deleteInstance(uuid);
+    }
+  }
+
+  // Audit buffer pool and trigger prewarm replenishment loop if count < 3
+  await scaling.forceReconcile();
+
+  return discovered.length;
+}
+
 // ── Admin: sync instances with AWS ───────────────────────────────────────
 app.post('/api/admin/instances/sync', async (req, res) => {
   try {
-    const db = DatabaseService.getInstance();
-    const discovered = await ec2Service.discoverInstancesByTag('Name', process.env.EC2_DISCOVERY_TAG ?? 'LinuxClient');
-    const currentInstances = db.getInstances();
-    const discoveredUuids = new Set<string>();
-
-    for (const inst of discovered) {
-      discoveredUuids.add(inst.uuid);
-      const existing = currentInstances[inst.uuid];
-      if (existing) {
-        // Preserve in-memory pool role assignment (e.g. Prewarm, Buffer, or User)
-        inst.assignedTo = existing.assignedTo;
-        inst.activeSessions = existing.activeSessions;
-        inst.realTimeUsedSeconds = existing.realTimeUsedSeconds;
-        inst.displayTimeUsedSeconds = existing.displayTimeUsedSeconds;
-        if (existing.pinggyUrl && !inst.pinggyUrl) {
-          inst.pinggyUrl = existing.pinggyUrl;
-        }
-      }
-      await db.saveInstance(inst.uuid, inst);
-    }
-
-    // Delete any instance from memory that wasn't found in AWS (excluding mocks)
-    for (const uuid of Object.keys(currentInstances)) {
-      if (!discoveredUuids.has(uuid) && !uuid.startsWith('i-mock')) {
-        await db.deleteInstance(uuid);
-      }
-    }
-
-    res.json({ success: true, count: discovered.length });
+    const count = await performAwsSyncAndBufferAudit();
+    res.json({ success: true, count });
   } catch (err: any) {
     console.error('[Admin API] Instance sync failed:', err);
     res.status(500).json({ success: false, error: err.message || 'Sync failed' });
@@ -340,6 +377,12 @@ app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === config.ADMIN_USERNAME && password === config.ADMIN_PASSWORD_HASH) {
     (req.session as any).isAdmin = true;
+
+    // Run async sync & replenishment check immediately on successful admin login
+    performAwsSyncAndBufferAudit()
+      .then((count) => console.log(`[Auth Login] Sync & buffer audit completed. Discovered: ${count}`))
+      .catch((err) => console.error('[Auth Login] Sync & buffer audit failed:', err.message));
+
     res.json({ success: true });
   } else {
     res.status(401).json({ success: false, error: 'Invalid credentials' });

@@ -194,6 +194,11 @@ export class ScalingService {
     }, RECONCILE_INTERVAL_MS);
   }
 
+  async forceReconcile(): Promise<void> {
+    console.log('[Scaling] Force-triggered pool reconciliation audit...');
+    await this.reconcilePool();
+  }
+
   // ── Pool Reconciliation ───────────────────────────────────────────────────
   private async reconcilePool(): Promise<void> {
     const instances = this.db.getInstances();
