@@ -38,6 +38,7 @@ export class EC2Service {
   }
 
   async terminateInstance(instanceId: string): Promise<{ success: boolean }> {
+    console.log(`[EC2Service] TerminateInstancesCommand called for ${instanceId}. Call stack:\n`, new Error().stack);
     const command = new TerminateInstancesCommand({ InstanceIds: [instanceId] });
     await this.client.send(command);
     return { success: true };
@@ -122,7 +123,8 @@ export class EC2Service {
         {
           ResourceType: 'instance',
           Tags: [
-            { Key: 'Name', Value: 'LinuxClient' }
+            { Key: 'Name', Value: 'LinuxClient' },
+            { Key: 'Purpose', Value: 'Prewarm' },
           ]
         }
       ]
@@ -172,6 +174,7 @@ export class EC2Service {
 
         // Read the Name tag as the display label
         const nameTag = ec2.Tags?.find(t => t.Key === 'Name')?.Value ?? 'Без метки';
+        const purposeTag = ec2.Tags?.find(t => t.Key === 'Purpose')?.Value;
 
         // Map AWS state → app status
         const awsState = ec2.State?.Name ?? 'stopped';
@@ -186,6 +189,11 @@ export class EC2Service {
         };
         const status: AppStatus = stateMap[awsState] ?? 'stopped';
 
+        let assignedTo = nameTag;
+        if (purposeTag === 'Prewarm') {
+          assignedTo = status === 'stopped' ? 'Buffer' : 'Prewarm';
+        }
+
         discovered.push({
           uuid,
           instanceId: ec2.InstanceId,
@@ -196,7 +204,7 @@ export class EC2Service {
           status,
           createdAt: ec2.LaunchTime?.toISOString() ?? new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
-          assignedTo: nameTag,
+          assignedTo,
           ec2Config: {
             instanceType: ec2.InstanceType ?? 'g4dn.2xlarge',
             region: config.AWS_REGION || 'eu-central-1',

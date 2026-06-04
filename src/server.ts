@@ -5,6 +5,7 @@ import { DatabaseService } from './services/databaseService';
 import { SettingsService } from './services/settingsService';
 import { WebSocketService } from './services/websocketService';
 import { EC2Service } from './services/ec2Service';
+import { ScalingService } from './services/scalingService';
 
 const PORT = config.PORT;
 
@@ -35,6 +36,16 @@ async function bootstrap() {
           'The instance pool will be empty until you add them manually or fix the tag.');
       } else {
         for (const inst of discovered) {
+          const existing = db.getInstance(inst.uuid);
+          if (existing) {
+            inst.assignedTo = existing.assignedTo;
+            inst.activeSessions = existing.activeSessions;
+            inst.realTimeUsedSeconds = existing.realTimeUsedSeconds;
+            inst.displayTimeUsedSeconds = existing.displayTimeUsedSeconds;
+            if (existing.pinggyUrl && !inst.pinggyUrl) {
+              inst.pinggyUrl = existing.pinggyUrl;
+            }
+          }
           await db.saveInstance(inst.uuid, inst);
           console.log(`[Server]   ✓ Loaded ${inst.instanceId} (${inst.assignedTo}) — status: ${inst.status}`);
         }
@@ -54,7 +65,11 @@ async function bootstrap() {
     setWsService(wsService);
     console.log('[Server] WebSocket service initialized');
 
-    // 6. Start Server
+    // 6. Start Pre-warm Buffer Pool Loop
+    ScalingService.getInstance().startPrewarmLoop();
+    console.log('[Server] Pre-warm scaling loop started');
+
+    // 7. Start Server
     server.listen(PORT, () => {
       console.log(`[Server] Running on http://localhost:${PORT}`);
     });
@@ -66,4 +81,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

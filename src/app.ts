@@ -64,7 +64,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const ec2Service = new EC2Service();
 
-// ── Admin: list all instances ──────────────────────────────────────────────
+// ── Admin: list all instances ─────────────────────────────────────────────────
 app.get('/api/admin/instances', (req, res) => {
   const db = DatabaseService.getInstance();
   const instances = db.getInstances();
@@ -74,10 +74,66 @@ app.get('/api/admin/instances', (req, res) => {
   for (const [uuid, inst] of Object.entries(instances)) {
     enriched[uuid] = {
       ...inst,
+      activeSessions: Object.fromEntries(inst.activeSessions),
       inGracePeriod: graceList.includes(uuid)
     };
   }
   res.json(enriched);
+});
+
+// ── Admin: dashboard summary (categorized by pool role) ───────────────────────
+app.get('/api/admin/dashboard', (req, res) => {
+  const db = DatabaseService.getInstance();
+  const scaling = ScalingService.getInstance();
+  const timeTracker = TimeTrackerService.getInstance();
+  const instances = db.getInstances();
+  const graceList = timeTracker.getInstancesInGrace();
+  const prewarmPhases = scaling.getPrewarmPhases();
+
+  const activeSessions: any[] = [];
+  const bufferReady:    any[] = [];
+  const prewarm:        any[] = [];
+
+  let totalTimeSeconds = 0;
+
+  for (const [uuid, inst] of Object.entries(instances)) {
+    const base = {
+      uuid,
+      instanceId:  inst.instanceId,
+      status:      inst.status,
+      assignedTo:  inst.assignedTo,
+      pinggyUrl:   inst.pinggyUrl || null,
+      createdAt:   inst.createdAt,
+      inGracePeriod: graceList.includes(uuid),
+      realTimeUsedSeconds: inst.realTimeUsedSeconds || 0,
+    };
+
+    if (inst.assignedTo === 'Buffer' && inst.status === 'stopped') {
+      bufferReady.push(base);
+    } else if (inst.assignedTo === 'Prewarm' || prewarmPhases.has(uuid)) {
+      prewarm.push({
+        ...base,
+        phase: prewarmPhases.get(uuid) ?? 1,
+      });
+    } else if (inst.assignedTo !== 'Buffer' && inst.assignedTo !== 'Prewarm') {
+      // Real client session
+      totalTimeSeconds += base.realTimeUsedSeconds;
+      activeSessions.push(base);
+    }
+  }
+
+  res.json({
+    activeSessions,
+    bufferReady,
+    prewarm,
+    stats: {
+      activeSessions: activeSessions.length,
+      bufferReady:    bufferReady.length,
+      prewarm:        prewarm.length,
+      gracePeriod:    graceList.length,
+      totalTimeSeconds,
+    },
+  });
 });
 
 // ── Admin: get / save settings ────────────────────────────────────────────
@@ -201,9 +257,30 @@ app.post('/api/admin/instances/reset-all-time', async (req, res) => {
 
 // ── Admin: delete instance ───────────────────────────────────────────────
 app.delete('/api/admin/instances/:uuid', async (req, res) => {
+  const uuid = req.params.uuid;
   const db = DatabaseService.getInstance();
-  await db.deleteInstance(req.params.uuid);
+
+  if (uuid.startsWith('i-mock')) {
+    // Mock instances: just remove from DB, no AWS call needed
+    await db.deleteInstance(uuid);
+    console.log(`[Admin API] Mock instance ${uuid} deleted from DB.`);
+  } else {
+    // Real instances: physically terminate on AWS, then remove from DB
+    await ScalingService.getInstance().terminateAndRemove(uuid);
+  }
   res.json({ success: true });
+});
+
+// ── Admin: abort a prewarm instance ────────────────────────────────────────
+app.post('/api/admin/instances/:uuid/abort-prewarm', async (req, res) => {
+  const { uuid } = req.params;
+  try {
+    await ScalingService.getInstance().abortPrewarm(uuid);
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[Admin API] abort-prewarm failed:', err.message);
+    res.status(500).json({ success: false, error: err.message || 'Abort failed' });
+  }
 });
 
 // ── Admin: sync instances with AWS ───────────────────────────────────────
@@ -218,6 +295,8 @@ app.post('/api/admin/instances/sync', async (req, res) => {
       discoveredUuids.add(inst.uuid);
       const existing = currentInstances[inst.uuid];
       if (existing) {
+        // Preserve in-memory pool role assignment (e.g. Prewarm, Buffer, or User)
+        inst.assignedTo = existing.assignedTo;
         inst.activeSessions = existing.activeSessions;
         inst.realTimeUsedSeconds = existing.realTimeUsedSeconds;
         inst.displayTimeUsedSeconds = existing.displayTimeUsedSeconds;
@@ -344,8 +423,47 @@ app.get('/api/instances/:uuid/status', async (req, res) => {
 // ── Public: On-Demand Dynamic EC2 instance spawn and connect ────────────
 app.post('/api/instances/connect-available', async (req, res) => {
   const db = DatabaseService.getInstance();
-  const uuid = crypto.randomUUID();
   let hostToken = req.body.hostToken || crypto.randomUUID();
+
+  // 1. Try to claim an existing stopped instance from the buffer pool
+  let claimedInstanceId: string | null = null;
+  try {
+    claimedInstanceId = await ScalingService.getInstance().claimBufferInstance();
+  } catch (e: any) {
+    console.warn(`[API] claimBufferInstance failed: ${e.message}`);
+  }
+
+  if (claimedInstanceId) {
+    console.log(`[API] Claimed buffer instance ${claimedInstanceId} for user`);
+    const inst = db.getInstance(claimedInstanceId);
+    if (inst) {
+      inst.status = 'pending';
+      inst.assignedTo = `OnDemand-${claimedInstanceId.substring(2, 8)}`;
+      inst.activeSessions.set(hostToken, {
+        hostToken: hostToken,
+        lastSeenAt: Date.now(),
+        displayStarted: false
+      });
+      await db.saveInstance(claimedInstanceId, inst);
+
+      try {
+        console.log(`[API] Waking up buffer instance ${claimedInstanceId}...`);
+        await ec2Service.startInstance(claimedInstanceId);
+        return res.json({ success: true, uuid: claimedInstanceId, status: 'pending', hostToken });
+      } catch (err: any) {
+        console.error(`[API] Failed to wake up claimed buffer instance ${claimedInstanceId}:`, err.message);
+        // Rollback on failure
+        inst.status = 'stopped';
+        inst.assignedTo = 'Buffer';
+        inst.activeSessions.delete(hostToken);
+        await db.saveInstance(claimedInstanceId, inst);
+        return res.status(500).json({ success: false, error: `Failed to wake up server: ${err.message}` });
+      }
+    }
+  }
+
+  // 2. Fallback: Spawn a fresh On-Demand instance dynamically
+  const uuid = crypto.randomUUID();
 
   try {
     console.log('[On-Demand] Resolving LinuxClientAMI...');
@@ -404,6 +522,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
     res.status(500).json({ success: false, error: errMsg });
   }
 });
+
 
 
 // ── EC2 Self-Report: tunnel URL registration ─────────────────────────────

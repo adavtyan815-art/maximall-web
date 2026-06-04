@@ -6,8 +6,11 @@ import { EC2Service } from './ec2Service';
 import { DisplayStartData, HeartbeatData } from '../types/websocket.types';
 import { randomUUID } from 'crypto';
 import * as http from 'http';
-import { ScalingService } from './scalingService';
+import * as https from 'https';
+import WebSocket from 'ws';
+import { ScalingService, PREWARM_LABEL, BUFFER_LABEL } from './scalingService';
 import { config } from '../config';
+
 
 export class WebSocketService {
   private io: SocketServer;
@@ -54,6 +57,14 @@ export class WebSocketService {
       let totalPurged = 0;
 
       for (const [uuid, instance] of Object.entries(instances)) {
+        // ── CRITICAL GUARD: Never touch pool-managed instances ──────────────
+        // Prewarm instances are running with NO active sessions by design.
+        // Buffer instances are stopped with NO active sessions by design.
+        // The watchdog must NEVER start a grace period on either.
+        if (instance.assignedTo === PREWARM_LABEL || instance.assignedTo === BUFFER_LABEL) {
+          continue;
+        }
+
         // Only care about active (non-stopped) instances
         if (instance.status === 'stopped' || instance.status === 'stopping') continue;
 
@@ -81,7 +92,7 @@ export class WebSocketService {
             );
 
           if (allSessionsAbandoned && !this.timeTracker.hasGracePeriod(uuid)) {
-            console.log(`[WS] Watchdog: Instance ${uuid} is ${instance.status} with no active sockets. Starting grace period.`);
+            console.log(`[WS] Watchdog: Instance ${uuid} (${instance.assignedTo}) is ${instance.status} with no active sockets. Starting grace period.`);
             this.startGracePeriod(uuid);
           }
         }
@@ -192,9 +203,59 @@ export class WebSocketService {
       }
     }
 
-    // 2. Spawn a fresh On-Demand instance dynamically
-    const targetUuid = randomUUID();
+    // 2. Try to claim an existing stopped instance from the buffer pool
     const hostToken = clientToken || randomUUID();
+    let claimedInstanceId: string | null = null;
+    try {
+      claimedInstanceId = await ScalingService.getInstance().claimBufferInstance();
+    } catch (e: any) {
+      console.warn(`[WS] claimBufferInstance failed: ${e.message}`);
+    }
+
+    if (claimedInstanceId) {
+      console.log(`[WS] Claimed buffer instance ${claimedInstanceId} for user`);
+      const instance = this.db.getInstance(claimedInstanceId);
+      if (instance) {
+        instance.status = 'pending';
+        instance.assignedTo = `OnDemand-${claimedInstanceId.substring(2, 8)}`;
+        instance.activeSessions.set(hostToken, {
+          hostToken,
+          lastSeenAt: Date.now(),
+          displayStarted: false,
+          socketId: socket.id,
+          ipAddress: socket.handshake.address,
+          deviceId: deviceId,
+        });
+        await this.db.saveInstance(claimedInstanceId, instance);
+
+        try {
+          console.log(`[WS] Waking up buffer instance ${claimedInstanceId}...`);
+          await this.ec2Service.startInstance(claimedInstanceId);
+
+          // Join the room for status updates
+          socket.join(`instance:${claimedInstanceId}`);
+
+          this.socketToSession.set(socket.id, { instanceUuid: claimedInstanceId, hostToken });
+          socket.emit('instance-assigned', { uuid: claimedInstanceId, hostToken, rescued: false });
+
+          // Start status polling
+          this.startAwsStatusPoll(socket, claimedInstanceId, hostToken);
+          return;
+        } catch (err: any) {
+          console.error(`[WS] Failed to wake up claimed buffer instance ${claimedInstanceId}:`, err.message);
+          // Rollback the claim on AWS start failure so it returns to buffer pool
+          instance.status = 'stopped';
+          instance.assignedTo = BUFFER_LABEL;
+          instance.activeSessions.delete(hostToken);
+          await this.db.saveInstance(claimedInstanceId, instance);
+          socket.emit('instance-error', { message: `Failed to wake up server: ${err.message}` });
+          return;
+        }
+      }
+    }
+
+    // 3. Fallback: Spawn a fresh On-Demand instance dynamically
+    const targetUuid = randomUUID();
 
     try {
       console.log('[WS On-Demand] Resolving LinuxClientAMI...');
@@ -261,6 +322,7 @@ export class WebSocketService {
       console.error('[WS On-Demand] Spawn failed:', errMsg);
       socket.emit('instance-error', { message: errMsg });
     }
+
   }
 
   // ── Handle resume-instance ──────────────────────────────────────────────────
@@ -315,28 +377,53 @@ export class WebSocketService {
 
       const checkStreamerConnected = async (pinggyUrl: string): Promise<boolean> => {
         return new Promise<boolean>((resolve) => {
-          const statusUrl = `${pinggyUrl}/api/status`;
-          const req = http.get(statusUrl, { timeout: 2000 }, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
-            res.on('end', () => {
-              try {
-                const data = JSON.parse(body);
-                const isConnected =
-                  data.streamerConnected === true ||
-                  data.hasStreamer === true ||
-                  (Array.isArray(data.streamers) && data.streamers.length > 0) ||
-                  (typeof data.activeStreamers === 'number' && data.activeStreamers > 0);
-                resolve(!!isConnected);
-              } catch (e) {
-                resolve(false);
-              }
-            });
+          const wsUrl = pinggyUrl.replace(/^http/, 'ws');
+          let resolved = false;
+          const cleanupAndResolve = (val: boolean) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timer);
+            try { ws.terminate(); } catch {}
+            resolve(val);
+          };
+
+          const ws = new WebSocket(wsUrl, {
+            headers: { 'X-Pinggy-No-Screen': 'true' },
+            handshakeTimeout: 3000
           });
-          req.on('error', () => resolve(false));
-          req.on('timeout', () => { req.destroy(); resolve(false); });
+
+          const timer = setTimeout(() => {
+            cleanupAndResolve(false);
+          }, 4000);
+
+          ws.on('open', () => {
+            try {
+              ws.send(JSON.stringify({ type: 'listStreamers' }));
+            } catch {
+              cleanupAndResolve(false);
+            }
+          });
+
+          ws.on('message', (data) => {
+            try {
+              const msg = JSON.parse(data.toString());
+              if (msg.type === 'streamerList') {
+                if (Array.isArray(msg.ids) && msg.ids.length > 0) {
+                  cleanupAndResolve(true);
+                } else {
+                  cleanupAndResolve(false);
+                }
+              }
+            } catch {
+              cleanupAndResolve(false);
+            }
+          });
+
+          ws.on('error', () => cleanupAndResolve(false));
+          ws.on('close', () => cleanupAndResolve(false));
         });
       };
+
 
       // 1. If Pinggy URL is already reported, verify if the streamer is connected
       if (instance.pinggyUrl) {
@@ -625,7 +712,21 @@ export class WebSocketService {
 
   // ── Grace period ──────────────────────────────────────────────────────────
   private startGracePeriod(instanceUuid: string): void {
-    console.log(`[WS] Grace period started for instance ${instanceUuid}`);
+    const instance = this.db.getInstance(instanceUuid);
+
+    // ── GUARD: Never start grace period on pool-managed instances ──────────
+    // Prewarm/Buffer instances have no sessions by design. Running a grace
+    // period on them would terminate them 60 s after the watchdog first sees
+    // them, causing the infinite prewarm loop.
+    if (instance && (instance.assignedTo === PREWARM_LABEL || instance.assignedTo === BUFFER_LABEL)) {
+      console.warn(
+        `[WS] GRACE PERIOD BLOCKED for ${instanceUuid} — ` +
+        `assignedTo='${instance.assignedTo}'. Pool instances must NOT be grace-terminated.`
+      );
+      return;
+    }
+
+    console.log(`[WS] Grace period started for instance ${instanceUuid} (assignedTo=${instance?.assignedTo ?? 'unknown'})`);
 
     this.io.to(`instance:${instanceUuid}`).emit('grace-period-started', {
       durationMs: 60000,
@@ -636,9 +737,18 @@ export class WebSocketService {
       const instance = this.db.getInstance(instanceUuid);
       if (!instance) return;
 
+      // Double-check guard at expiry time too — assignedTo may have changed
+      if (instance.assignedTo === PREWARM_LABEL || instance.assignedTo === BUFFER_LABEL) {
+        console.warn(
+          `[WS TERMINATE BLOCKED] Grace period expired for ${instanceUuid} but ` +
+          `assignedTo='${instance.assignedTo}' — skipping termination.`
+        );
+        return;
+      }
+
       const hasActive = Array.from(instance.activeSessions.values()).some(s => s.displayStarted);
       if (!hasActive) {
-        console.log(`[WS] Grace period expired for ${instanceUuid}. Terminating instance.`);
+        console.log(`[WS TERMINATE] Grace period expired for ${instanceUuid} (assignedTo=${instance.assignedTo}). No active viewers. Terminating instance.`);
         instance.activeSessions.clear();
         await this.db.saveInstance(instanceUuid, instance);
         
@@ -651,7 +761,7 @@ export class WebSocketService {
         
         await ScalingService.getInstance().terminateAndRemove(instanceUuid);
       } else {
-        console.log(`[WS] Grace period expired but active viewers found — not stopping.`);
+        console.log(`[WS] Grace period expired but active viewers found for ${instanceUuid} — not stopping.`);
       }
     });
   }

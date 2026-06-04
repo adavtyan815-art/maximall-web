@@ -1,258 +1,604 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Панель администратора | ArchiTek Soft</title>
+  <title>Панель администратора | Maximall</title>
+  <meta name="description" content="Панель управления EC2 инстансами и буфером предзагрузки Maximall">
   <link rel="icon" href="assets/images/favicon-black.svg" type="image/svg+xml">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #f8fafc;
-      --bg-card: rgba(255, 255, 255, 0.85);
-      --text-main: #334155;
-      --text-muted: #64748b;
-      --accent: #57A6FA;
-      --accent-hover: #3b8fd9;
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --border: rgba(0, 0, 0, 0.1);
+      --bg-page:       #f0f4f8;
+      --bg-sidebar:    #ffffff;
+      --bg-card:       #ffffff;
+      --bg-card-hover: #fafbfc;
+      --text-main:     #1e293b;
+      --text-muted:    #64748b;
+      --text-light:    #94a3b8;
+      --accent:        #3b82f6;
+      --accent-light:  #eff6ff;
+      --accent-hover:  #2563eb;
+      --success:       #10b981;
+      --success-light: #ecfdf5;
+      --warning:       #f59e0b;
+      --warning-light: #fffbeb;
+      --danger:        #ef4444;
+      --danger-light:  #fef2f2;
+      --purple:        #8b5cf6;
+      --purple-light:  #f5f3ff;
+      --border:        #e2e8f0;
+      --border-light:  #f1f5f9;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:     0 4px 12px rgba(0,0,0,0.08);
+      --radius:        12px;
+      --radius-sm:     8px;
+      --sidebar-w:     220px;
     }
-    
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+
     body {
       font-family: 'Inter', sans-serif;
-      background: var(--bg-dark);
+      background: var(--bg-page);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
-      position: relative;
-    }
-    body::after {
-      content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background-image: url('assets/images/background_pattern.png');
-      background-repeat: repeat; opacity: 0.1; z-index: -1;
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    /* Sidebar */
+    /* ── Sidebar ──────────────────────────────────────────────────── */
     .sidebar {
-      width: 280px;
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(12px);
+      width: var(--sidebar-w);
+      background: var(--bg-sidebar);
       border-right: 1px solid var(--border);
-      padding: 2rem;
       display: flex;
       flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      padding: 24px 16px;
     }
 
     .brand {
       display: flex;
+      align-items: center;
       justify-content: center;
-      margin-bottom: 3rem;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 20px;
     }
-    .brand img {
-      max-width: 100%; height: auto; max-height: 60px; object-fit: contain;
-    }
+    .brand img { max-width: 130px; height: auto; max-height: 50px; object-fit: contain; }
 
-    .nav-items { display: flex; flex-direction: column; gap: 1rem; flex: 1; }
+    .nav-section { font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--text-light); text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; }
+
+    .nav-items { display: flex; flex-direction: column; gap: 2px; flex: 1; }
     .nav-item {
-      padding: 0.75rem 1rem; border-radius: 0.5rem; color: var(--text-muted);
-      text-decoration: none; font-weight: 500; transition: all 0.2s ease;
-      display: flex; align-items: center; gap: 0.75rem;
+      padding: 9px 12px; border-radius: var(--radius-sm);
+      color: var(--text-muted); text-decoration: none;
+      font-weight: 500; font-size: 13px;
+      transition: all 0.15s ease;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; border: none; background: none; width: 100%; text-align: left;
     }
-    .nav-item:hover, .nav-item.active {
-      background: rgba(87, 166, 250, 0.1); color: var(--accent);
+    .nav-item svg { flex-shrink: 0; opacity: 0.7; }
+    .nav-item:hover { background: var(--accent-light); color: var(--accent); }
+    .nav-item:hover svg { opacity: 1; }
+    .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+    .nav-item.active svg { opacity: 1; }
+
+    /* Pool mini-panel */
+    .pool-panel {
+      background: var(--bg-page);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-top: 16px;
+      border: 1px solid var(--border);
+    }
+    .pool-panel-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-light);
+      margin-bottom: 10px;
+    }
+    .pool-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; padding: 3px 0;
+    }
+    .pool-row-left { display: flex; align-items: center; gap: 7px; color: var(--text-muted); }
+    .pool-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .pool-count { font-weight: 600; color: var(--text-main); }
+
+    .nav-logout {
+      padding-top: 16px; border-top: 1px solid var(--border-light); margin-top: auto;
     }
 
-    /* Main Content */
-    .main-content { flex: 1; padding: 2rem 3rem; overflow-y: auto; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    .header-title { font-size: 2rem; font-weight: 600; }
+    /* ── Main Content ────────────────────────────────────────────── */
+    .main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 28px 32px;
+      overflow-y: auto;
+      min-height: 100vh;
+    }
 
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .topbar-title {
+      font-size: 22px; font-weight: 700; color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
     .btn {
-      padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none;
-      font-family: inherit; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+      padding: 8px 16px; border-radius: var(--radius-sm); border: none;
+      font-family: inherit; font-weight: 600; cursor: pointer;
+      font-size: 13px; transition: all 0.15s ease;
+      display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
     }
-    .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 14px 0 rgba(87, 166, 250, 0.39); }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--bg-card); color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg-card-hover); }
+    .btn-danger-sm {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; font-family: inherit; font-size: 12px; font-weight: 500;
+      cursor: pointer; color: var(--danger); transition: all 0.15s;
+    }
+    .btn-danger-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-action-sm {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; font-family: inherit; font-size: 12px; font-weight: 500;
+      cursor: pointer; color: var(--text-muted); transition: all 0.15s;
+    }
+    .btn-action-sm:hover { background: var(--bg-page); color: var(--text-main); }
 
-    /* Cards & Stats */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    /* ── Metric Cards ────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+
     .stat-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 1rem; padding: 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
     }
-    .stat-title { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem; font-weight: 500; }
-    .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    .stat-card-content {}
+    .stat-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-light); margin-bottom: 8px;
+    }
+    .stat-value { font-size: 28px; font-weight: 700; line-height: 1; }
+    .stat-value.blue   { color: var(--accent); }
+    .stat-value.green  { color: var(--success); }
+    .stat-value.orange { color: var(--warning); }
+    .stat-value.purple { color: var(--purple); }
 
-    /* Table */
-    .table-container {
-      background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-      border-radius: 1rem; backdrop-filter: blur(12px); overflow: hidden;
+    .stat-reset-btn {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; font-family: inherit; font-size: 11px; font-weight: 500;
+      cursor: pointer; color: var(--text-muted); transition: all 0.15s; align-self: flex-end;
+    }
+    .stat-reset-btn:hover { background: var(--bg-page); }
+
+    /* ── Section Headers ─────────────────────────────────────────── */
+    .section { margin-bottom: 20px; }
+    .section-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+    .section-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .section-dot.blue   { background: var(--accent); }
+    .section-dot.green  { background: var(--success); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+    .section-dot.orange { background: var(--warning); }
+    .section-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-main);
+    }
+    .section-badge {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .section-badge.green { background: var(--success-light); color: var(--success); }
+    .section-target {
+      margin-left: auto; font-size: 12px; color: var(--text-light);
+    }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 1.25rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border); }
-    th { font-weight: 600; color: var(--accent); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-
-    .status-badge {
-      display: inline-block; padding: 0.25rem 0.75rem;
-      border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+    thead th {
+      padding: 11px 16px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-light);
+      background: var(--bg-page);
+      border-bottom: 1px solid var(--border);
     }
-    .status-running  { background: rgba(16, 185, 129, 0.2); color: #059669; }
-    .status-stopped  { background: rgba(239, 68, 68, 0.2);  color: #dc2626; }
-    .status-pending  { background: rgba(245, 158, 11, 0.2); color: #d97706; }
-    .status-stopping { background: rgba(245, 158, 11, 0.2); color: #d97706; }
-
-    .actions-cell { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .btn-action {
-      padding: 0.4rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem;
-      border: 1px solid var(--border); background: transparent; color: var(--text-main);
-      cursor: pointer; transition: all 0.2s;
+    tbody td {
+      padding: 13px 16px; border-bottom: 1px solid var(--border-light);
+      font-size: 13px; vertical-align: middle;
     }
-    .btn-action:hover    { background: rgba(0, 0, 0, 0.05); }
-    .btn-danger:hover    { background: var(--danger); border-color: var(--danger); color: white; }
-    
-    .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-card-hover); }
 
-    .grace-pulse {
-      display: inline-block; width: 8px; height: 8px; background: var(--warning);
-      border-radius: 50%; margin-left: 8px; vertical-align: middle;
-      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
-      animation: grace-dot-pulse 1.5s infinite;
-    }
-    @keyframes grace-dot-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
-      70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    .empty-row td {
+      text-align: center; color: var(--text-light); padding: 28px 16px;
+      font-style: italic; font-size: 13px;
     }
 
-    /* Modals */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px);
-      display: none; align-items: center; justify-content: center; z-index: 1000;
+    /* Instance ID cell */
+    .instance-id-cell { display: flex; flex-direction: column; gap: 2px; }
+    .instance-name { font-weight: 600; font-size: 13px; color: var(--text-main); }
+    .instance-id-mono {
+      font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-light);
     }
-    .modal {
-      background: #ffffff; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      border-radius: 1rem; padding: 2rem; width: 100%; max-width: 450px;
+
+    /* Status badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
     }
-    .modal-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text-main); }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge-running { background: var(--success-light); color: var(--success); }
+    .badge-running::before { background: var(--success); animation: pulse-dot 2s infinite; }
+    .badge-stopped { background: #f1f5f9; color: var(--text-muted); }
+    .badge-stopped::before { background: var(--text-muted); }
+    .badge-pending { background: var(--warning-light); color: var(--warning); }
+    .badge-pending::before { background: var(--warning); animation: pulse-dot 1.5s infinite; }
+    .badge-stopping { background: var(--warning-light); color: var(--warning); }
+    .badge-stopping::before { background: var(--warning); }
+    .badge-prewarm { background: var(--purple-light); color: var(--purple); }
+    .badge-prewarm::before { background: var(--purple); animation: pulse-dot 2s infinite; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Grace period pulse */
+    .grace-indicator {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--warning);
+      background: var(--warning-light); padding: 2px 8px; border-radius: 20px;
+      margin-left: 6px;
+    }
+    .grace-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--warning);
+      animation: grace-pulse 1.5s infinite;
+    }
+    @keyframes grace-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(245,158,11,0.7); }
+      70% { box-shadow: 0 0 0 5px rgba(245,158,11,0); }
+      100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    }
+
+    /* Tunnel URL */
+    .tunnel-link {
+      color: var(--accent); font-size: 12px; text-decoration: none;
+      font-family: 'Courier New', monospace; max-width: 200px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+    }
+    .tunnel-link:hover { text-decoration: underline; }
+    .tunnel-none { color: var(--text-light); font-size: 12px; }
+
+    /* Time display */
+    .time-display { font-size: 13px; font-weight: 500; color: var(--text-main); }
+
+    /* Phase dots (5-step progress) */
+    .phase-dots { display: flex; align-items: center; gap: 0; }
+    .phase-dot {
+      width: 22px; height: 8px; border-radius: 4px;
+      transition: background 0.3s ease;
+      margin-right: 3px;
+    }
+    .phase-dot.done    { background: var(--success); }
+    .phase-dot.active  { background: var(--warning); animation: phase-blink 1.2s ease-in-out infinite; }
+    .phase-dot.pending { background: var(--border); }
+    @keyframes phase-blink {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    .phase-label { font-size: 11px; color: var(--text-muted); margin-left: 8px; font-style: italic; }
+
+    /* Actions cell */
+    .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Settings Tab ────────────────────────────────────────────── */
+    .settings-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px; max-width: 560px;
+      box-shadow: var(--shadow-sm);
+    }
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block; font-size: 12px; font-weight: 600; color: var(--text-muted);
+      margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
     .form-control {
-      width: 100%; padding: 0.75rem; border-radius: 0.5rem;
-      background: #f1f5f9; border: 1px solid var(--border);
-      color: var(--text-main); font-family: inherit; font-size: 0.95rem;
+      width: 100%; padding: 9px 14px; border-radius: var(--radius-sm);
+      background: var(--bg-page); border: 1px solid var(--border);
+      color: var(--text-main); font-family: inherit; font-size: 14px;
+      transition: border-color 0.15s;
     }
-    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(87,166,250,0.2); }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
-    .btn-secondary { background: #f8fafc; border: 1px solid var(--border); color: var(--text-main); font-weight: 600; }
-    .btn-secondary:hover { background: #f1f5f9; }
-    
-    @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 1rem; }
-      .brand { margin-bottom: 1rem; }
-      .nav-items { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
-      .nav-item { margin-top: 0 !important; }
-      .main-content { padding: 1rem; }
-      .header-title { font-size: 1.5rem; }
-      .table-container { overflow-x: auto; }
-      table { min-width: 500px; }
+    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+    /* ── Toasts ──────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
     }
+    .toast {
+      background: var(--text-main); color: #fff;
+      padding: 12px 18px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+      box-shadow: var(--shadow-md);
+      animation: slide-in 0.25s ease;
+      pointer-events: auto;
+    }
+    .toast.success { background: var(--success); }
+    .toast.error   { background: var(--danger); }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   </style>
 </head>
 <body>
 
+  <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
   <aside class="sidebar">
     <div class="brand">
-      <img src="assets/images/image05.png" alt="ArchiTek Soft Logo">
+      <img src="assets/images/image05.png" alt="Maximall Logo">
     </div>
+
     <div class="nav-items">
-      <a href="#" class="nav-item active" id="nav-dashboard" onclick="showTab('dashboard')">Панель управления</a>
-      <a href="#" class="nav-item" id="nav-settings" onclick="showTab('settings')">Настройки</a>
-      <a href="#" onclick="logoutUser(); return false;" class="nav-item" style="margin-top: auto;">Выйти</a>
+      <button class="nav-item active" id="nav-instances" onclick="showTab('dashboard')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="2" y="3" width="7" height="7" rx="1"/><rect x="15" y="3" width="7" height="7" rx="1"/>
+          <rect x="2" y="14" width="7" height="7" rx="1"/><rect x="15" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Инстансы
+      </button>
+      <button class="nav-item" id="nav-settings" onclick="showTab('settings')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Настройки
+      </button>
+    </div>
+
+    <!-- Pool panel -->
+    <div class="pool-panel" id="pool-panel">
+      <div class="pool-panel-title">Буфер Пул</div>
+      <div class="pool-row">
+        <div class="pool-row-left">
+          <div class="pool-dot" style="background: var(--accent);"></div>
+          <span>Активный</span>
+        </div>
+        <span class="pool-count" id="pool-active">0</span>
+      </div>
+      <div class="pool-row">
+        <div class="pool-row-left">
+          <div class="pool-dot" style="background: var(--success);"></div>
+          <span>Готово</span>
+        </div>
+        <span class="pool-count" id="pool-buffer">0</span>
+      </div>
+      <div class="pool-row">
+        <div class="pool-row-left">
+          <div class="pool-dot" style="background: var(--warning);"></div>
+          <span>Прогрев</span>
+        </div>
+        <span class="pool-count" id="pool-prewarm">0</span>
+      </div>
+    </div>
+
+    <div class="nav-logout">
+      <button class="nav-item" onclick="logoutUser()" style="color: var(--danger);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Выйти
+      </button>
     </div>
   </aside>
 
+  <!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
   <main class="main-content">
-    <!-- Dashboard Tab -->
+
+    <!-- ─────────────────── Dashboard Tab ─────────────────── -->
     <div id="tab-dashboard">
-      <div class="header">
-        <div class="header-title">Инстансы (Серверы)</div>
-        <div style="display: flex; gap: 1rem;">
-          <button class="btn btn-primary" id="btn-sync" onclick="syncInstances()">Синхронизировать с AWS</button>
-          <button class="btn btn-secondary" onclick="copyLink()">Копировать общую ссылку</button>
+
+      <div class="topbar">
+        <h1 class="topbar-title">Панель управления</h1>
+        <div class="topbar-actions">
+          <button class="btn btn-secondary" id="btn-copy-link" onclick="copyLink()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Скопировать ссылку
+          </button>
+          <button class="btn btn-primary" id="btn-sync" onclick="syncInstances()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Синхр. с AWS
+          </button>
         </div>
       </div>
 
+      <!-- ── 5 Stat Cards ── -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-title">Всего инстансов</div>
-          <div class="stat-value" id="stat-total">-</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-title">Работают сейчас</div>
-          <div class="stat-value" id="stat-active" style="color: #34d399;">-</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-title">Доступно (Остановлены)</div>
-          <div class="stat-value" id="stat-stopped" style="color: #ef4444;">-</div>
-        </div>
-        <div class="stat-card" style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div class="stat-title">Общее время</div>
-            <div class="stat-value" id="stat-total-time" style="color: var(--accent);">-</div>
+          <div class="stat-card-content">
+            <div class="stat-label">Активных Сессий</div>
+            <div class="stat-value blue" id="stat-active">0</div>
           </div>
-          <button class="btn-action" onclick="resetAllTime()" style="padding: 0.5rem 1rem;">Сбросить все</button>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-content">
+            <div class="stat-label">Готово в Буфере</div>
+            <div class="stat-value green" id="stat-buffer">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-content">
+            <div class="stat-label">Прогрев</div>
+            <div class="stat-value orange" id="stat-prewarm">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-content">
+            <div class="stat-label">Grace Period</div>
+            <div class="stat-value orange" id="stat-grace">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-content">
+            <div class="stat-label">Общее Время</div>
+            <div class="stat-value blue" id="stat-total-time">0ч 0м</div>
+          </div>
+          <button class="stat-reset-btn" onclick="resetAllTime()">Сброс</button>
         </div>
       </div>
 
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Метка / UUID</th>
-              <th>ID инстанса EC2</th>
-              <th>Статус</th>
-              <th>Время работы (Реальное)</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody id="instances-body">
-            <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted);" class="loading-pulse">
-                Загрузка инстансов...
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- ── Section 1: Active Sessions ── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-dot blue"></div>
+          <span class="section-title">Активные Сессии</span>
+          <span class="section-badge" id="badge-active">0</span>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Metka / ID</th>
+                <th>EC2 Instance</th>
+                <th>Статус</th>
+                <th>Туннель</th>
+                <th>Время</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-body">
+              <tr class="empty-row"><td colspan="6">Нет активных сессий</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div> <!-- end tab-dashboard -->
 
-    <!-- Settings Tab -->
-    <div id="tab-settings" style="display: none;">
-      <div class="header">
-        <div class="header-title">Настройки</div>
+      <!-- ── Section 2: Buffer Ready ── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-dot green"></div>
+          <span class="section-title">Буфер — Готов к Выдаче</span>
+          <span class="section-badge green" id="badge-buffer">0</span>
+          <span class="section-target">Целевой размер: 3</span>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>EC2 Instance</th>
+                <th>Статус</th>
+                <th>Туннель (Прошлый)</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="buffer-body">
+              <tr class="empty-row"><td colspan="4">Нет готовых инстансов в буфере — дождитесь завершения прогрева</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="table-container" style="padding: 2rem; max-width: 600px;">
+
+      <!-- ── Section 3: Prewarm ── -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-dot orange"></div>
+          <span class="section-title">Прогрев (Prewarm)</span>
+          <span class="section-badge" id="badge-prewarm">0</span>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>EC2 Instance</th>
+                <th>Фаза</th>
+                <th>Туннель</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="prewarm-body">
+              <tr class="empty-row"><td colspan="4">Нет активных прогревов</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- end tab-dashboard -->
+
+    <!-- ─────────────────── Settings Tab ─────────────────── -->
+    <div id="tab-settings" style="display:none;">
+      <div class="topbar">
+        <h1 class="topbar-title">Настройки</h1>
+      </div>
+      <div class="settings-card">
         <div class="form-group">
-          <label>Дата обновления (отображается на странице клиента)</label>
+          <label class="form-label" for="settingUpdateDate">Дата обновления (отображается на странице клиента)</label>
           <input type="date" id="settingUpdateDate" class="form-control">
         </div>
-        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="saveSettings()">Сохранить настройки</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
       </div>
     </div>
+
   </main>
 
-
-  <!-- Fallback Copy TextArea -->
-  <textarea id="copyHelper" style="position: absolute; left: -9999px;"></textarea>
+  <!-- ── Toast container ── -->
+  <div id="toast-container"></div>
 
   <script>
+    // ── Helpers ──────────────────────────────────────────────────────────────
     function formatTime(seconds) {
       if (!seconds) return '0ч 0м';
       const h = Math.floor(seconds / 3600);
@@ -260,184 +606,297 @@
       return `${h}ч ${m}м`;
     }
 
-    let globalInstancesData = {};
-    let globalSettingsData  = {};
+    function truncateUrl(url, maxLen = 32) {
+      if (!url) return null;
+      return url.length > maxLen ? url.substring(0, maxLen) + '...' : url;
+    }
 
+    function showToast(msg, type = 'default', duration = 3000) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(12px)';
+        toast.style.transition = 'all 0.3s'; setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    // ── Phase dots renderer ───────────────────────────────────────────────────
+    const PHASE_LABELS = ['', 'Загрузка', 'Туннель', 'Сигнал', 'Стример', 'Остановка'];
+
+    function renderPhaseDots(phase) {
+      let html = '<div class="phase-dots">';
+      for (let i = 1; i <= 5; i++) {
+        let cls = 'pending';
+        if (i < phase) cls = 'done';
+        else if (i === phase) cls = 'active';
+        html += `<div class="phase-dot ${cls}" title="Фаза ${i}: ${PHASE_LABELS[i]}"></div>`;
+      }
+      html += `</div><span class="phase-label">${PHASE_LABELS[phase] || ''}</span>`;
+      return html;
+    }
+
+    // ── Status badge renderer ─────────────────────────────────────────────────
+    function renderBadge(status) {
+      const map = {
+        running:  { cls: 'badge-running',  label: 'Running'  },
+        stopped:  { cls: 'badge-stopped',  label: 'Stopped'  },
+        pending:  { cls: 'badge-pending',  label: 'Pending'  },
+        stopping: { cls: 'badge-stopping', label: 'Stopping' },
+      };
+      const b = map[status] || { cls: 'badge-stopped', label: status };
+      return `<span class="badge ${b.cls}">${b.label}</span>`;
+    }
+
+    // ── Tunnel cell ───────────────────────────────────────────────────────────
+    function renderTunnel(url, empty = '—') {
+      if (!url) return `<span class="tunnel-none">${empty}</span>`;
+      const short = truncateUrl(url, 30);
+      return `<a class="tunnel-link" href="${url}" target="_blank" title="${url}">${short}</a>`;
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function showTab(tab) {
+      document.getElementById('tab-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
+      document.getElementById('tab-settings').style.display  = tab === 'settings'  ? 'block' : 'none';
+      document.getElementById('nav-instances').classList.toggle('active', tab === 'dashboard');
+      document.getElementById('nav-settings').classList.toggle('active', tab === 'settings');
+      document.getElementById('pool-panel').style.display = tab === 'dashboard' ? 'block' : 'none';
+    }
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
     async function logoutUser() {
       await fetch('/api/admin/logout', { method: 'POST' });
       window.location.href = '/login.html';
     }
 
-    // ── Settings ──────────────────────────────────────────────────────────
-    async function loadSettings() {
+    // ── Load Dashboard ────────────────────────────────────────────────────────
+    async function loadDashboard() {
       try {
-        const res = await fetch('/api/settings');
-        globalSettingsData = await res.json();
-        
-        let existingDate = globalSettingsData.updateDate || '';
-        if (existingDate && existingDate.includes('/')) {
-           existingDate = existingDate.split('/').reverse().join('-');
-        }
-        document.getElementById('settingUpdateDate').value = existingDate;
-      } catch (err) { console.error('Failed to load settings', err); }
-    }
-
-    async function saveSettings() {
-      let updateDate = document.getElementById('settingUpdateDate').value;
-      if (updateDate && updateDate.includes('-')) {
-         updateDate = updateDate.split('-').reverse().join('/');
-      }
-      
-      try {
-        const res = await fetch('/api/admin/settings', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updateDate })
-        });
+        const res = await fetch('/api/admin/dashboard');
+        if (!res.ok) return;
         const data = await res.json();
-        if (data.success) {
-          alert('Настройки сохранены!');
-          globalSettingsData = data.settings;
-        }
-      } catch (err) { console.error('Failed to save settings', err); }
-    }
 
-    // ── Tab switching ─────────────────────────────────────────────────────
-    function showTab(tab) {
-      document.getElementById('tab-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
-      document.getElementById('tab-settings').style.display  = tab === 'settings'  ? 'block' : 'none';
-      document.getElementById('nav-dashboard').classList.toggle('active', tab === 'dashboard');
-      document.getElementById('nav-settings').classList.toggle('active', tab === 'settings');
-    }
+        const { activeSessions, bufferReady, prewarm, stats } = data;
 
-    // ── Load instances ────────────────────────────────────────────────────
-    async function loadInstances() {
-      try {
-        const response = await fetch('/api/admin/instances');
-        globalInstancesData = await response.json();
-        
-        const tbody = document.getElementById('instances-body');
-        tbody.innerHTML = '';
-        let total = 0, active = 0, stopped = 0, totalTimeSeconds = 0;
+        // ── Update stat cards ──
+        document.getElementById('stat-active').textContent    = stats.activeSessions;
+        document.getElementById('stat-buffer').textContent    = stats.bufferReady;
+        document.getElementById('stat-prewarm').textContent   = stats.prewarm;
+        document.getElementById('stat-grace').textContent     = stats.gracePeriod;
+        document.getElementById('stat-total-time').textContent = formatTime(stats.totalTimeSeconds);
 
-        for (const [uuid, inst] of Object.entries(globalInstancesData)) {
-          total++;
-          totalTimeSeconds += (inst.realTimeUsedSeconds || 0);
-          if (inst.status === 'running')  active++;
-          if (inst.status === 'stopped')  stopped++;
+        // ── Update section badges ──
+        document.getElementById('badge-active').textContent  = stats.activeSessions;
+        document.getElementById('badge-buffer').textContent  = stats.bufferReady;
+        document.getElementById('badge-prewarm').textContent = stats.prewarm;
 
-          const tr = document.createElement('tr');
-          const statusClass = `status-${inst.status.toLowerCase()}`;
-          
-          tr.innerHTML = `
-            <td>
-              <div style="font-weight: 500;">${inst.assignedTo || 'Не назначено'}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">${uuid.substring(0,8)}...</div>
-            </td>
-            <td style="font-family: monospace; font-size: 0.8rem;">${inst.instanceId || '—'}</td>
-            <td>
-              <span class="status-badge ${statusClass}">${inst.status.toUpperCase()}</span>
-              ${inst.inGracePeriod ? '<span class="grace-pulse" title="Grace Period (60s timer)"></span>' : ''}
-            </td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 0.85rem; color: var(--text-muted); min-width: 50px;">
-                  ${formatTime(inst.realTimeUsedSeconds)}
-                </span>
-                <button class="btn-action" style="padding: 0.2rem 0.5rem; font-size: 0.70rem;" title="Сбросить время" onclick="resetInstanceTime('${uuid}')">Сбросить</button>
-              </div>
-            </td>
-            <td class="actions-cell">
-              <button class="btn-action" onclick="toggleStatus('${uuid}', '${inst.status}')">
-                ${inst.status === 'running' ? 'Остановить' : 'Запустить'}
-              </button>
-              <button class="btn-action btn-danger" onclick="deleteInstance('${uuid}')">Удалить</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
+        // ── Sidebar pool panel ──
+        document.getElementById('pool-active').textContent  = stats.activeSessions;
+        document.getElementById('pool-buffer').textContent  = stats.bufferReady;
+        document.getElementById('pool-prewarm').textContent = stats.prewarm;
+
+        // ── Section 1: Active Sessions ──
+        const sessBody = document.getElementById('sessions-body');
+        if (activeSessions.length === 0) {
+          sessBody.innerHTML = '<tr class="empty-row"><td colspan="6">Нет активных сессий</td></tr>';
+        } else {
+          sessBody.innerHTML = activeSessions.map(inst => `
+            <tr>
+              <td>
+                <div class="instance-id-cell">
+                  <div class="instance-name">${escHtml(inst.assignedTo || 'Без метки')}</div>
+                  <div class="instance-id-mono">${escHtml(inst.instanceId ? inst.instanceId.substring(0, 14) + '...' : inst.uuid.substring(0, 12) + '...')}</div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px;">${escHtml(inst.instanceId || '—')}</td>
+              <td>
+                ${renderBadge(inst.status)}
+                ${inst.inGracePeriod ? '<span class="grace-indicator"><div class="grace-dot"></div>Grace</span>' : ''}
+              </td>
+              <td>${renderTunnel(inst.pinggyUrl)}</td>
+              <td><span class="time-display">${formatTime(inst.realTimeUsedSeconds)}</span></td>
+              <td class="actions-cell">
+                <button class="btn-action-sm" onclick="toggleStatus('${inst.uuid}', '${inst.status}')">
+                  ${inst.status === 'running' ? 'Остановить' : 'Запустить'}
+                </button>
+                <button class="btn-danger-sm" onclick="deleteInstance('${inst.uuid}')">Удалить</button>
+              </td>
+            </tr>
+          `).join('');
         }
 
-        if (total === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Инстансы не найдены. Убедитесь, что EC2 инстансы имеют тег <strong>Name=LinuxClient</strong> и перезапустите сервер.</td></tr>`;
+        // ── Section 2: Buffer Ready ──
+        const bufBody = document.getElementById('buffer-body');
+        if (bufferReady.length === 0) {
+          bufBody.innerHTML = '<tr class="empty-row"><td colspan="4">Нет готовых инстансов в буфере — дождитесь завершения прогрева</td></tr>';
+        } else {
+          bufBody.innerHTML = bufferReady.map(inst => `
+            <tr>
+              <td>
+                <div class="instance-id-cell">
+                  <div class="instance-name" style="color: var(--success);">Готов</div>
+                  <div class="instance-id-mono">${escHtml(inst.instanceId || '—')}</div>
+                </div>
+              </td>
+              <td>${renderBadge(inst.status)}</td>
+              <td>${renderTunnel(inst.pinggyUrl, 'Нет туннеля')}</td>
+              <td class="actions-cell">
+                <button class="btn-danger-sm" onclick="deleteInstance('${inst.uuid}')">Удалить</button>
+              </td>
+            </tr>
+          `).join('');
         }
 
-        document.getElementById('stat-total').innerText   = total;
-        document.getElementById('stat-active').innerText  = active;
-        document.getElementById('stat-stopped').innerText = stopped;
-        document.getElementById('stat-total-time').innerText = formatTime(totalTimeSeconds);
+        // ── Section 3: Prewarm ──
+        const preBody = document.getElementById('prewarm-body');
+        if (prewarm.length === 0) {
+          preBody.innerHTML = '<tr class="empty-row"><td colspan="4">Нет активных прогревов</td></tr>';
+        } else {
+          preBody.innerHTML = prewarm.map(inst => `
+            <tr>
+              <td>
+                <div class="instance-id-cell">
+                  <div class="instance-name" style="color: var(--warning);">
+                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warning); margin-right:6px; animation: pulse-dot 2s infinite;"></span>
+                    Прогрев
+                  </div>
+                  <div class="instance-id-mono">${escHtml(inst.instanceId || inst.uuid)}</div>
+                </div>
+              </td>
+              <td>${renderPhaseDots(inst.phase || 1)}</td>
+              <td>${renderTunnel(inst.pinggyUrl, '—')}</td>
+              <td class="actions-cell">
+                <button class="btn-danger-sm" onclick="abortPrewarm('${inst.uuid}')">Прервать</button>
+              </td>
+            </tr>
+          `).join('');
+        }
 
-      } catch (err) { console.error('Failed to load instances', err); }
+      } catch (err) {
+        console.error('[Dashboard] Failed to load:', err);
+      }
     }
 
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.appendChild(document.createTextNode(String(str)));
+      return d.innerHTML;
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
     async function toggleStatus(uuid, currentStatus) {
       const action = currentStatus === 'running' ? 'stop' : 'start';
-      const actionRu = currentStatus === 'running' ? 'остановить' : 'запустить';
-      if (!confirm(`Вы уверены, что хотите ${actionRu} этот инстанс?`)) return;
-      await fetch(`/api/admin/instances/${uuid}/${action}`, { method: 'POST' });
-      loadInstances();
-    }
-
-    async function resetAllTime() {
-      if (!confirm("Вы уверены, что хотите сбросить время ВСЕХ инстансов?")) return;
-      await fetch('/api/admin/instances/reset-all-time', { method: 'POST' });
-      loadInstances();
-    }
-
-    async function resetInstanceTime(uuid) {
-      if (!confirm("Вы уверены, что хотите сбросить время этого инстанса?")) return;
-      await fetch(`/api/admin/instances/${uuid}/reset-time`, { method: 'POST' });
-      loadInstances();
+      const label  = currentStatus === 'running' ? 'остановить' : 'запустить';
+      if (!confirm(`Вы уверены, что хотите ${label} этот инстанс?`)) return;
+      try {
+        const res = await fetch(`/api/admin/instances/${uuid}/${action}`, { method: 'POST' });
+        const d = await res.json();
+        if (d.success) { showToast('Команда отправлена', 'success'); loadDashboard(); }
+        else showToast(d.error || 'Ошибка', 'error');
+      } catch (e) { showToast('Сетевая ошибка', 'error'); }
     }
 
     async function deleteInstance(uuid) {
-      if (!confirm("Вы уверены, что хотите навсегда удалить этот инстанс?")) return;
-      await fetch(`/api/admin/instances/${uuid}`, { method: 'DELETE' });
-      loadInstances();
+      if (!confirm('Вы уверены? Инстанс будет навсегда удалён.')) return;
+      try {
+        const res = await fetch(`/api/admin/instances/${uuid}`, { method: 'DELETE' });
+        const d = await res.json();
+        if (d.success) { showToast('Инстанс удалён', 'success'); loadDashboard(); }
+        else showToast(d.error || 'Ошибка', 'error');
+      } catch (e) { showToast('Сетевая ошибка', 'error'); }
     }
 
-    // Copy the shared landing-page link (no UUID — dynamic pool picks it)
+    async function abortPrewarm(uuid) {
+      if (!confirm('Прервать прогрев? Инстанс будет завершён, а новый запущен автоматически.')) return;
+      try {
+        const res = await fetch(`/api/admin/instances/${uuid}/abort-prewarm`, { method: 'POST' });
+        const d = await res.json();
+        if (d.success) { showToast('Прогрев прерван, запущен замещающий инстанс', 'success'); loadDashboard(); }
+        else showToast(d.error || 'Ошибка', 'error');
+      } catch (e) { showToast('Сетевая ошибка', 'error'); }
+    }
+
+    async function resetAllTime() {
+      if (!confirm('Сбросить время всех инстансов?')) return;
+      try {
+        await fetch('/api/admin/instances/reset-all-time', { method: 'POST' });
+        showToast('Время сброшено', 'success');
+        loadDashboard();
+      } catch (e) { showToast('Сетевая ошибка', 'error'); }
+    }
+
+    // ── Copy link ─────────────────────────────────────────────────────────────
     function copyLink() {
       const link = window.location.origin + '/';
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(link).then(() => alert('Ссылка на целевую страницу скопирована!'));
+        navigator.clipboard.writeText(link).then(() => showToast('Ссылка скопирована!', 'success'));
       } else {
-        const helper = document.getElementById('copyHelper');
-        helper.value = link;
-        helper.select();
-        document.execCommand('copy');
-        alert('Ссылка на целевую страницу скопирована! (Резервный метод)');
+        const ta = document.createElement('textarea');
+        ta.value = link; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Ссылка скопирована!', 'success');
       }
     }
 
+    // ── Sync with AWS ─────────────────────────────────────────────────────────
     async function syncInstances() {
       const btn = document.getElementById('btn-sync');
       if (btn.disabled) return;
-      
       btn.disabled = true;
-      btn.innerText = 'Синхронизация...';
+      btn.innerHTML = `<svg width="14" height="14" style="animation:spin 1s linear infinite" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Синхронизация...`;
       try {
-        const response = await fetch('/api/admin/instances/sync', { method: 'POST' });
-        const data = await response.json();
+        const res  = await fetch('/api/admin/instances/sync', { method: 'POST' });
+        const data = await res.json();
         if (data.success) {
-          alert(`Синхронизация успешна! Найдено инстансов: ${data.count}`);
-          loadInstances();
+          showToast(`Синхронизировано! Найдено: ${data.count}`, 'success');
+          loadDashboard();
         } else {
-          alert(`Ошибка синхронизации: ${data.error}`);
+          showToast(`Ошибка: ${data.error}`, 'error');
         }
-      } catch (err) {
-        console.error('Failed to sync instances', err);
-        alert('Ошибка при выполнении запроса к серверу.');
+      } catch (e) {
+        showToast('Сетевая ошибка при синхронизации', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerText = 'Синхронизировать с AWS';
+        btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Синхр. с AWS`;
       }
     }
 
+    // ── Settings ──────────────────────────────────────────────────────────────
+    async function loadSettings() {
+      try {
+        const res  = await fetch('/api/settings');
+        const data = await res.json();
+        let d = data.updateDate || '';
+        if (d && d.includes('/')) d = d.split('/').reverse().join('-');
+        document.getElementById('settingUpdateDate').value = d;
+      } catch (e) { console.error('Failed to load settings', e); }
+    }
 
-    // ── Init ──────────────────────────────────────────────────────────────
+    async function saveSettings() {
+      let d = document.getElementById('settingUpdateDate').value;
+      if (d && d.includes('-')) d = d.split('-').reverse().join('/');
+      try {
+        const res  = await fetch('/api/admin/settings', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updateDate: d })
+        });
+        const data = await res.json();
+        if (data.success) showToast('Настройки сохранены!', 'success');
+        else showToast('Ошибка сохранения', 'error');
+      } catch (e) { showToast('Сетевая ошибка', 'error'); }
+    }
+
+    // ── Spin animation ────────────────────────────────────────────────────────
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+
+    // ── Init ──────────────────────────────────────────────────────────────────
     loadSettings();
-    loadInstances();
-    setInterval(loadInstances, 5000);
+    loadDashboard();
+    setInterval(loadDashboard, 4000);
   </script>
 </body>
 </html>
