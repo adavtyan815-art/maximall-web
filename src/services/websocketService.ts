@@ -609,7 +609,9 @@ export class WebSocketService {
 
     // Confirm to client
     const settings = SettingsService.getInstance().getSettings();
-    const idleTimeoutMinutes = settings.idleTimeoutMinutes !== undefined ? settings.idleTimeoutMinutes : 5;
+    const idleTimeoutMinutes = (typeof settings.idleTimeoutMinutes === 'number' && settings.idleTimeoutMinutes > 0)
+      ? settings.idleTimeoutMinutes
+      : 5;
     socket.emit('display-started', { success: true, hostToken, idleTimeoutMinutes });
 
     // Start heartbeat watchdog for this socket
