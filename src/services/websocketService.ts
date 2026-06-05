@@ -10,6 +10,7 @@ import * as https from 'https';
 import WebSocket from 'ws';
 import { ScalingService, PREWARM_LABEL, BUFFER_LABEL } from './scalingService';
 import { config } from '../config';
+import { SettingsService } from './settingsService';
 
 
 export class WebSocketService {
@@ -607,7 +608,9 @@ export class WebSocketService {
     await this.db.saveInstance(data.instanceUuid, instance);
 
     // Confirm to client
-    socket.emit('display-started', { success: true, hostToken });
+    const settings = SettingsService.getInstance().getSettings();
+    const idleTimeoutMinutes = settings.idleTimeoutMinutes !== undefined ? settings.idleTimeoutMinutes : 5;
+    socket.emit('display-started', { success: true, hostToken, idleTimeoutMinutes });
 
     // Start heartbeat watchdog for this socket
     this.startHeartbeatMonitor(socket.id, data.instanceUuid, hostToken);

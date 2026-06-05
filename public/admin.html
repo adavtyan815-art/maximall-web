@@ -588,6 +588,10 @@
           <label class="form-label" for="settingUpdateDate">Дата обновления (отображается на странице клиента)</label>
           <input type="date" id="settingUpdateDate" class="form-control">
         </div>
+        <div class="form-group" style="margin-top: 16px;">
+          <label class="form-label" for="settingIdleTimeout">Таймаут неактивности (минут, пусто для 5 мин)</label>
+          <input type="number" step="0.01" min="0" id="settingIdleTimeout" class="form-control" placeholder="5">
+        </div>
         <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
       </div>
     </div>
@@ -871,16 +875,19 @@
         let d = data.updateDate || '';
         if (d && d.includes('/')) d = d.split('/').reverse().join('-');
         document.getElementById('settingUpdateDate').value = d;
+        document.getElementById('settingIdleTimeout').value = data.idleTimeoutMinutes !== undefined ? data.idleTimeoutMinutes : '';
       } catch (e) { console.error('Failed to load settings', e); }
     }
 
     async function saveSettings() {
       let d = document.getElementById('settingUpdateDate').value;
       if (d && d.includes('-')) d = d.split('-').reverse().join('/');
+      const idleVal = document.getElementById('settingIdleTimeout').value;
+      const idleTimeoutMinutes = idleVal ? parseFloat(idleVal) : undefined;
       try {
         const res  = await fetch('/api/admin/settings', {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updateDate: d })
+          body: JSON.stringify({ updateDate: d, idleTimeoutMinutes })
         });
         const data = await res.json();
         if (data.success) showToast('Настройки сохранены!', 'success');

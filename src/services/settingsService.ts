@@ -2,6 +2,7 @@ export interface Settings {
   updateDate: string;
   defaultRealLimitHours: number;
   defaultDisplayLimitHours: number;
+  idleTimeoutMinutes?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
