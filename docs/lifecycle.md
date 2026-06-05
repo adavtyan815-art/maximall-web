@@ -1,6 +1,6 @@
-# Prewarm, Claiming & Teardown Lifecycles
+# Prewarm, Claiming, Teardown & Inactivity Lifecycles
 
-This document describes the lifecycle state-machine of the EC2 instances, detailing the pre-warming phases, pool claiming mechanics, replenishment logic, and user disconnection cleanup flows.
+This document describes the lifecycle state-machine of the EC2 instances, detailing the pre-warming phases, pool claiming mechanics, replenishment logic, user disconnection cleanup, and idle/disconnection timeout flows.
 
 ---
 
@@ -20,33 +20,17 @@ stateDiagram-v2
 ```
 
 ### Phase Details
-
-#### Phase 1: BOOT
-- **Task**: Wait for AWS to transition the newly created instance from `pending` to `running`.
-- **Logic**: Polls `ec2Service.getInstanceStatus` every 15 seconds (up to 60 times). Once the state becomes `running`, the public IP address is retrieved and saved, and the instance moves to Phase 2.
-
-#### Phase 2: TUNNEL
-- **Task**: Wait for the startup script inside the instance to report its Pinggy tunnel URL.
-- **Logic**: Polls the in-memory database configuration every 15 seconds (up to 40 times) to check if the instance called `/api/instances/report-tunnel`. Once the Pinggy URL is present, it transitions to Phase 3.
-
-#### Phase 3: SIGNAL
-- **Task**: Verify that the Wilbur signaling server process is active.
-- **Logic**: Performs a WebSocket handshake check against the instance's Pinggy URL. If the server replies or is reachable, it transitions to Phase 4.
-
-#### Phase 4: STREAMER
-- **Task**: Verify that the Unreal Engine WebRTC streamer process has successfully booted and registered itself to Wilbur.
-- **Logic**: Opens a WebSocket connection directly to the Pinggy URL and transmits a JSON query: `{"type": "listStreamers"}`. If the signaling server responds with a streamer list containing active streamer IDs (e.g., `{"type":"streamerList","ids":["DefaultStreamer"]}`), the prewarm verification is marked complete and it moves to Phase 5.
-
-#### Phase 5: STOP
-- **Task**: Gracefully stop the verified prewarm instance.
-- **Logic**: Issues an AWS `StopInstancesCommand` to transition the instance to a `stopped` state. Once confirmed as `stopped` by AWS status checks, its pool role is updated to `assignedTo = "Buffer"` and its status is saved as `stopped`. It is now resting in the Buffer pool.
+- **Phase 1 (BOOT)**: Wait for AWS to transition the newly created instance from `pending` to `running`. Once `running`, the public IP address is retrieved.
+- **Phase 2 (TUNNEL)**: Wait for the startup script inside the instance to report its Pinggy tunnel URL via the `/api/instances/:uuid/report-tunnel` endpoint.
+- **Phase 3 (SIGNAL)**: Verify that the Wilbur signaling server process is active by performing a WebSocket handshake.
+- **Phase 4 (STREAMER)**: Verify that the Unreal Engine WebRTC streamer process has booted and registered itself to the signaling server (checked via WebSocket `listStreamers` command).
+- **Phase 5 (STOP)**: Gracefully stop the verified prewarm instance via AWS `StopInstancesCommand`. Once confirmed as `stopped`, its status role is updated to `assignedTo = "Buffer"`.
 
 ---
 
 ## 2. Pool Replenishment Audit
 
-The background scaling loop runs every 60 seconds (or is triggered manually on Sync/Login). It audits the pool size as follows:
-
+The background scaling loop runs every 60 seconds. It audits the pool size as follows:
 1. **Count Buffer**: Counts all database instances where `assignedTo === "Buffer"` and `status === "stopped"`.
 2. **Count Prewarms**: Counts all database instances where `assignedTo === "Prewarm"` or that are actively undergoing prewarm phase transitions in memory.
 3. **Calculate Deficit**:
@@ -57,14 +41,13 @@ The background scaling loop runs every 60 seconds (or is triggered manually on S
 
 ## 3. Buffer Claiming Mechanics
 
-When a user triggers `/api/instances/connect-available` or sends a WebSocket connection request:
-
+When a user triggers `/api/instances/connect-available`:
 1. **Evaluation**: Checks the registry for any instance with `assignedTo === "Buffer"` and `status === "stopped"`.
 2. **Buffer Claim (Success)**:
    - Claims the instance by reassigning its pool role to `assignedTo = "OnDemand-xxxxxx"` and setting its status to `pending`.
-   - Triggers an asynchronous AWS `StartInstancesCommand` to wake it up in the background.
+   - Triggers an AWS `StartInstancesCommand` to wake it up in the background.
    - Instantly returns the startup configuration to the client.
-   - Since the buffer size has decreased by 1, the deficit becomes 1, immediately triggering the replenishment loop in the background to spawn a new prewarm instance.
+   - Triggers the replenishment loop in the background to spawn a new prewarm instance.
 3. **Fallback (Empty Buffer)**:
    - If no ready stopped buffer instances exist, the system spawns a brand new on-demand instance (`assignedTo = "OnDemand-xxxxxx"`, `status = "pending"`).
 
@@ -80,7 +63,7 @@ graph TD
     Flicker -->|Reconnected| Active[Session Restored]
     Flicker -->|No Reconnection| Grace[60s Grace Period Countdown]
     Grace -->|Reconnected| Active
-    Grace -->|Grace Expires| Teardown[terminateAndRemove()]
+    Grace -->|Grace Expires| Teardown[terminateAndRemove]
     Teardown --> Terminate[AWS TerminateInstancesCommand]
     Teardown --> Delete[Delete from Memory DB]
 ```
@@ -88,3 +71,33 @@ graph TD
 1. **Flicker Recovery (15s)**: Pauses for 15 seconds to allow for network switching or page refreshes. If the client reconnects with the same session token, the timer is canceled.
 2. **Grace Period (60s)**: If the client does not reconnect within 15 seconds, the instance enters the Grace Period. If no user reconnects before 60 seconds expire, the instance teardown is executed.
 3. **Teardown**: Calls `terminateAndRemove(instanceId)`, issuing an AWS `TerminateInstancesCommand` to terminate the EC2 instance and deleting it from the in-memory database registry.
+
+---
+
+## 5. User Inactivity (Idle Timeout) Flow
+
+To prevent GPU instances from running indefinitely when users leave their browser tabs open without interacting, the system enforces an Idle Timeout mechanism:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active_Tracking : User interacting
+    Active_Tracking --> Warning_Countdown : Inactivity >= IDLE_TIMEOUT_MINUTES
+    Warning_Countdown --> Redirect_And_Stop : Countdown reaches 0 (30 seconds)
+    Warning_Countdown --> Active_Tracking : Click "Я здесь!" button
+    Redirect_And_Stop --> [*] : AWS termination & session cleared
+```
+
+1. **Active Tracking**: The backend monitors client presence. Every time the user interacts with the page (mouse move, click, key down, touch start), a `user-activity` message is sent via WebSockets to reset the backend timer.
+2. **Warning Countdown (30s)**: If no activity is received for `IDLE_TIMEOUT_MINUTES` (configured in `.env`), the backend emits an `idle-warning` event to the client. The client displays a glassmorphic modal with a 30-second countdown.
+3. **Modal Reset**: The user must explicitly click the **"Я здесь!"** button to close the modal and reset the timer. Normal movements/keystrokes are ignored during the warning state.
+4. **Shutdown Trigger**: If the 30-second countdown expires without a response, the backend emits `idle-timeout`, clears the client session, and triggers `terminateAndRemove()` to shut down the EC2 instance.
+
+---
+
+## 6. Streamer Disconnection Webhook Flow
+
+If the Unreal Engine application crashes or is closed directly on the host machine:
+1. The signaling server's `streamerRegistry` detects that the connection to `DefaultStreamer` was lost.
+2. The signaling server POSTs a notification to the orchestrator's `/api/instances/:uuid/streamer-disconnected` webhook endpoint.
+3. Upon receiving this webhook, the orchestrator verifies the shared secret and immediately initiates the 60-second grace period countdown.
+4. If the streamer does not reconnect within the grace period, the backend issues an AWS `TerminateInstancesCommand` to tear down the instance.
