@@ -139,6 +139,9 @@ export class ScalingService {
   /** Set of instanceIds currently running through the pre-warm lifecycle. */
   private activePrewarms: Set<string> = new Set();
 
+  /** Count of instances currently undergoing async launch execution. */
+  private launchingCount: number = 0;
+
   /**
    * Maps instanceId → current phase (1–5) for prewarm instances.
    * Phase 1: Booting (waiting for AWS 'running')
@@ -225,8 +228,8 @@ export class ScalingService {
       }
     }
 
-    // Count instances actively going through the pre-warm lifecycle in memory (after adoption)
-    const prewarmCount = this.activePrewarms.size;
+    // Count instances actively going through the pre-warm lifecycle in memory (after adoption) plus currently launching ones
+    const prewarmCount = this.activePrewarms.size + this.launchingCount;
 
     const deficit = BUFFER_SIZE - bufferCount - prewarmCount;
 
@@ -245,6 +248,7 @@ export class ScalingService {
   // ── Launch a single pre-warm EC2 instance ─────────────────────────────────
   private async launchPrewarmInstance(): Promise<void> {
     let instanceId: string | undefined;
+    this.launchingCount++;
     try {
       console.log('[Scaling] Resolving AMI for prewarm...');
       const amiId = await this.ec2Service.getAmiIdByName('LinuxClientAMI');
@@ -304,6 +308,8 @@ export class ScalingService {
         try { await this.ec2Service.terminateInstance(instanceId); } catch {}
         await this.db.deleteInstance(instanceId);
       }
+    } finally {
+      this.launchingCount--;
     }
   }
 

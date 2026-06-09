@@ -569,6 +569,28 @@
     socket.on('connect', () => {
       console.log('Connected to server');
 
+      // Check if redirected due to inactivity
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('reason') === 'idle') {
+        console.log('Bypassing auto-resume/loading because redirect was due to inactivity.');
+        
+        // Clean reason=idle from history to avoid loops on manual refresh
+        urlParams.delete('reason');
+        const newSearch = urlParams.toString();
+        const cleanUrl = newSearch !== '' ? `${location.pathname}?${newSearch}` : location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+
+        // Explicitly clear any session storage tokens so they don't resume on subsequent pages
+        assignedUuid = null;
+        globalHostToken = null;
+        sessionStorage.removeItem('assignedUuid');
+        sessionStorage.removeItem('global_hostToken');
+
+        // Show launcher UI and stop progress bar
+        showLauncherUI();
+        return;
+      }
+
       // 1. Auto-Resume Check (Skip login button if active session exists)
       socket.emit('check-active-session', { deviceId });
 
