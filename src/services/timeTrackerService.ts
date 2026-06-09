@@ -11,6 +11,7 @@ export class TimeTrackerService extends EventEmitter {
   private db: DatabaseService;
   private realTimers: Map<string, NodeJS.Timeout> = new Map();
   private gracePeriodTimers: Map<string, NodeJS.Timeout> = new Map();
+  private runElapsedSeconds: Map<string, number> = new Map();
 
   static getInstance(): TimeTrackerService {
     if (!TimeTrackerService.instance) {
@@ -31,11 +32,15 @@ export class TimeTrackerService extends EventEmitter {
   // ── Real-time tracker ────────────────────────────────────────────────────
   startRealTimer(instanceUuid: string): void {
     if (!this.realTimers.has(instanceUuid)) {
+      this.runElapsedSeconds.set(instanceUuid, 0);
       const timer = setInterval(async () => {
         const instance = this.db.getInstance(instanceUuid);
         if (instance && (instance.status === 'running' || instance.status === 'stopping')) {
           instance.realTimeUsedSeconds = (instance.realTimeUsedSeconds || 0) + 1;
           await this.db.saveInstance(instanceUuid, instance);
+          
+          const elapsed = this.runElapsedSeconds.get(instanceUuid) || 0;
+          this.runElapsedSeconds.set(instanceUuid, elapsed + 1);
         }
       }, 1000);
       this.realTimers.set(instanceUuid, timer);
@@ -47,6 +52,21 @@ export class TimeTrackerService extends EventEmitter {
     if (timer) {
       clearInterval(timer);
       this.realTimers.delete(instanceUuid);
+
+      const elapsed = this.runElapsedSeconds.get(instanceUuid) || 0;
+      this.runElapsedSeconds.delete(instanceUuid);
+
+      if (elapsed > 0 && elapsed < 60) {
+        const padding = 60 - elapsed;
+        const instance = this.db.getInstance(instanceUuid);
+        if (instance) {
+          instance.realTimeUsedSeconds = (instance.realTimeUsedSeconds || 0) + padding;
+          this.db.saveInstance(instanceUuid, instance).catch(err => {
+            console.error('[TimeTracker] Failed to save instance padding:', err.message);
+          });
+          console.log(`[TimeTracker] Enforced 60s minimum: padded ${instanceUuid} by ${padding}s (run elapsed was ${elapsed}s)`);
+        }
+      }
     }
   }
 

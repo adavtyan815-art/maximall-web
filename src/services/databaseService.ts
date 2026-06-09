@@ -9,12 +9,28 @@ export class DatabaseService {
   private static instance: DatabaseService;
 
   private store: Map<string, InstanceWithSessions> = new Map();
+  private totalArchivedSeconds: number = 0;
 
   static getInstance(): DatabaseService {
     if (!DatabaseService.instance) {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
+  }
+
+  // -----------------------------------------------------------------------
+  // Archived time accumulator
+  // -----------------------------------------------------------------------
+  getArchivedSeconds(): number {
+    return this.totalArchivedSeconds;
+  }
+
+  addArchivedSeconds(seconds: number): void {
+    this.totalArchivedSeconds += seconds;
+  }
+
+  resetArchivedSeconds(): void {
+    this.totalArchivedSeconds = 0;
   }
 
   // -----------------------------------------------------------------------
@@ -43,6 +59,12 @@ export class DatabaseService {
   }
 
   async deleteInstance(uuid: string): Promise<boolean> {
+    const inst = this.store.get(uuid);
+    if (inst) {
+      const finalSeconds = inst.realTimeUsedSeconds || 0;
+      this.totalArchivedSeconds += finalSeconds;
+      console.log(`[DatabaseService] Archiving ${finalSeconds}s from deleted instance ${uuid}. Total archived: ${this.totalArchivedSeconds}s`);
+    }
     return this.store.delete(uuid);
   }
 }

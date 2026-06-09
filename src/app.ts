@@ -94,7 +94,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const bufferReady:    any[] = [];
   const prewarm:        any[] = [];
 
-  let totalTimeSeconds = 0;
+  let totalTimeSeconds = db.getArchivedSeconds();
 
   for (const [uuid, inst] of Object.entries(instances)) {
     // Dynamic audit for pending/stopping states to avoid UI getting stuck on "pending"
@@ -135,6 +135,9 @@ app.get('/api/admin/dashboard', async (req, res) => {
       realTimeUsedSeconds: inst.realTimeUsedSeconds || 0,
     };
 
+    // Accumulate running time of ALL instances (active, prewarm, buffer)
+    totalTimeSeconds += base.realTimeUsedSeconds;
+
     if (inst.assignedTo === 'Buffer') {
       bufferReady.push(base);
     } else if (inst.assignedTo === 'Prewarm' || prewarmPhases.has(uuid)) {
@@ -144,10 +147,13 @@ app.get('/api/admin/dashboard', async (req, res) => {
       });
     } else {
       // Real client session
-      totalTimeSeconds += base.realTimeUsedSeconds;
       activeSessions.push(base);
     }
   }
+
+  const settings = SettingsService.getInstance().getSettings();
+  const hourlyRate = settings.serverHourlyRate ?? 0.94;
+  const totalCost = (totalTimeSeconds / 3600) * hourlyRate;
 
   res.json({
     activeSessions,
@@ -159,6 +165,8 @@ app.get('/api/admin/dashboard', async (req, res) => {
       prewarm:        prewarm.length,
       gracePeriod:    graceList.length,
       totalTimeSeconds,
+      totalCost,
+      serverHourlyRate: hourlyRate,
     },
   });
 });
@@ -279,6 +287,7 @@ app.post('/api/admin/instances/reset-all-time', async (req, res) => {
     inst.realTimeUsedSeconds = 0;
     await db.saveInstance(uuid, inst);
   }
+  db.resetArchivedSeconds();
   res.json({ success: true });
 });
 

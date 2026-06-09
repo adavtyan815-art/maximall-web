@@ -83,5 +83,8 @@ Because the backend orchestrator and the stream-rendering nodes are separate com
 - **Express Server & WebSocket Service (`app.ts` / `websocketService.ts`)**: Handles routing, client control rooms, and websocket event tracking (including inactivity countdowns).
 - **Scaling Service (`scalingService.ts`)**: Runs a perpetual reconciliation loop auditing the buffer pool (target: 3 stopped, pre-warmed instances) and manages the 5-phase prewarm state machine (BOOT -> TUNNEL -> SIGNAL -> STREAMER -> STOP).
 - **EC2 Service (`ec2Service.ts`)**: Wraps all AWS SDK client interactions (`RunInstances`, `TerminateInstances`, `StartInstances`, `StopInstances`, `DescribeImages`).
-- **Time Tracker Service (`timeTrackerService.ts`)**: Manages the 60-second grace period countdown when websocket sessions disconnect, stopping the instance if reconnect fails.
-- **Database Service (`databaseService.ts`)**: An in-memory Map store registry tracking live instance metadata.
+- **Time Tracker Service (`timeTrackerService.ts`)**: Manages the 60-second grace period countdown when websocket sessions disconnect, stopping the instance if reconnect fails. Also tracks instance running times and enforces the 60-second minimum billing charge rule.
+- **Database Service (`databaseService.ts`)**: An in-memory Map store registry tracking live instance metadata. Also maintains a global archived time accumulator (`totalArchivedSeconds`) to preserve historical run times of terminated instances.
+
+For full implementation details, configurations, and billing logic rules, refer to [Server Cost Tracking & Billing Architecture](file:///c:/Users/Admin/Desktop/Aleg/maximall-web/docs/billing.md).
+

@@ -1,5 +1,6 @@
 import { EC2Service } from './ec2Service';
 import { DatabaseService } from './databaseService';
+import { TimeTrackerService } from './timeTrackerService';
 import * as http  from 'http';
 import * as https from 'https';
 import WebSocket from 'ws';
@@ -304,6 +305,7 @@ export class ScalingService {
       if (instanceId) {
         this.activePrewarms.delete(instanceId);
         this.prewarmPhases.delete(instanceId);
+        TimeTrackerService.getInstance().stopRealTimer(instanceId);
         // Best-effort cleanup on AWS
         try { await this.ec2Service.terminateInstance(instanceId); } catch {}
         await this.db.deleteInstance(instanceId);
@@ -341,7 +343,11 @@ export class ScalingService {
           console.log(`${tag} Phase 1 BOOT: ✓ ${instanceId} is running (ip: ${publicIp})`);
           // Update DB status
           const inst = this.db.getInstance(instanceId);
-          if (inst) { inst.status = 'running'; await this.db.saveInstance(instanceId, inst); }
+          if (inst) {
+            inst.status = 'running';
+            await this.db.saveInstance(instanceId, inst);
+            TimeTrackerService.getInstance().startRealTimer(instanceId);
+          }
           break;
         }
 
@@ -511,6 +517,7 @@ export class ScalingService {
       finalInst.assignedTo = BUFFER_LABEL;
       finalInst.streamerConnected = false;  // Reset for next use
       await this.db.saveInstance(instanceId, finalInst);
+      TimeTrackerService.getInstance().stopRealTimer(instanceId);
     }
     this.activePrewarms.delete(instanceId);
     this.prewarmPhases.delete(instanceId);  // Remove from phase tracking — now in buffer
@@ -549,6 +556,7 @@ export class ScalingService {
   async terminateAndRemove(instanceId: string): Promise<void> {
     const inst = this.db.getInstance(instanceId);
     console.log(`[Scaling] terminateAndRemove called for instance ${instanceId}. Call stack:\n`, new Error().stack);
+    TimeTrackerService.getInstance().stopRealTimer(instanceId);
     if (!inst) {
       // Not in DB — attempt AWS termination anyway as best effort
       console.warn(`[Scaling] terminateAndRemove: ${instanceId} not found in DB. Attempting AWS termination anyway.`);

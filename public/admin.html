@@ -170,7 +170,7 @@
     /* ── Metric Cards ────────────────────────────────────────────── */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 14px;
       margin-bottom: 24px;
     }
@@ -499,6 +499,12 @@
           </div>
           <button class="stat-reset-btn" onclick="resetAllTime()">Сброс</button>
         </div>
+        <div class="stat-card">
+          <div class="stat-card-content">
+            <div class="stat-label">Общие Расходы</div>
+            <div class="stat-value green" id="stat-total-cost">$0.00</div>
+          </div>
+        </div>
       </div>
 
       <!-- ── Section 1: Active Sessions ── -->
@@ -591,6 +597,10 @@
         <div class="form-group" style="margin-top: 16px;">
           <label class="form-label" for="settingIdleTimeout">Таймаут неактивности (минут, пусто для 5 мин)</label>
           <input type="number" step="0.01" min="0" id="settingIdleTimeout" class="form-control" placeholder="5">
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+          <label class="form-label" for="settingHourlyRate">Стоимость сервера в час ($, пусто для 0.94)</label>
+          <input type="number" step="0.01" min="0" id="settingHourlyRate" class="form-control" placeholder="0.94">
         </div>
         <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
       </div>
@@ -689,6 +699,7 @@
         document.getElementById('stat-prewarm').textContent   = stats.prewarm;
         document.getElementById('stat-grace').textContent     = stats.gracePeriod;
         document.getElementById('stat-total-time').textContent = formatTime(stats.totalTimeSeconds);
+        document.getElementById('stat-total-cost').textContent = stats.totalCost !== undefined ? `$${stats.totalCost.toFixed(2)}` : '$0.00';
 
         // ── Update section badges ──
         document.getElementById('badge-active').textContent  = stats.activeSessions;
@@ -876,6 +887,7 @@
         if (d && d.includes('/')) d = d.split('/').reverse().join('-');
         document.getElementById('settingUpdateDate').value = d;
         document.getElementById('settingIdleTimeout').value = data.idleTimeoutMinutes !== undefined ? data.idleTimeoutMinutes : '';
+        document.getElementById('settingHourlyRate').value = data.serverHourlyRate !== undefined ? data.serverHourlyRate : '';
       } catch (e) { console.error('Failed to load settings', e); }
     }
 
@@ -884,10 +896,12 @@
       if (d && d.includes('-')) d = d.split('-').reverse().join('/');
       const idleVal = document.getElementById('settingIdleTimeout').value;
       const idleTimeoutMinutes = idleVal ? parseFloat(idleVal) : undefined;
+      const rateVal = document.getElementById('settingHourlyRate').value;
+      const serverHourlyRate = rateVal ? parseFloat(rateVal) : undefined;
       try {
         const res  = await fetch('/api/admin/settings', {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updateDate: d, idleTimeoutMinutes })
+          body: JSON.stringify({ updateDate: d, idleTimeoutMinutes, serverHourlyRate })
         });
         const data = await res.json();
         if (data.success) showToast('Настройки сохранены!', 'success');

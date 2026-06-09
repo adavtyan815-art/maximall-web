@@ -3,12 +3,14 @@ export interface Settings {
   defaultRealLimitHours: number;
   defaultDisplayLimitHours: number;
   idleTimeoutMinutes?: number;
+  serverHourlyRate?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   updateDate: '18/04/2026',
   defaultRealLimitHours: 8,
   defaultDisplayLimitHours: 4,
+  serverHourlyRate: 0.94,
 };
 
 /**
