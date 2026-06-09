@@ -716,7 +716,7 @@ export class WebSocketService {
   }
 
   // ── Grace period ──────────────────────────────────────────────────────────
-  private startGracePeriod(instanceUuid: string): void {
+  public startGracePeriod(instanceUuid: string): void {
     const instance = this.db.getInstance(instanceUuid);
 
     // ── GUARD: Never start grace period on pool-managed instances ──────────

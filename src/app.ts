@@ -610,6 +610,37 @@ app.post('/api/instances/:uuid/report-tunnel', async (req, res) => {
   res.json({ success: true, pinggyUrl: normalizedUrl });
 });
 
+// ── Public Webhook: Notify when UE streamer crashes/disconnects ──────────────
+// Called by the signaling server on the EC2 instance when the streamer connection drops.
+app.post('/api/instances/:uuid/streamer-disconnected', async (req, res) => {
+  const { uuid } = req.params;
+  const { secret } = req.body;
+
+  // Verify secret if configured (using TUNNEL_REPORT_SECRET as the default key)
+  const expectedSecret = process.env.TUNNEL_REPORT_SECRET || '';
+  if (expectedSecret && secret !== expectedSecret) {
+    console.warn(`[Streamer Disconnect Webhook] Unauthorized request for instance ${uuid}`);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const db = DatabaseService.getInstance();
+  const inst = db.getInstance(uuid);
+  if (!inst) {
+    console.warn(`[Streamer Disconnect Webhook] Instance ${uuid} not found in DB`);
+    return res.status(404).json({ error: 'Instance not found' });
+  }
+
+  console.log(`[Streamer Disconnect Webhook] Streamer crashed/disconnected on instance ${uuid} (${inst.assignedTo})`);
+
+  if (wsService) {
+    // Force trigger the 60s grace period countdown
+    wsService.startGracePeriod(uuid);
+    res.json({ success: true, message: 'Grace period initiated.' });
+  } else {
+    res.status(500).json({ success: false, error: 'WebSocketService not initialized' });
+  }
+});
+
 // ── Debug: test AWS connectivity ─────────────────────────────────────────
 app.get('/api/debug/aws-test', async (req, res) => {
   try {
