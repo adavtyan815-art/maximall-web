@@ -30,12 +30,23 @@ stateDiagram-v2
 
 ## 2. Pool Replenishment Audit
 
-The background scaling loop runs every 60 seconds. It audits the pool size as follows:
-1. **Count Buffer**: Counts all database instances where `assignedTo === "Buffer"` and `status === "stopped"`.
-2. **Count Prewarms**: Counts all database instances where `assignedTo === "Prewarm"` or that are actively undergoing prewarm phase transitions in memory.
-3. **Calculate Deficit**:
-   $$\text{Deficit} = 3 - \text{Buffer Count} - \text{Prewarm Count}$$
-4. **Trigger Launch**: If $\text{Deficit} > 0$, the scaling service concurrently launches new prewarm instances (one per deficit unit) to replenish the standby pool.
+The background scaling loop (`reconcilePool`) runs every 60 seconds and follows a **5-step pipeline**:
+
+1. **Read Dynamic Threshold**: Reads `minBufferTarget` from `SettingsService`. Default on server startup is **`0`** (passive mode — the system launches nothing automatically). The admin sets the effective floor via the **"Применить и выровнять"** button on the Dashboard. Applies on the next loop tick without a restart.
+
+2. **AWS Sync + Ghost Purge (lightweight)**: Calls `DescribeInstances` for `Name=LinuxClient` instances. Two actions:
+   - **Absorb**: Any `stopped` instance found in AWS that is **not yet tracked** in the DB is upserted as `assignedTo = "Buffer"`.
+   - **Purge**: Any DB record with `assignedTo = "Buffer"` whose `instanceId` is **absent** from the AWS discovery response is immediately deleted from DB. This prevents externally-terminated instances (deleted via AWS Console or dashboard) from being counted as phantom buffer slots, which previously caused the auto-loop to see `bufferCount >= minBufferTarget` against ghost records and never launch replacements.
+
+3. **Count Pool State**: After sync + purge, counts:
+   - `bufferCount` = DB instances where `assignedTo === "Buffer"` AND `status === "stopped"`
+   - `prewarmCount` = active prewarm lifecycles in memory + currently launching instances
+
+4. **Guard (Prevention of Redundant Prewarm)**: If `bufferCount >= minBufferTarget`, the loop exits immediately. If `minBufferTarget === 0` (passive mode), the guard always fires and no instances are launched.
+
+5. **Insurance Fallback**: If `bufferCount < minBufferTarget`, calculates the deficit:
+   $$\text{Deficit} = \text{minBufferTarget} - \text{Buffer Count} - \text{Prewarm Count}$$
+   If `Deficit > 0`, concurrently launches new prewarm instances (one per deficit unit) to replenish the standby pool.
 
 ---
 

@@ -233,6 +233,14 @@ export class WebSocketService {
           console.log(`[WS] Waking up buffer instance ${claimedInstanceId}...`);
           await this.ec2Service.startInstance(claimedInstanceId);
 
+          // Immediately re-write status='pending' after startInstance confirms.
+          // The dashboard polls every few seconds; without this second save the
+          // DB can briefly show 'stopped' (from the buffer state) if the poll
+          // hits between the claim write and the first AWS status-poll update.
+          instance.status = 'pending';
+          await this.db.saveInstance(claimedInstanceId, instance);
+          console.log(`[WS] Buffer instance ${claimedInstanceId} start confirmed — status set to pending.`);
+
           // Join the room for status updates
           socket.join(`instance:${claimedInstanceId}`);
 
@@ -252,6 +260,7 @@ export class WebSocketService {
           socket.emit('instance-error', { message: `Failed to wake up server: ${err.message}` });
           return;
         }
+
       }
     }
 

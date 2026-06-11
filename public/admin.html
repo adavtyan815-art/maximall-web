@@ -166,6 +166,38 @@
       cursor: pointer; color: var(--text-muted); transition: all 0.15s;
     }
     .btn-action-sm:hover { background: var(--bg-page); color: var(--text-main); }
+    /* Accent (emerald) — used for the on-demand "Extra Instances" button */
+    .btn-accent {
+      background: #059669; color: #fff;
+      box-shadow: 0 2px 8px rgba(5,150,105,0.30);
+    }
+    .btn-accent:hover:not(:disabled) { background: #047857; transform: translateY(-1px); }
+    /* Inline control group: number input + accent button, separated from sync btn */
+    .extra-instances-control {
+      display: flex; align-items: center; gap: 6px;
+      padding-left: 12px;
+      border-left: 1px solid var(--border);
+    }
+    .extra-count-input {
+      width: 56px; padding: 7px 8px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-main);
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      text-align: center; outline: none;
+      transition: border-color 0.15s;
+    }
+    .extra-count-input:focus { border-color: #059669; }
+    /* hide browser spinner arrows */
+    .extra-count-input::-webkit-inner-spin-button,
+    .extra-count-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .extra-count-input[type=number] { -moz-appearance: textfield; }
+    /* Realign panel sub-components */
+    .realign-input-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .realign-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+                     letter-spacing: 0.06em; color: var(--text-muted); line-height: 1; }
+    .realign-plus  { font-size: 16px; font-weight: 700; color: var(--text-muted);
+                     padding-bottom: 2px; line-height: 1; }
+
 
     /* ── Metric Cards ────────────────────────────────────────────── */
     .stats-grid {
@@ -458,11 +490,30 @@
           </button>
           <button class="btn btn-primary" id="btn-sync" onclick="syncInstances()">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <polyline points="23 4 23 10 17 10"/>
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
             Синхр. с AWS
           </button>
+          <!-- ── Выровнять пул (Apply & Re-align) ── -->
+          <div class="extra-instances-control" title="Цель = База + Доп. Кнопка выравнивает пул в оба направления — запускает при дефиците, завершает при избытке.">
+            <div class="realign-input-group">
+              <span class="realign-label">База</span>
+              <input type="number" min="0" max="20" step="1" id="realign-base" class="extra-count-input" value="2" aria-label="Базовый размер буфера"/>
+            </div>
+            <span class="realign-plus">+</span>
+            <div class="realign-input-group">
+              <span class="realign-label">Доп.</span>
+              <input type="number" min="0" max="20" step="1" id="realign-extra" class="extra-count-input" value="2" aria-label="Дополнительный буст"/>
+            </div>
+            <button class="btn btn-accent" id="btn-realign" onclick="applyRealign()">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <polyline points="22 7 13 7 13 2"/><polyline points="2 17 11 17 11 22"/>
+                <path d="M2 7l4.586 4.586a2 2 0 0 0 2.828 0L13 8"/>
+                <path d="M22 17l-4.586-4.586a2 2 0 0 1-2.828 0L11 16"/>
+              </svg>
+              Применить и выровнять
+            </button>
+          </div>
         </div>
       </div>
 
@@ -539,7 +590,7 @@
           <div class="section-dot green"></div>
           <span class="section-title">Буфер — Готов к Выдаче</span>
           <span class="section-badge green" id="badge-buffer">0</span>
-          <span class="section-target">Целевой размер: 3</span>
+          <span class="section-target" id="section-target-buffer">Целевой размер: 3</span>
         </div>
         <div class="table-card">
           <table>
@@ -711,6 +762,12 @@
         document.getElementById('pool-buffer').textContent  = stats.bufferReady;
         document.getElementById('pool-prewarm').textContent = stats.prewarm;
 
+        // ── Buffer section: dynamic target label ──
+        if (stats.minBufferTarget !== undefined) {
+          const targetEl = document.getElementById('section-target-buffer');
+          if (targetEl) targetEl.textContent = `Целевой размер: ${stats.minBufferTarget}`;
+        }
+
         // ── Section 1: Active Sessions ──
         const sessBody = document.getElementById('sessions-body');
         if (activeSessions.length === 0) {
@@ -854,6 +911,59 @@
         showToast('Ссылка скопирована!', 'success');
       }
     }
+
+    // ── Apply & Re-align Pool ─────────────────────────────────────────────────
+    async function applyRealign() {
+      const baseInput  = document.getElementById('realign-base');
+      const extraInput = document.getElementById('realign-extra');
+      const btn        = document.getElementById('btn-realign');
+      const baseTarget = parseInt(baseInput.value,  10);
+      const extraBoost = parseInt(extraInput.value, 10);
+
+      if (!Number.isFinite(baseTarget) || baseTarget < 0) {
+        showToast('Base должен быть ≥ 0', 'error'); return;
+      }
+      if (!Number.isFinite(extraBoost) || extraBoost < 0) {
+        showToast('Extra должен быть ≥ 0', 'error'); return;
+      }
+
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.innerHTML = `<svg width="14" height="14" style="animation:spin 1s linear infinite" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13 7 13 2"/><polyline points="2 17 11 17 11 22"/><path d="M2 7l4.586 4.586a2 2 0 0 0 2.828 0L13 8"/><path d="M22 17l-4.586-4.586a2 2 0 0 1-2.828 0L11 16"/></svg> Применяю...`;
+
+      try {
+        const res  = await fetch('/api/admin/pool/realign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ baseTarget, extraBoost }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          const { launched, terminated, skippedPrewarms, combinedTarget } = data;
+          let msg = `Цель ${combinedTarget} (Base ${baseTarget} + Extra ${extraBoost}). `;
+          if (launched > 0 && terminated === 0)      msg += `Запущено ${launched} инст.`;
+          else if (terminated > 0 && launched === 0) msg += `Завершено ${terminated} инст.`;
+          else if (launched === 0 && terminated === 0) msg += `Пул уже выровнен.`;
+          else msg += `Запущено ${launched}, завершено ${terminated}.`;
+          showToast(msg, 'success');
+          if (skippedPrewarms > 0) {
+            setTimeout(() => showToast(
+              `⚠ ${skippedPrewarms} Prewarm инст. пропущено — завершатся сами и осядут в буфер.`, 'error'
+            ), 800);
+          }
+          loadDashboard();
+        } else {
+          showToast(`Ошибка: ${data.error}`, 'error');
+        }
+      } catch (e) {
+        showToast('Сетевая ошибка', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13 7 13 2"/><polyline points="2 17 11 17 11 22"/><path d="M2 7l4.586 4.586a2 2 0 0 0 2.828 0L13 8"/><path d="M22 17l-4.586-4.586a2 2 0 0 1-2.828 0L11 16"/></svg> Apply & Re-align`;
+      }
+    }
+
+
 
     // ── Sync with AWS ─────────────────────────────────────────────────────────
     async function syncInstances() {

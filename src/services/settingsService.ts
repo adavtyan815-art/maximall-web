@@ -4,6 +4,8 @@ export interface Settings {
   defaultDisplayLimitHours: number;
   idleTimeoutMinutes?: number;
   serverHourlyRate?: number;
+  /** Minimum number of stopped, pre-warmed instances to keep in the buffer pool. */
+  minBufferTarget?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -11,6 +13,10 @@ const DEFAULT_SETTINGS: Settings = {
   defaultRealLimitHours: 8,
   defaultDisplayLimitHours: 4,
   serverHourlyRate: 0.94,
+  // 0 = passive mode on startup. The system launches no prewarm instances
+  // automatically until the admin explicitly sets a target via the
+  // "Применить и выровнять" button on the Dashboard.
+  minBufferTarget: 0,
 };
 
 /**
