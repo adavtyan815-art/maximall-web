@@ -6,6 +6,8 @@ export interface Settings {
   serverHourlyRate?: number;
   /** Minimum number of stopped, pre-warmed instances to keep in the buffer pool. */
   minBufferTarget?: number;
+  /** Last extra boost value submitted via the Apply & Re-align button. */
+  lastExtraBoost?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -17,6 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   // automatically until the admin explicitly sets a target via the
   // "Применить и выровнять" button on the Dashboard.
   minBufferTarget: 0,
+  lastExtraBoost: 0,
 };
 
 /**

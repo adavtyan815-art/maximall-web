@@ -951,11 +951,6 @@
               `⚠ ${skippedPrewarms} Prewarm инст. пропущено — завершатся сами и осядут в буфер.`, 'error'
             ), 800);
           }
-          // Persist the last-used values so inputs survive logout / re-login
-          try {
-            localStorage.setItem('realign_base',  String(baseTarget));
-            localStorage.setItem('realign_extra', String(extraBoost));
-          } catch (_) {}
           loadDashboard();
 
         } else {
@@ -1005,6 +1000,10 @@
         document.getElementById('settingUpdateDate').value = d;
         document.getElementById('settingIdleTimeout').value = data.idleTimeoutMinutes !== undefined ? data.idleTimeoutMinutes : '';
         document.getElementById('settingHourlyRate').value = data.serverHourlyRate !== undefined ? data.serverHourlyRate : '';
+        // Populate realign inputs from the server's canonical state so any
+        // browser or device always shows the true active pool configuration.
+        if (data.minBufferTarget !== undefined) document.getElementById('realign-base').value  = data.minBufferTarget;
+        if (data.lastExtraBoost  !== undefined) document.getElementById('realign-extra').value = data.lastExtraBoost;
       } catch (e) { console.error('Failed to load settings', e); }
     }
 
@@ -1033,18 +1032,6 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     loadSettings();
-    // ── Restore last-used realign inputs from localStorage ─────────────────
-    // Runs once before the first loadDashboard() poll so the admin always
-    // sees their last configured target on page load or re-login.
-    (function restoreRealignInputs() {
-      try {
-        const savedBase  = localStorage.getItem('realign_base');
-        const savedExtra = localStorage.getItem('realign_extra');
-        if (savedBase  !== null) document.getElementById('realign-base').value  = savedBase;
-        if (savedExtra !== null) document.getElementById('realign-extra').value = savedExtra;
-      } catch (_) {}
-    })();
-
     loadDashboard();
     setInterval(loadDashboard, 4000);
   </script>

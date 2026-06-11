@@ -693,9 +693,10 @@ export class ScalingService {
     skippedPrewarms: number;
     combinedTarget:  number;
   }> {
-    // Step 1: Re-anchor auto-loop to new base immediately
-    await SettingsService.getInstance().save({ minBufferTarget: baseTarget });
-    console.log(`[Scaling] realignPool: baseTarget=${baseTarget} saved to settings.`);
+    // Step 1: Re-anchor auto-loop to new base immediately, and persist extra
+    // so that GET /api/settings always reflects the full admin-configured target.
+    await SettingsService.getInstance().save({ minBufferTarget: baseTarget, lastExtraBoost: extraBoost });
+    console.log(`[Scaling] realignPool: baseTarget=${baseTarget}, extraBoost=${extraBoost} saved to settings.`);
 
     // Step 2: Snapshot
     const instances = this.db.getInstances();
