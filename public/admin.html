@@ -951,7 +951,13 @@
               `⚠ ${skippedPrewarms} Prewarm инст. пропущено — завершатся сами и осядут в буфер.`, 'error'
             ), 800);
           }
+          // Persist the last-used values so inputs survive logout / re-login
+          try {
+            localStorage.setItem('realign_base',  String(baseTarget));
+            localStorage.setItem('realign_extra', String(extraBoost));
+          } catch (_) {}
           loadDashboard();
+
         } else {
           showToast(`Ошибка: ${data.error}`, 'error');
         }
@@ -959,7 +965,8 @@
         showToast('Сетевая ошибка', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13 7 13 2"/><polyline points="2 17 11 17 11 22"/><path d="M2 7l4.586 4.586a2 2 0 0 0 2.828 0L13 8"/><path d="M22 17l-4.586-4.586a2 2 0 0 1-2.828 0L11 16"/></svg> Apply & Re-align`;
+        // LOCKED: always restore Russian label — never revert to English
+        btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13 7 13 2"/><polyline points="2 17 11 17 11 22"/><path d="M2 7l4.586 4.586a2 2 0 0 0 2.828 0L13 8"/><path d="M22 17l-4.586-4.586a2 2 0 0 1-2.828 0L11 16"/></svg> Применить и выровнять`;
       }
     }
 
@@ -1026,6 +1033,18 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     loadSettings();
+    // ── Restore last-used realign inputs from localStorage ─────────────────
+    // Runs once before the first loadDashboard() poll so the admin always
+    // sees their last configured target on page load or re-login.
+    (function restoreRealignInputs() {
+      try {
+        const savedBase  = localStorage.getItem('realign_base');
+        const savedExtra = localStorage.getItem('realign_extra');
+        if (savedBase  !== null) document.getElementById('realign-base').value  = savedBase;
+        if (savedExtra !== null) document.getElementById('realign-extra').value = savedExtra;
+      } catch (_) {}
+    })();
+
     loadDashboard();
     setInterval(loadDashboard, 4000);
   </script>
