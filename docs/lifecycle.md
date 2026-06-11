@@ -6,7 +6,7 @@ This document describes the lifecycle state-machine of the EC2 instances, detail
 
 ## 1. The Prewarm State Machine
 
-The backend maintains a standby pool of exactly 3 pre-warmed, stopped GPU instances to bypass the standard 2-minute EC2 boot latency. Each prewarm instance transitions sequentially through 5 distinct setup phases, managed asynchronously in `ScalingService`:
+The backend maintains a standby pool of pre-warmed, stopped GPU instances to bypass the standard 2-minute EC2 boot latency. The target pool size is **admin-controlled** via the Dashboard's **"Применить и выровнять"** button (default: `0` on startup — fully passive, no instances launched automatically). Each prewarm instance transitions sequentially through 5 distinct setup phases, managed asynchronously in `ScalingService`:
 
 ```mermaid
 stateDiagram-v2
@@ -36,7 +36,7 @@ The background scaling loop (`reconcilePool`) runs every 60 seconds and follows 
 
 2. **AWS Sync + Ghost Purge (lightweight)**: Calls `DescribeInstances` for `Name=LinuxClient` instances. Two actions:
    - **Absorb**: Any `stopped` instance found in AWS that is **not yet tracked** in the DB is upserted as `assignedTo = "Buffer"`.
-   - **Purge**: Any DB record with `assignedTo = "Buffer"` whose `instanceId` is **absent** from the AWS discovery response is immediately deleted from DB. This prevents externally-terminated instances (deleted via AWS Console or dashboard) from being counted as phantom buffer slots, which previously caused the auto-loop to see `bufferCount >= minBufferTarget` against ghost records and never launch replacements.
+   - **Purge**: Any DB record with `assignedTo = "Buffer"` whose `instanceId` is **absent** from the AWS discovery response is immediately deleted from DB. This prevents externally-terminated instances (deleted via AWS Console or dashboard Delete button) from being counted as phantom buffer slots, which would cause the auto-loop guard to see `bufferCount >= minBufferTarget` against ghost records and never launch replacements.
 
 3. **Count Pool State**: After sync + purge, counts:
    - `bufferCount` = DB instances where `assignedTo === "Buffer"` AND `status === "stopped"`
@@ -55,16 +55,38 @@ The background scaling loop (`reconcilePool`) runs every 60 seconds and follows 
 When a user triggers `/api/instances/connect-available`:
 1. **Evaluation**: Checks the registry for any instance with `assignedTo === "Buffer"` and `status === "stopped"`.
 2. **Buffer Claim (Success)**:
-   - Claims the instance by reassigning its pool role to `assignedTo = "OnDemand-xxxxxx"` and setting its status to `pending`.
-   - Triggers an AWS `StartInstancesCommand` to wake it up in the background.
+   - Claims the instance by reassigning its pool role to `assignedTo = "OnDemand-xxxxxx"` and setting `status = "pending"`. Saves to DB.
+   - Triggers an AWS `StartInstancesCommand` to wake it up.
+   - **After `StartInstancesCommand` resolves**, immediately re-writes `status = "pending"` to DB a second time. This closes the race window where a dashboard poll landing between the initial claim write and the first AWS status-poll confirmation could display a stale `"Stopped"` badge on an active session row.
    - Instantly returns the startup configuration to the client.
-   - Triggers the replenishment loop in the background to spawn a new prewarm instance.
+   - The background replenishment loop (`reconcilePool`) will detect the reduced buffer count on the next tick and spawn a replacement prewarm instance.
 3. **Fallback (Empty Buffer)**:
    - If no ready stopped buffer instances exist, the system spawns a brand new on-demand instance (`assignedTo = "OnDemand-xxxxxx"`, `status = "pending"`).
 
 ---
 
-## 4. User Disconnect & Teardown Flow
+## 4. Admin Pool Control ("Применить и выровнять")
+
+The Dashboard topbar exposes two numeric inputs and a single action button:
+
+| Input | Field | Persisted in |
+|-------|-------|-------------|
+| **База** (Base) | `minBufferTarget` | `SettingsService` → `GET /api/settings` |
+| **Доп.** (Extra boost) | `lastExtraBoost` | `SettingsService` → `GET /api/settings` |
+
+Clicking **"Применить и выровнять"** calls `POST /api/admin/pool/realign` with `{ baseTarget, extraBoost }`:
+
+1. Persists both values to `SettingsService` so any browser on any device sees the active configuration via `GET /api/settings` (inputs are populated from this endpoint on every login/page load — not from `localStorage`).
+2. Computes `combinedTarget = baseTarget + extraBoost`.
+3. **Deficit** (`combinedTarget > currentTotal`): launches the missing number of prewarm instances concurrently.
+4. **Surplus** (`combinedTarget < currentTotal`): terminates stopped Buffer instances only (LIFO — newest first). In-flight Prewarm instances are never force-aborted; they complete naturally and settle into the Buffer.
+5. **Already aligned** (`delta === 0`): no action taken.
+
+After the one-time alignment, the background auto-loop reverts to maintaining only `baseTarget` (ignoring the extra boost).
+
+---
+
+## 5. User Disconnect & Teardown Flow
 
 When a user closes their browser tab or loses connection, the WebSocket connection drops, triggering the teardown sequence:
 
@@ -85,7 +107,7 @@ graph TD
 
 ---
 
-## 5. User Inactivity (Idle Timeout) Flow
+## 6. User Inactivity (Idle Timeout) Flow
 
 To prevent GPU instances from running indefinitely when users leave their browser tabs open without interacting, the system enforces an Idle Timeout mechanism:
 
@@ -99,13 +121,13 @@ stateDiagram-v2
 ```
 
 1. **Active Tracking**: The backend monitors client presence. Every time the user interacts with the page (mouse move, click, key down, touch start), a `user-activity` message is sent via WebSockets to reset the backend timer.
-2. **Warning Countdown (30s)**: If no activity is received for `IDLE_TIMEOUT_MINUTES` (configured in `.env`), the backend emits an `idle-warning` event to the client. The client displays a glassmorphic modal with a 30-second countdown.
+2. **Warning Countdown (30s)**: If no activity is received for `IDLE_TIMEOUT_MINUTES` (configured in Settings), the backend emits an `idle-warning` event to the client. The client displays a glassmorphic modal with a 30-second countdown.
 3. **Modal Reset**: The user must explicitly click the **"Я здесь!"** button to close the modal and reset the timer. Normal movements/keystrokes are ignored during the warning state.
 4. **Shutdown Trigger**: If the 30-second countdown expires without a response, the backend emits `idle-timeout`, clears the client session, and triggers `terminateAndRemove()` to shut down the EC2 instance.
 
 ---
 
-## 6. Streamer Disconnection Webhook Flow
+## 7. Streamer Disconnection Webhook Flow
 
 If the Unreal Engine application crashes or is closed directly on the host machine:
 1. The signaling server's `streamerRegistry` detects that the connection to `DefaultStreamer` was lost.

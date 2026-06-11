@@ -81,10 +81,11 @@ Because the backend orchestrator and the stream-rendering nodes are separate com
 ## 3. Core Service Modules (`maximall-web`)
 
 - **Express Server & WebSocket Service (`app.ts` / `websocketService.ts`)**: Handles routing, client control rooms, and websocket event tracking (including inactivity countdowns).
-- **Scaling Service (`scalingService.ts`)**: Runs a perpetual reconciliation loop auditing the buffer pool (target: 3 stopped, pre-warmed instances) and manages the 5-phase prewarm state machine (BOOT -> TUNNEL -> SIGNAL -> STREAMER -> STOP).
+- **Scaling Service (`scalingService.ts`)**: Runs a perpetual 60-second reconciliation loop auditing the buffer pool and manages the 5-phase prewarm state machine (BOOT → TUNNEL → SIGNAL → STREAMER → STOP). The target buffer size is admin-controlled (default `0` — passive on startup). Also exposes `realignPool(baseTarget, extraBoost)` for on-demand bidirectional pool alignment triggered by the admin Dashboard button.
 - **EC2 Service (`ec2Service.ts`)**: Wraps all AWS SDK client interactions (`RunInstances`, `TerminateInstances`, `StartInstances`, `StopInstances`, `DescribeImages`).
 - **Time Tracker Service (`timeTrackerService.ts`)**: Manages the 60-second grace period countdown when websocket sessions disconnect, stopping the instance if reconnect fails. Also tracks instance running times and enforces the 60-second minimum billing charge rule.
 - **Database Service (`databaseService.ts`)**: An in-memory Map store registry tracking live instance metadata. Also maintains a global archived time accumulator (`totalArchivedSeconds`) to preserve historical run times of terminated instances.
+- **Settings Service (`settingsService.ts`)**: Pure in-memory key/value store for runtime configuration. Persists `minBufferTarget` and `lastExtraBoost` (set by the admin via `POST /api/admin/pool/realign`) so the auto-loop always reads the correct floor and any browser login restores the active pool configuration from `GET /api/settings`.
 
 For full implementation details, configurations, and billing logic rules, refer to [Server Cost Tracking & Billing Architecture](file:///c:/Users/Admin/Desktop/Aleg/maximall-web/docs/billing.md).
 

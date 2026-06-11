@@ -37,8 +37,27 @@ This document maps all REST API endpoints and Socket.IO WebSocket events exposed
   }
   ```
 
+#### `POST /api/admin/pool/realign`
+- **Description**: Admin-triggered, bidirectional pool alignment. Computes `combinedTarget = baseTarget + extraBoost`, then:
+  - Persists `baseTarget` as `minBufferTarget` and `extraBoost` as `lastExtraBoost` in `SettingsService` so the auto-loop is immediately re-anchored and any browser can read back the active configuration via `GET /api/settings`.
+  - **Deficit** (`combinedTarget > current total`): launches the missing instances as prewarm pipelines.
+  - **Surplus** (`combinedTarget < current total`): terminates stopped `Buffer` instances only (LIFO). In-flight `Prewarm` instances are never force-aborted.
+  - **Already aligned** (`delta === 0`): no AWS action taken.
+  - Intentionally **not** called by the 60-second auto-loop — button-triggered only.
+- **Body Shape**: `{ "baseTarget": 2, "extraBoost": 2 }`
+- **Response Shape**:
+  ```json
+  {
+    "success": true,
+    "launched": 4,
+    "terminated": 0,
+    "skippedPrewarms": 0,
+    "combinedTarget": 4
+  }
+  ```
+
 #### `POST /api/admin/instances/sync`
-- **Description**: Triggers a manual audit. Discovers LinuxClient instances in AWS, updates the in-memory database, and forces a prewarm pool replenishment audit.
+- **Description**: Triggers a full manual audit. Discovers all `Name=LinuxClient` instances in AWS, upserts the in-memory database, purges records absent from AWS, and forces a prewarm pool replenishment audit.
 - **Response Shape**: `{ "success": true, "count": 3 }`
 
 #### `POST /api/admin/instances/:uuid/start`
@@ -63,7 +82,35 @@ This document maps all REST API endpoints and Socket.IO WebSocket events exposed
 
 ---
 
-### B. Client & Node Integrations
+### B. Settings
+
+#### `GET /api/settings`
+- **Description**: Returns the current in-memory server configuration. Used by the Dashboard on every page load to populate the Settings tab fields **and** the realign panel inputs, ensuring any browser on any device sees the true active pool configuration without relying on browser-local storage.
+- **Response Shape**:
+  ```json
+  {
+    "updateDate": "18/04/2026",
+    "defaultRealLimitHours": 8,
+    "defaultDisplayLimitHours": 4,
+    "idleTimeoutMinutes": 5,
+    "serverHourlyRate": 0.94,
+    "minBufferTarget": 2,
+    "lastExtraBoost": 2
+  }
+  ```
+  | Field | Description |
+  |-------|-------------|
+  | `minBufferTarget` | Active floor for the auto-loop. Set by `POST /api/admin/pool/realign`. Default `0` (passive). |
+  | `lastExtraBoost` | Last extra boost value submitted by the admin. Displayed in the **Доп.** input on login. |
+
+#### `PUT /api/admin/settings`
+- **Description**: Persists partial settings updates. Used by the Settings tab "Сохранить настройки" button for `updateDate`, `idleTimeoutMinutes`, and `serverHourlyRate`. `minBufferTarget` and `lastExtraBoost` are managed exclusively through `POST /api/admin/pool/realign`.
+- **Body Shape**: `{ "updateDate": "18/04/2026", "idleTimeoutMinutes": 5, "serverHourlyRate": 0.94 }`
+- **Response Shape**: `{ "success": true, "settings": { ... } }`
+
+---
+
+### C. Client & Node Integrations
 
 #### `POST /api/instances/connect-available`
 - **Description**: Invoked when a client clicks "ВОЙТИ В 3D КОМНАТУ". Evaluates whether a stopped buffer instance is available:
