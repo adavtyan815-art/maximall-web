@@ -12,6 +12,7 @@ export interface Instance {
   assignedTo: string | null;          // Optional client name
   pinggyUrl?: string;                 // Dynamic Pinggy tunnel URL reported by EC2 on boot
   streamerConnected?: boolean;        // True once UE5 streamer has connected to signaling server
+  managedByBackend?: boolean;
   ec2Config: {
     instanceType: string;             // e.g., 'g4dn.2xlarge'
     region: string;                   // e.g., 'us-east-2'

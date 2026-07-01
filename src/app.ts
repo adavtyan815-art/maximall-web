@@ -153,6 +153,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
 
   const settings = SettingsService.getInstance().getSettings();
   const hourlyRate = settings.serverHourlyRate ?? 0.94;
+  const minBufferTarget = settings.minBufferTarget ?? 3;
   const totalCost = (totalTimeSeconds / 3600) * hourlyRate;
 
   res.json({
@@ -167,6 +168,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
       totalTimeSeconds,
       totalCost,
       serverHourlyRate: hourlyRate,
+      minBufferTarget,
     },
   });
 });
@@ -339,8 +341,30 @@ async function performAwsSyncAndBufferAudit(): Promise<number> {
       if (existing.pinggyUrl && !inst.pinggyUrl) {
         inst.pinggyUrl = existing.pinggyUrl;
       }
+      // Preserve the backend-managed flag from the existing DB record
+      inst.managedByBackend = existing.managedByBackend;
+      await db.saveInstance(inst.uuid, inst);
+    } else {
+      // ── NEW instance not yet tracked in DB ──────────────────────────────
+      // Only absorb running/pending instances if the backend launched them
+      // (ManagedByBackend=true tag on EC2). Manually-created instances that
+      // are still running are SKIPPED — they will be absorbed as Buffer by
+      // the reconcilePool lightweight sync once they reach 'stopped'.
+      // This prevents a manual instance from being injected into the Prewarm
+      // lifecycle and eventually being auto-terminated.
+      if (inst.status === 'stopped') {
+        inst.assignedTo = 'Buffer';
+        await db.saveInstance(inst.uuid, inst);
+      } else if (inst.managedByBackend === true) {
+        // Backend-launched, not yet stopped — safe to track for re-adoption
+        await db.saveInstance(inst.uuid, inst);
+      } else {
+        console.log(
+          `[Sync] Skipping untracked running instance ${inst.instanceId} ` +
+          `(no ManagedByBackend tag — manually created). Will absorb once stopped.`
+        );
+      }
     }
-    await db.saveInstance(inst.uuid, inst);
   }
 
   // Delete any instance from memory that wasn't found in AWS (excluding mocks)
@@ -364,6 +388,33 @@ app.post('/api/admin/instances/sync', async (req, res) => {
   } catch (err: any) {
     console.error('[Admin API] Instance sync failed:', err);
     res.status(500).json({ success: false, error: err.message || 'Sync failed' });
+  }
+});
+
+// ── Admin: apply & re-align pool (single button, bidirectional) ──────────
+// Body: { baseTarget: number, extraBoost: number }
+// combinedTarget = baseTarget + extraBoost
+// Launches if deficit, terminates stopped Buffer instances if surplus.
+// Also persists baseTarget as new minBufferTarget for the auto-loop.
+app.post('/api/admin/pool/realign', async (req, res) => {
+  const baseTarget = parseInt(req.body.baseTarget, 10);
+  const extraBoost = parseInt(req.body.extraBoost,  10);
+
+  if (!Number.isFinite(baseTarget) || baseTarget < 0) {
+    return res.status(400).json({ success: false, error: 'baseTarget must be a non-negative integer' });
+  }
+  if (!Number.isFinite(extraBoost) || extraBoost < 0) {
+    return res.status(400).json({ success: false, error: 'extraBoost must be a non-negative integer' });
+  }
+
+  console.log(`[Admin API] pool/realign: baseTarget=${baseTarget}, extraBoost=${extraBoost}`);
+
+  try {
+    const result = await ScalingService.getInstance().realignPool(baseTarget, extraBoost);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('[Admin API] pool/realign failed:', err.message);
+    res.status(500).json({ success: false, error: err.message || 'Realign failed' });
   }
 });
 

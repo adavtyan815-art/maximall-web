@@ -125,6 +125,7 @@ export class EC2Service {
           Tags: [
             { Key: 'Name', Value: 'LinuxClient' },
             { Key: 'Purpose', Value: 'Prewarm' },
+            { Key: 'ManagedByBackend', Value: 'true' },
           ]
         }
       ]
@@ -175,6 +176,7 @@ export class EC2Service {
         // Read the Name tag as the display label
         const nameTag = ec2.Tags?.find(t => t.Key === 'Name')?.Value ?? 'Без метки';
         const purposeTag = ec2.Tags?.find(t => t.Key === 'Purpose')?.Value;
+        const managedByBackend = ec2.Tags?.find(t => t.Key === 'ManagedByBackend')?.Value === 'true';
 
         // Map AWS state → app status
         const awsState = ec2.State?.Name ?? 'stopped';
@@ -205,6 +207,7 @@ export class EC2Service {
           createdAt: ec2.LaunchTime?.toISOString() ?? new Date().toISOString(),
           lastActiveAt: new Date().toISOString(),
           assignedTo,
+          managedByBackend,
           ec2Config: {
             instanceType: ec2.InstanceType ?? 'g4dn.2xlarge',
             region: config.AWS_REGION || 'eu-central-1',
