@@ -437,7 +437,7 @@ export class WebSocketService {
 
       // 1. If publicIp is already known, verify if the streamer is connected
       if (instance.publicIp) {
-        const directWsUrl = `ws://${instance.publicIp}:80`;
+        const directWsUrl = `ws://${instance.publicIp}:8000`;
         const isStreamerReady = await checkStreamerConnected(directWsUrl);
         if (isStreamerReady) {
           console.log(`[WS] Streamer is connected to signaling server at ${instance.publicIp}. Redirecting client.`);
@@ -474,7 +474,7 @@ export class WebSocketService {
               await this.db.saveInstance(uuid, instance);
             }
 
-            const directWsUrl = `ws://${currentIp}:80`;
+            const directWsUrl = `ws://${currentIp}:8000`;
             const isStreamerReady = await checkStreamerConnected(directWsUrl);
             if (isStreamerReady) {
               clearInterval(pollInterval);

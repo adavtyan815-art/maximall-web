@@ -458,7 +458,7 @@ export class ScalingService {
     // ── Phase 2: Tunnel — Bypassed (Direct connection proxying) ─────────────
     this.prewarmPhases.set(instanceId, 2);
     console.log(`${tag} Phase 2 TUNNEL: Bypassed. Using direct IP for proxying.`);
-    const urlToCheck = `http://${publicIp}`;
+    const urlToCheck = `http://${publicIp}:8000`;
 
     // ── Phase 3 & 4: Signal + Streamer — wait for UE5 streamer connection ──
     this.prewarmPhases.set(instanceId, 3);
@@ -475,7 +475,7 @@ export class ScalingService {
         await fatal('Instance disappeared from DB during signal wait');
         return;
       }
-      const instanceUrl = `http://${inst.publicIp}`;
+      const instanceUrl = `http://${inst.publicIp}:8000`;
 
       const streamerStatus = await checkStreamerStatus(instanceUrl);
       console.log(

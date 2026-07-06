@@ -95,7 +95,7 @@ app.all('/instance/:uuid/*', (req, res) => {
 
   const proxyReq = http.request({
     host: ip,
-    port: 80,
+    port: 8000,
     path: `/${targetPath}${query}`,
     method: req.method,
     headers: headers

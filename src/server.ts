@@ -74,7 +74,7 @@ async function bootstrap() {
 
         if (inst && inst.publicIp) {
           psProxyWss.handleUpgrade(request, socket, head, (clientWs) => {
-            const targetUrl = `ws://${inst.publicIp}:80/`;
+            const targetUrl = `ws://${inst.publicIp}:8000/`;
             console.log(`[WS-Proxy] Routing signaling for ${uuid} directly to ${targetUrl}`);
             
             const targetWs = new WebSocket(targetUrl);
