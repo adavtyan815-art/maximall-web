@@ -9,7 +9,7 @@ This document describes the high-level architecture of the Maximall pixel stream
 The platform consists of two completely independent software repositories running on separate runtime environments:
 
 1. **`maximall-web` (Orchestrator Backend)**: A single-process Node.js TypeScript application. It manages database registries, schedules pool audit loops, tracks active timer states, communicates with AWS, and handles browser-to-backend WebSocket control sessions.
-2. **`maximall-pixel-config` (Streamer Environment)**: Running on individual Windows/Linux GPU instances spawned from a custom AMI. It contains the Unreal Engine 3D app, Epic Games' Signaling Server, and a tunneling service (Pinggy/ngrok) to expose local streamer ports to the public internet securely.
+2. **`maximall-pixel-config` (Streamer Environment)**: Running on individual Windows/Linux GPU instances spawned from a custom AMI. It contains the Unreal Engine 3D app and Epic Games' Signaling Server, listening directly on local port 80.
 
 ```mermaid
 graph TD
@@ -19,23 +19,23 @@ graph TD
 
     subgraph Backend Server (maximall-web)
         App[Express HTTP / Socket.IO Server]
+        Proxy[Node.js HTTP/WS Proxy]
         DB[DatabaseService - In-Memory Map]
         Scaling[ScalingService - Prewarm Loop]
         TimeTracker[TimeTrackerService - Timers & Grace]
         EC2[EC2Service - AWS SDK Integration]
         
         App <--> DB
+        Proxy <--> DB
         Scaling -->|Polls Live IP/Status| EC2
         Scaling -->|Saves state| DB
         TimeTracker -->|Grace countdowns| Scaling
     end
 
     subgraph Standalone EC2 Instance (maximall-pixel-config)
-        Pinggy[Pinggy Tunneling Agent]
         Signalling[Signalling Web Server]
         UE[Unreal Engine 5 Streamer]
         
-        Pinggy <--> Signalling
         UE <-->|WebSockets| Signalling
     end
 
@@ -45,10 +45,11 @@ graph TD
 
     %% Communications
     Client <-->|HTTP / Socket.IO Control| App
-    Client <-->|WebRTC Video / Audio| Signalling
+    Client <-->|Proxied HTTP & WSS| Proxy
+    Proxy <-->|Local HTTP & WS| Signalling
+    Client <-->|WebRTC Video / Audio UDP| UE
     EC2 <-->|AWS SDK v3| AWS
     AWS <-->|Create / Start / Stop / Terminate| StandaloneInstance[EC2 GPU Instance]
-    Pinggy -->|POST /api/instances/:uuid/report-tunnel| App
     Signalling -->|POST /api/instances/:uuid/streamer-disconnected| App
 ```
 
@@ -63,13 +64,13 @@ Because the backend orchestrator and the stream-rendering nodes are separate com
 - **WebSocket Handshake**: The browser connects to `websocketService.ts` via Socket.IO.
 - **Inactivity Heartbeats**: The browser emits periodic `user-activity` (user interacting) or `heartbeat` (connection verification) events to reset the backend's idle timeout timers.
 
-### B. Tunnel URL Auto-Reporting (Instance <--> Orchestrator)
-- When an EC2 instance boots, its startup script initializes a Pinggy tunnel and POSTs the generated public URL back to the backend's `/api/instances/:uuid/report-tunnel` endpoint.
-- This maps the temporary tunnel endpoint to the in-memory database configuration, allowing the backend to route the browser client.
+### B. Public IP Registry (Instance <--> Orchestrator)
+- When an EC2 instance boots, its dynamic public IP is retrieved by the orchestrator via the AWS EC2 API and saved in the Database.
+- This mapping allows the orchestrator to route and proxy the client's HTTP assets and WebSocket signaling connection directly to that specific instance.
 
 ### C. Streamer Verification & Handshake (Orchestrator <--> Signaling Server)
-- During the pre-warm lifecycle, the orchestrator's `ScalingService` opens a WebSocket connection to the instance's Pinggy URL and queries `{"type": "listStreamers"}`.
-- It verifies that Epic Games' `DefaultStreamer` ID is active, ensuring the Unreal Engine rendering process is fully initialized before shutting down the instance into the stopped buffer pool.
+- During the pre-warm lifecycle, the orchestrator's `ScalingService` opens a WebSocket connection directly to the instance's public IP (`ws://<publicIp>:80/`) and queries `{"type": "listStreamers"}`.
+- It verifies that Epic Games' `DefaultStreamer` ID is active, ensuring the Unreal Engine rendering process is fully initialized before shutting down the instance into the stopped pool.
 
 ### D. Disconnection Notification Webhook (Signalling Server --> Orchestrator)
 - If the Unreal Engine app on the instance crashes or is forcefully closed, the signaling server's `streamerRegistry` detects the removal of the streamer.
