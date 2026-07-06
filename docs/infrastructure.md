@@ -74,8 +74,8 @@ When the backend launches a pre-warm or dynamic instance from the AMI, it expect
 ### B. Network exposing (Direct IP Reverse Proxy)
 The legacy Pinggy/ngrok tunnel configurations have been **deprecated** in favor of direct connection routing via the orchestrator's Node.js reverse-proxy:
 
-1. **Port Bindings**: The signaling server and player web server must listen directly on local **TCP Port 80** of the dynamic EC2 instance.
+1. **Port Bindings**: The signaling server and player web server must listen directly on local **TCP Port 8000** of the dynamic EC2 instance.
 2. **Port Openings (AWS Security Group)**: You must ensure that the instance's Security Group allows:
-   - Inbound **TCP Port 80**: (Proxied WebSockets signaling and HTTP player assets).
+   - Inbound **TCP Port 8000**: (Proxied WebSockets signaling and HTTP player assets).
    - Inbound **UDP Port Range `49152-65535`**: (Direct WebRTC media/video stream).
 3. **Automatic IP Discovery**: The orchestrator discovers the instance's public IP dynamically via the AWS EC2 API, completely eliminating the need for any dynamic tunnel reporting scripts.

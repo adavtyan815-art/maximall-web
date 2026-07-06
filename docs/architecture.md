@@ -9,7 +9,7 @@ This document describes the high-level architecture of the Maximall pixel stream
 The platform consists of two completely independent software repositories running on separate runtime environments:
 
 1. **`maximall-web` (Orchestrator Backend)**: A single-process Node.js TypeScript application. It manages database registries, schedules pool audit loops, tracks active timer states, communicates with AWS, and handles browser-to-backend WebSocket control sessions.
-2. **`maximall-pixel-config` (Streamer Environment)**: Running on individual Windows/Linux GPU instances spawned from a custom AMI. It contains the Unreal Engine 3D app and Epic Games' Signaling Server, listening directly on local port 80.
+2. **`maximall-pixel-config` (Streamer Environment)**: Running on individual Windows/Linux GPU instances spawned from a custom AMI. It contains the Unreal Engine 3D app and Epic Games' Signaling Server, listening directly on local port 8000.
 
 ```mermaid
 graph TD
