@@ -11,6 +11,7 @@ export interface Instance {
   expiresAt?: string;                 // ISO timestamp
   assignedTo: string | null;          // Optional client name
   pinggyUrl?: string;                 // Dynamic Pinggy tunnel URL reported by EC2 on boot
+  publicIp?: string;                  // Public IP of the instance for direct connection proxying
   streamerConnected?: boolean;        // True once UE5 streamer has connected to signaling server
   managedByBackend?: boolean;
   ec2Config: {

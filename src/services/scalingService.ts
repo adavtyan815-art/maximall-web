@@ -434,6 +434,7 @@ export class ScalingService {
           const inst = this.db.getInstance(instanceId);
           if (inst) {
             inst.status = 'running';
+            inst.publicIp = publicIp || undefined;
             await this.db.saveInstance(instanceId, inst);
             TimeTrackerService.getInstance().startRealTimer(instanceId);
           }
@@ -454,48 +455,10 @@ export class ScalingService {
       return;
     }
 
-    // ── Phase 2: Tunnel — wait for Pinggy URL ─────────────────────────────
+    // ── Phase 2: Tunnel — Bypassed (Direct connection proxying) ─────────────
     this.prewarmPhases.set(instanceId, 2);
-    console.log(`${tag} Phase 2 TUNNEL: Waiting for tunnel URL from ${instanceId}...`);
-    let pinggyUrl: string | undefined;
-    let tunnelFound = false;
-
-    for (let i = 0; i < TUNNEL_MAX; i++) {
-      await sleep(POLL_MS);
-
-      // Check if EC2 startup script already called /report-tunnel
-      const inst = this.db.getInstance(instanceId);
-      if (!inst) {
-        await fatal('Instance disappeared from DB during tunnel wait');
-        return;
-      }
-
-      if (inst.pinggyUrl) {
-        pinggyUrl = inst.pinggyUrl;
-        tunnelFound = true;
-        console.log(`${tag} Phase 2 TUNNEL: ✓ Tunnel URL received: ${pinggyUrl}`);
-        break;
-      }
-
-      // Fallback: probe the public IP on port 80 directly (Pinggy listens on 80)
-      if (publicIp) {
-        const directAlive = await probeHttp(`http://${publicIp}:80`);
-        if (directAlive) {
-          // If the direct IP is responding, Pinggy is likely up — wait one more cycle
-          // for the /report-tunnel callback. Log but don't break.
-          console.log(`${tag} Phase 2 TUNNEL [${i + 1}/${TUNNEL_MAX}]: Direct IP alive, awaiting /report-tunnel callback...`);
-        } else {
-          console.log(`${tag} Phase 2 TUNNEL [${i + 1}/${TUNNEL_MAX}]: Waiting for tunnel... (no pinggyUrl, direct IP not ready)`);
-        }
-      } else {
-        console.log(`${tag} Phase 2 TUNNEL [${i + 1}/${TUNNEL_MAX}]: Waiting for tunnel...`);
-      }
-    }
-
-    if (!tunnelFound) {
-      await fatal('Timed out waiting for Pinggy tunnel URL');
-      return;
-    }
+    console.log(`${tag} Phase 2 TUNNEL: Bypassed. Using direct IP for proxying.`);
+    const urlToCheck = `http://${publicIp}`;
 
     // ── Phase 3 & 4: Signal + Streamer — wait for UE5 streamer connection ──
     this.prewarmPhases.set(instanceId, 3);
@@ -506,18 +469,18 @@ export class ScalingService {
     for (let i = 0; i < SIGNAL_MAX; i++) {
       await sleep(POLL_MS);
 
-      // Re-read pinggyUrl in case it was updated
+      // Re-read publicIp in case it was updated
       const inst = this.db.getInstance(instanceId);
       if (!inst) {
         await fatal('Instance disappeared from DB during signal wait');
         return;
       }
-      const urlToCheck = inst.pinggyUrl ?? pinggyUrl!;
+      const instanceUrl = `http://${inst.publicIp}`;
 
-      const streamerStatus = await checkStreamerStatus(urlToCheck);
+      const streamerStatus = await checkStreamerStatus(instanceUrl);
       console.log(
         `${tag} Phase 3 SIGNAL [${i + 1}/${SIGNAL_MAX}]: ` +
-        `Probing ${urlToCheck}/api/status → ${streamerStatus}`
+        `Probing ${instanceUrl}/api/status → ${streamerStatus}`
       );
 
       if (streamerStatus === 'connected') {

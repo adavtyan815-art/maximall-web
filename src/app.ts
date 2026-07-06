@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import session from 'express-session';
 import path from 'path';
@@ -57,6 +58,58 @@ app.use((req, res, next) => {
     }
   }
   next();
+});
+
+// ── Instance HTTP Reverse Proxy ───────────────────────────────────────────
+// Redirects base UUID requests to the main player page
+app.get('/instance/:uuid', (req, res) => {
+  const query = Object.keys(req.query).length > 0 ? '?' + new URLSearchParams(req.query as any).toString() : '';
+  res.redirect(`/instance/${req.params.uuid}/player.html${query}`);
+});
+
+// Wildcard proxy route to fetch player assets directly from the EC2 instance's port 80
+app.all('/instance/:uuid/*', (req, res) => {
+  const uuid = req.params.uuid;
+  const db = DatabaseService.getInstance();
+  const inst = db.getInstance(uuid);
+
+  if (!inst) {
+    return res.status(404).send('Instance not found in database');
+  }
+
+  if (inst.status !== 'running') {
+    return res.status(503).send(`Instance is currently: ${inst.status}. Please wait for it to boot.`);
+  }
+
+  const ip = inst.publicIp;
+  if (!ip) {
+    return res.status(503).send('Instance public IP is not yet available. Please reload in a moment.');
+  }
+
+  const targetPath = (req.params as any)[0];
+  const query = Object.keys(req.query).length > 0 ? '?' + new URLSearchParams(req.query as any).toString() : '';
+
+  // Copy and normalize incoming headers
+  const headers = { ...req.headers };
+  headers.host = ip; // Set target host
+
+  const proxyReq = http.request({
+    host: ip,
+    port: 80,
+    path: `/${targetPath}${query}`,
+    method: req.method,
+    headers: headers
+  }, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[HTTP-Proxy] Failed proxying request for ${uuid} to ${ip}:`, err.message);
+    res.status(502).send('Error connecting to the dynamic 3D server. Please reload the page.');
+  });
+
+  req.pipe(proxyReq);
 });
 
 // Setup static files
@@ -455,7 +508,7 @@ app.post('/api/admin/logout', (req, res) => {
   });
 });
 
-import http from 'http';
+
 
 // ── Public: get instance status ──────────────────────────────────────────
 app.get('/api/instances/:uuid/status', async (req, res) => {

@@ -208,6 +208,7 @@ export class EC2Service {
           lastActiveAt: new Date().toISOString(),
           assignedTo,
           managedByBackend,
+          publicIp: ec2.PublicIpAddress || undefined,
           ec2Config: {
             instanceType: ec2.InstanceType ?? 'g4dn.2xlarge',
             region: config.AWS_REGION || 'eu-central-1',

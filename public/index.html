@@ -697,14 +697,29 @@
         loadingUI.style.opacity = '0'; // Trigger fade-out
 
         let targetUrl = data.pinggyUrl || data.ip || 'http://localhost:8000';
-        if (!targetUrl.startsWith('http')) targetUrl = `http://${targetUrl}:8000`;
+        
+        // If it is a relative proxy path (e.g. /instance/<uuid>), preserve it. Otherwise, add default http scheme.
+        if (!targetUrl.startsWith('/') && !targetUrl.startsWith('http')) {
+          targetUrl = `http://${targetUrl}:8000`;
+        }
 
-        const pixelStreamLink =
+        // Build WebSocket signaling URL (ss parameter) if using relative proxying
+        let wsUrl = '';
+        if (targetUrl.startsWith('/')) {
+          const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+          wsUrl = `${wsProtocol}://${window.location.host}${targetUrl}/ws`;
+        }
+
+        let pixelStreamLink =
           `${targetUrl}/player.html` +
           `?backendUrl=${encodeURIComponent(window.location.origin)}` +
           `&instanceUuid=${assignedUuid}` +
           `&hostToken=${encodeURIComponent(globalHostToken)}` +
           `&deviceId=${encodeURIComponent(deviceId)}`;
+
+        if (wsUrl) {
+          pixelStreamLink += `&ss=${encodeURIComponent(wsUrl)}`;
+        }
 
         const delay = isRescuedRedirect ? 3000 : 500; // Delay redirect slightly to let visual fade-out finish
         setTimeout(() => { window.location.href = pixelStreamLink; }, delay);

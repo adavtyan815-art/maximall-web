@@ -385,9 +385,9 @@ export class WebSocketService {
         return;
       }
 
-      const checkStreamerConnected = async (pinggyUrl: string): Promise<boolean> => {
+      const checkStreamerConnected = async (targetUrl: string): Promise<boolean> => {
         return new Promise<boolean>((resolve) => {
-          const wsUrl = pinggyUrl.replace(/^http/, 'ws');
+          const wsUrl = targetUrl.startsWith('ws') ? targetUrl : targetUrl.replace(/^http/, 'ws');
           let resolved = false;
           const cleanupAndResolve = (val: boolean) => {
             if (resolved) return;
@@ -435,13 +435,14 @@ export class WebSocketService {
       };
 
 
-      // 1. If Pinggy URL is already reported, verify if the streamer is connected
-      if (instance.pinggyUrl) {
-        const isStreamerReady = await checkStreamerConnected(instance.pinggyUrl);
+      // 1. If publicIp is already known, verify if the streamer is connected
+      if (instance.publicIp) {
+        const directWsUrl = `ws://${instance.publicIp}:80`;
+        const isStreamerReady = await checkStreamerConnected(directWsUrl);
         if (isStreamerReady) {
-          console.log(`[WS] Streamer is connected to signaling server at ${instance.pinggyUrl}. Redirecting client.`);
+          console.log(`[WS] Streamer is connected to signaling server at ${instance.publicIp}. Redirecting client.`);
           clearInterval(pollInterval);
-          socket.emit('server-ready', { pinggyUrl: instance.pinggyUrl });
+          socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
           return;
         } else {
           if (checkCount % 2 === 0) {
@@ -458,17 +459,26 @@ export class WebSocketService {
         if (awsStatus.state === 'running') {
           if (instance.status !== 'running') {
             instance.status = 'running';
+            instance.publicIp = awsStatus.ip || undefined;
             this.timeTracker.startRealTimer(uuid);
             await this.db.saveInstance(uuid, instance);
           }
 
-          // Check again if pinggyUrl was registered in the meantime
+          // Check again if publicIp was updated in the database
           const fresh = this.db.getInstance(uuid);
-          if (fresh?.pinggyUrl) {
-            const isStreamerReady = await checkStreamerConnected(fresh.pinggyUrl);
+          const currentIp = fresh?.publicIp || awsStatus.ip;
+
+          if (currentIp) {
+            if (!fresh?.publicIp) {
+              instance.publicIp = currentIp;
+              await this.db.saveInstance(uuid, instance);
+            }
+
+            const directWsUrl = `ws://${currentIp}:80`;
+            const isStreamerReady = await checkStreamerConnected(directWsUrl);
             if (isStreamerReady) {
               clearInterval(pollInterval);
-              socket.emit('server-ready', { pinggyUrl: fresh.pinggyUrl });
+              socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
               return;
             } else {
               if (checkCount % 2 === 0) {
@@ -476,35 +486,6 @@ export class WebSocketService {
               }
               checkCount++;
               return;
-            }
-          }
-
-          if (awsStatus.ip) {
-            const targetHost = `http://${awsStatus.ip}:8000`;
-            const isReady = await new Promise((resolve) => {
-              const pingReq = http.get(targetHost, { timeout: 2000 }, () => resolve(true));
-              pingReq.on('error', () => resolve(false));
-              pingReq.on('timeout', () => { pingReq.destroy(); resolve(false); });
-            });
-
-            if (isReady) {
-              // Re-read instance to pick up pinggyUrl if /report-tunnel already fired
-              const fresh2 = this.db.getInstance(uuid);
-              const pinggyUrl = fresh2?.pinggyUrl;
-
-              if (pinggyUrl) {
-                const isStreamerReady = await checkStreamerConnected(pinggyUrl);
-                if (isStreamerReady) {
-                  clearInterval(pollInterval);
-                  socket.emit('server-ready', { pinggyUrl });
-                  return;
-                }
-              }
-              if (checkCount % 2 === 0) {
-                socket.emit('instance-status', { status: 'booting_server' });
-              }
-            } else {
-              if (checkCount % 2 === 0) socket.emit('instance-status', { status: 'booting_server' });
             }
           } else {
             if (checkCount % 2 === 0) socket.emit('instance-status', { status: 'pending' });

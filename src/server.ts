@@ -1,4 +1,5 @@
 import http from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import app, { setWsService } from './app';
 import { config } from './config';
 import { DatabaseService } from './services/databaseService';
@@ -59,6 +60,64 @@ async function bootstrap() {
 
     // 4. Create HTTP Server
     const server = http.createServer(app);
+
+    // Dynamic WebSocket Reverse Proxy for Pixel Streaming signaling
+    const psProxyWss = new WebSocketServer({ noServer: true });
+
+    server.on('upgrade', (request, socket, head) => {
+      const url = request.url || '';
+      const match = url.match(/^\/instance\/([^\/]+)\/ws/);
+      if (match) {
+        const uuid = match[1];
+        const db = DatabaseService.getInstance();
+        const inst = db.getInstance(uuid);
+
+        if (inst && inst.publicIp) {
+          psProxyWss.handleUpgrade(request, socket, head, (clientWs) => {
+            const targetUrl = `ws://${inst.publicIp}:80/`;
+            console.log(`[WS-Proxy] Routing signaling for ${uuid} directly to ${targetUrl}`);
+            
+            const targetWs = new WebSocket(targetUrl);
+
+            // Pipe data back and forth
+            clientWs.on('message', (data, isBinary) => {
+              if (targetWs.readyState === WebSocket.OPEN) {
+                targetWs.send(data, { binary: isBinary });
+              }
+            });
+
+            targetWs.on('message', (data, isBinary) => {
+              if (clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(data, { binary: isBinary });
+              }
+            });
+
+            clientWs.on('close', () => {
+              targetWs.close();
+            });
+
+            targetWs.on('close', () => {
+              clientWs.close();
+            });
+
+            clientWs.on('error', (err) => {
+              console.error(`[WS-Proxy] Client socket error for ${uuid}:`, err.message);
+              targetWs.close();
+            });
+
+            targetWs.on('error', (err) => {
+              console.error(`[WS-Proxy] Target socket error for ${uuid} (${targetUrl}):`, err.message);
+              clientWs.close();
+            });
+          });
+        } else {
+          console.warn(`[WS-Proxy] Upgrade requested for ${uuid} but instance or IP not found in DB`);
+          socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+          socket.destroy();
+        }
+      }
+      // Let other upgrade handlers (like Socket.io) process the upgrade if it's not our prefix
+    });
 
     // 5. Initialize WebSockets and inject into app so REST routes can broadcast
     const wsService = new WebSocketService(server);
