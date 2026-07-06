@@ -435,8 +435,8 @@ export class WebSocketService {
       };
 
 
-      // 1. If publicIp is already known, verify if the streamer is connected
-      if (instance.publicIp) {
+      // 1. If publicIp is already known and the instance is running, verify if the streamer is connected
+      if (instance.publicIp && instance.status === 'running') {
         const directWsUrl = `ws://${instance.publicIp}:8000`;
         const isStreamerReady = await checkStreamerConnected(directWsUrl);
         if (isStreamerReady) {
