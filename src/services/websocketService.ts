@@ -440,17 +440,21 @@ export class WebSocketService {
         const directWsUrl = `ws://${instance.publicIp}:8000`;
         const isStreamerReady = await checkStreamerConnected(directWsUrl);
         if (isStreamerReady) {
-          console.log(`[WS] Streamer is connected to signaling server at ${instance.publicIp}. Redirecting client.`);
-          clearInterval(pollInterval);
-          socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
-          return;
-        } else {
-          if (checkCount % 2 === 0) {
-            socket.emit('instance-status', { status: 'booting_server' });
+          console.log(`[WS] Streamer detected at ${instance.publicIp}. Waiting 6s for media pipeline stabilization...`);
+          await new Promise(resolve => setTimeout(resolve, 6000));
+          const isStillReady = await checkStreamerConnected(directWsUrl);
+          if (isStillReady) {
+            console.log(`[WS] Streamer is stabilized and connected at ${instance.publicIp}. Redirecting client.`);
+            clearInterval(pollInterval);
+            socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
+            return;
           }
-          checkCount++;
-          return;
         }
+        if (checkCount % 2 === 0) {
+          socket.emit('instance-status', { status: 'booting_server' });
+        }
+        checkCount++;
+        return;
       }
 
       try {
@@ -477,16 +481,21 @@ export class WebSocketService {
             const directWsUrl = `ws://${currentIp}:8000`;
             const isStreamerReady = await checkStreamerConnected(directWsUrl);
             if (isStreamerReady) {
-              clearInterval(pollInterval);
-              socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
-              return;
-            } else {
-              if (checkCount % 2 === 0) {
-                socket.emit('instance-status', { status: 'booting_server' });
+              console.log(`[WS] Streamer detected at ${currentIp}. Waiting 6s for media pipeline stabilization...`);
+              await new Promise(resolve => setTimeout(resolve, 6000));
+              const isStillReady = await checkStreamerConnected(directWsUrl);
+              if (isStillReady) {
+                console.log(`[WS] Streamer is stabilized and connected at ${currentIp}. Redirecting client.`);
+                clearInterval(pollInterval);
+                socket.emit('server-ready', { pinggyUrl: `/instance/${uuid}` });
+                return;
               }
-              checkCount++;
-              return;
             }
+            if (checkCount % 2 === 0) {
+              socket.emit('instance-status', { status: 'booting_server' });
+            }
+            checkCount++;
+            return;
           } else {
             if (checkCount % 2 === 0) socket.emit('instance-status', { status: 'pending' });
           }
