@@ -3,6 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import session from 'express-session';
 import path from 'path';
+import fs from 'fs';
 import { config } from './config';
 import type { WebSocketService } from './services/websocketService';
 
@@ -752,6 +753,94 @@ app.get('/api/debug/aws-test', async (req, res) => {
     res.json({ success: true, result: status });
   } catch (e: any) {
     res.json({ success: false, error: e.message, code: e.name });
+  }
+});
+
+// ─── USER SAVES ENDPOINTS (LOCAL JSON FILE STORAGE) ───
+const SAVES_DIR = path.join(__dirname, 'data/saves');
+if (!fs.existsSync(SAVES_DIR)) {
+  fs.mkdirSync(SAVES_DIR, { recursive: true });
+}
+
+// 1. GET saves for a specific user
+app.get('/api/saves/:username', (req, res) => {
+  const username = req.params.username;
+  const filePath = path.join(SAVES_DIR, `${username}.json`);
+
+  if (!fs.existsSync(filePath)) {
+    return res.json([]);
+  }
+
+  try {
+    const fileData = fs.readFileSync(filePath, 'utf-8');
+    const saves = JSON.parse(fileData);
+    res.json(saves);
+  } catch (err) {
+    console.error('Error reading save file:', err);
+    res.status(500).json({ error: 'Failed to read saves' });
+  }
+});
+
+// 2. POST save for a user
+app.post('/api/saves', (req, res) => {
+  const { username, saveId, saveName, date } = req.body;
+
+  if (!username || !saveId || !saveName || !date) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const filePath = path.join(SAVES_DIR, `${username}.json`);
+  let saves: any[] = [];
+
+  if (fs.existsSync(filePath)) {
+    try {
+      const fileData = fs.readFileSync(filePath, 'utf-8');
+      saves = JSON.parse(fileData);
+    } catch (err) {
+      console.error('Error reading save file:', err);
+    }
+  }
+
+  // Preserve the entire request body (including boothStates array) except the username
+  const newSave = { ...req.body };
+  delete newSave.username;
+
+  const existingIndex = saves.findIndex((s) => s.saveId === saveId);
+  if (existingIndex !== -1) {
+    saves[existingIndex] = newSave;
+  } else {
+    saves.push(newSave);
+  }
+
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(saves, null, 2), 'utf-8');
+    res.json({ success: true, saves });
+  } catch (err) {
+    console.error('Error writing save file:', err);
+    res.status(500).json({ error: 'Failed to write save' });
+  }
+});
+
+// 3. DELETE save for a user
+app.delete('/api/saves/:username/:saveId', (req, res) => {
+  const { username, saveId } = req.params;
+  const filePath = path.join(SAVES_DIR, `${username}.json`);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'No saves found for user' });
+  }
+
+  try {
+    const fileData = fs.readFileSync(filePath, 'utf-8');
+    let saves = JSON.parse(fileData);
+    
+    saves = saves.filter((s: any) => s.saveId !== saveId);
+    
+    fs.writeFileSync(filePath, JSON.stringify(saves, null, 2), 'utf-8');
+    res.json({ success: true, saves });
+  } catch (err) {
+    console.error('Error writing save file during delete:', err);
+    res.status(500).json({ error: 'Failed to delete save' });
   }
 });
 
