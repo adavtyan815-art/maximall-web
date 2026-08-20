@@ -323,6 +323,9 @@
 
             <div id="status-text" style="display: none;">Обработка...</div>
             <div id="tips-text"></div>
+            <div style="margin-top: 20px;">
+              <a href="#" id="cancel-loading-btn" style="color: #64748b; font-family: Arial, sans-serif; font-size: 0.9rem; text-decoration: underline; cursor: pointer;">Вернуться назад</a>
+            </div>
           </div>
 
           <!-- No available instance UI -->
@@ -344,6 +347,9 @@
               В данный момент все 3D серверы заняты. Пожалуйста, попробуйте снова через несколько минут.<br><br>
               Если проблема не решится, свяжитесь с Maxi Mall.
             </div>
+            <ul class="buttons-component instance-1 style-2" style="margin-top: 25px;">
+              <li><a href="#" id="retry-btn" class="n01">ПОПРОБОВАТЬ СНОВА</a></li>
+            </ul>
           </div>
         </div>
 
@@ -553,21 +559,79 @@
       errorBanner.style.display = 'block';
       
       showLauncherUI(true);
+      btn.classList.remove('btn-disabled');
+      btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+      progressStage.style.color = '#57A6FA';
+      
+      assignedUuid = null;
+      globalHostToken = null;
+      sessionStorage.removeItem('assignedUuid');
+      sessionStorage.removeItem('global_hostToken');
+    }
+
+    // ── Retry & Cancel button handlers ──────────────────────────────────────
+    const retryBtn = document.getElementById('retry-btn');
+    if (retryBtn) {
+      retryBtn.onclick = (e) => {
+        e.preventDefault();
+        showLauncherUI();
+        btn.classList.remove('btn-disabled');
+        btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+        assignedUuid = null;
+        globalHostToken = null;
+        sessionStorage.removeItem('assignedUuid');
+        sessionStorage.removeItem('global_hostToken');
+      };
+    }
+
+    const cancelLoadingBtn = document.getElementById('cancel-loading-btn');
+    if (cancelLoadingBtn) {
+      cancelLoadingBtn.onclick = (e) => {
+        e.preventDefault();
+        if (socket.connected && (assignedUuid || globalHostToken)) {
+          socket.emit('cancel-request', {
+            instanceUuid: assignedUuid || undefined,
+            hostToken: globalHostToken || undefined
+          });
+        }
+        showLauncherUI();
+        btn.classList.remove('btn-disabled');
+        btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+        assignedUuid = null;
+        globalHostToken = null;
+        sessionStorage.removeItem('assignedUuid');
+        sessionStorage.removeItem('global_hostToken');
+      };
     }
 
     // ── Socket Events ──────────────────────────────────────────────────────
+    let connectErrorTimeout = null;
 
     socket.on('connect_error', (err) => {
       console.error('Connection Error:', err);
       if (loadingUI.style.display === 'flex') {
-        stopProgressSimulation();
         progressStage.style.color = '#ef4444';
-        progressStage.innerText = "Ошибка сервера. Проверьте интернет.";
+        progressStage.innerText = "Ошибка подключения к серверу.";
+        if (!connectErrorTimeout) {
+          connectErrorTimeout = setTimeout(() => {
+            connectErrorTimeout = null;
+            if (loadingUI.style.display === 'flex') {
+              showError("Не удалось подключиться к серверу. Пожалуйста, попробуйте снова.");
+            }
+          }, 8000);
+        }
+      } else {
+        btn.classList.remove('btn-disabled');
       }
     });
 
     socket.on('connect', () => {
       console.log('Connected to server');
+      if (connectErrorTimeout) {
+        clearTimeout(connectErrorTimeout);
+        connectErrorTimeout = null;
+      }
+      progressStage.style.color = '#57A6FA';
 
       // Check if redirected due to inactivity
       const urlParams = new URLSearchParams(window.location.search);
@@ -592,7 +656,10 @@
       }
 
       // 1. Auto-Resume Check (Skip login button if active session exists)
-      socket.emit('check-active-session', { deviceId });
+      socket.emit('check-active-session', {
+        deviceId,
+        hostToken: globalHostToken || undefined
+      });
 
       // Fallback for explicitly stored session
       if (assignedUuid && globalHostToken) {
@@ -611,6 +678,14 @@
         stopProgressSimulation();
         progressStage.style.color = '#f59e0b';
         progressStage.innerText = "Связь потеряна. Ожидание восстановления...";
+        if (!connectErrorTimeout) {
+          connectErrorTimeout = setTimeout(() => {
+            connectErrorTimeout = null;
+            if (loadingUI.style.display === 'flex') {
+              showError("Связь с сервером прервана. Пожалуйста, попробуйте снова.");
+            }
+          }, 10000);
+        }
       }
     });
 
@@ -636,6 +711,22 @@
       });
     });
 
+    socket.on('session-in-use', (data) => {
+      console.log('Active stream detected in another tab:', data);
+      stopProgressSimulation();
+      showLauncherUI(true);
+      errorBanner.textContent = data.message || "3D-комната уже открыта в другой вкладке.";
+      errorBanner.style.display = 'block';
+      btn.classList.remove('btn-disabled');
+      btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+      progressStage.style.color = '#57A6FA';
+
+      assignedUuid = null;
+      globalHostToken = null;
+      sessionStorage.removeItem('assignedUuid');
+      sessionStorage.removeItem('global_hostToken');
+    });
+
     socket.on('session-not-found', () => {
       if (!assignedUuid) showLauncherUI();
     });
@@ -659,22 +750,23 @@
     });
 
     socket.on('instance-error', (data) => {
-      showError("Ошибка: " + data.message);
-      btn.classList.remove('btn-disabled');
-      btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
-      assignedUuid = null;
-      sessionStorage.removeItem('assignedUuid');
+      showError(data.message || "Ошибка подключения к серверу.");
     });
 
     socket.on('instance-status', (data) => {
       const { status } = data;
       if (status === 'stopped') {
-        showLauncherUI();
-        btn.classList.remove('btn-disabled');
-        btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
-        assignedUuid = null;
-        sessionStorage.removeItem('assignedUuid');
-        if (data.lastError) showError("⚠️ Ошибка: " + data.lastError);
+        if (data.lastError) {
+          showError(data.lastError);
+        } else {
+          showLauncherUI();
+          btn.classList.remove('btn-disabled');
+          btn.textContent = "ВОЙТИ В 3D КОМНАТУ";
+          assignedUuid = null;
+          globalHostToken = null;
+          sessionStorage.removeItem('assignedUuid');
+          sessionStorage.removeItem('global_hostToken');
+        }
       }
       else if (status === 'stopping') {
         showLauncherUI();
@@ -732,7 +824,13 @@
       if (btn.classList.contains('btn-disabled')) return;
 
       if (!navigator.onLine) {
-        alert("Пожалуйста, проверьте подключение к интернету.");
+        showError("Пожалуйста, проверьте подключение к интернету.");
+        return;
+      }
+
+      if (!socket.connected) {
+        showError("Нет соединения с сервером. Повторное подключение...");
+        socket.connect();
         return;
       }
 

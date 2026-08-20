@@ -82,9 +82,9 @@ app.all('/instance/:uuid/*', (req, res) => {
     return res.status(503).send(`Instance is currently: ${inst.status}. Please wait for it to boot.`);
   }
 
-  const ip = inst.publicIp;
+  const ip = inst.privateIp || inst.publicIp;
   if (!ip) {
-    return res.status(503).send('Instance public IP is not yet available. Please reload in a moment.');
+    return res.status(503).send('Instance network address is not yet available. Please reload in a moment.');
   }
 
   const targetPath = (req.params as any)[0];
@@ -93,6 +93,10 @@ app.all('/instance/:uuid/*', (req, res) => {
   // Copy and normalize incoming headers
   const headers = { ...req.headers };
   headers.host = ip; // Set target host
+
+  if (targetPath.endsWith('player.html') || targetPath.endsWith('player.js')) {
+    console.log(`[HTTP-Proxy] [${uuid}] Serving ${targetPath} -> http://${ip}:8000/${targetPath}`);
+  }
 
   const proxyReq = http.request({
     host: ip,
@@ -583,40 +587,60 @@ app.post('/api/instances/connect-available', async (req, res) => {
   let hostToken = req.body.hostToken || crypto.randomUUID();
 
   // 1. Try to claim an existing stopped instance from the buffer pool
-  let claimedInstanceId: string | null = null;
-  try {
-    claimedInstanceId = await ScalingService.getInstance().claimBufferInstance();
-  } catch (e: any) {
-    console.warn(`[API] claimBufferInstance failed: ${e.message}`);
+  const attemptedBufferIds: string[] = [];
+
+  while (true) {
+    let claimedInstanceId: string | null = null;
+    try {
+      claimedInstanceId = await ScalingService.getInstance().claimBufferInstance(attemptedBufferIds);
+    } catch (e: any) {
+      console.warn(`[API] claimBufferInstance failed: ${e.message}`);
+    }
+
+    if (!claimedInstanceId) {
+      if (attemptedBufferIds.length > 0) {
+        console.warn(`[API] [Buffer-Claim] All ${attemptedBufferIds.length} candidate Ready Buffer(s) failed StartInstances: [${attemptedBufferIds.join(', ')}]. Exhausted all available buffers.`);
+      }
+      break;
+    }
+
+    attemptedBufferIds.push(claimedInstanceId);
+    console.log(`[API] [Buffer-Claim] Selected buffer instance ${claimedInstanceId} (attempt #${attemptedBufferIds.length})`);
+
+    const inst = db.getInstance(claimedInstanceId);
+    if (!inst) {
+      console.warn(`[API] [Buffer-Claim] Claimed instance ${claimedInstanceId} not found in DB.`);
+      continue;
+    }
+
+    inst.status = 'pending';
+    inst.assignedTo = `OnDemand-${claimedInstanceId.substring(2, 8)}`;
+    inst.activeSessions.set(hostToken, {
+      hostToken: hostToken,
+      lastSeenAt: Date.now(),
+      displayStarted: false
+    });
+    await db.saveInstance(claimedInstanceId, inst);
+
+    try {
+      console.log(`[API] [Buffer-Claim] Waking up buffer instance ${claimedInstanceId}...`);
+      await ec2Service.startInstance(claimedInstanceId);
+      await ScalingService.getInstance().confirmBufferClaim(claimedInstanceId);
+      inst.status = 'pending';
+      await db.saveInstance(claimedInstanceId, inst);
+      return res.json({ success: true, uuid: claimedInstanceId, status: 'pending', hostToken });
+    } catch (err: any) {
+      console.error(`[API] [Buffer-Claim] Failed to wake up claimed buffer instance ${claimedInstanceId}:`, err.message);
+      await ScalingService.getInstance().rollbackBufferClaim(claimedInstanceId, hostToken, err);
+      console.log(`[API] [Buffer-Claim] Rollback complete for ${claimedInstanceId}. Checking if another Ready Buffer is available...`);
+    }
   }
 
-  if (claimedInstanceId) {
-    console.log(`[API] Claimed buffer instance ${claimedInstanceId} for user`);
-    const inst = db.getInstance(claimedInstanceId);
-    if (inst) {
-      inst.status = 'pending';
-      inst.assignedTo = `OnDemand-${claimedInstanceId.substring(2, 8)}`;
-      inst.activeSessions.set(hostToken, {
-        hostToken: hostToken,
-        lastSeenAt: Date.now(),
-        displayStarted: false
-      });
-      await db.saveInstance(claimedInstanceId, inst);
-
-      try {
-        console.log(`[API] Waking up buffer instance ${claimedInstanceId}...`);
-        await ec2Service.startInstance(claimedInstanceId);
-        return res.json({ success: true, uuid: claimedInstanceId, status: 'pending', hostToken });
-      } catch (err: any) {
-        console.error(`[API] Failed to wake up claimed buffer instance ${claimedInstanceId}:`, err.message);
-        // Rollback on failure
-        inst.status = 'stopped';
-        inst.assignedTo = 'Buffer';
-        inst.activeSessions.delete(hostToken);
-        await db.saveInstance(claimedInstanceId, inst);
-        return res.status(500).json({ success: false, error: `Failed to wake up server: ${err.message}` });
-      }
-    }
+  if (attemptedBufferIds.length > 0) {
+    return res.status(503).json({ 
+      success: false, 
+      error: 'Сервер временно недоступен. Пожалуйста, попробуйте снова через несколько секунд.' 
+    });
   }
 
   // 2. Fallback: Spawn a fresh On-Demand instance dynamically
@@ -676,7 +700,10 @@ app.post('/api/instances/connect-available', async (req, res) => {
   } catch (err: any) {
     const errMsg = err.message || 'Failed to spawn on-demand instance';
     console.error('[On-Demand] Failed to connect-available:', errMsg);
-    res.status(500).json({ success: false, error: errMsg });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Сервер временно недоступен. Пожалуйста, попробуйте снова через несколько секунд.' 
+    });
   }
 });
 

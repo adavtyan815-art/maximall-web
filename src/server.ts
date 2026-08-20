@@ -71,43 +71,78 @@ async function bootstrap() {
         const uuid = match[1];
         const db = DatabaseService.getInstance();
         const inst = db.getInstance(uuid);
-
-        if (inst && inst.publicIp) {
+        const targetIp = inst?.privateIp || inst?.publicIp;
+        if (inst && targetIp) {
           psProxyWss.handleUpgrade(request, socket, head, (clientWs) => {
-            const targetUrl = `ws://${inst.publicIp}:8000/`;
+            const targetUrl = `ws://${targetIp}:8000/`;
             console.log(`[WS-Proxy] Routing signaling for ${uuid} directly to ${targetUrl}`);
             
             const targetWs = new WebSocket(targetUrl);
+            const clientQueue: Array<{ data: any; isBinary: boolean }> = [];
+            const MAX_QUEUE_SIZE = 500;
+            let isCleanedUp = false;
 
-            // Pipe data back and forth
-            clientWs.on('message', (data, isBinary) => {
-              if (targetWs.readyState === WebSocket.OPEN) {
-                targetWs.send(data, { binary: isBinary });
+            targetWs.on('open', () => {
+              if (isCleanedUp) return;
+              console.log(`[WS-Proxy] Target WebSocket connected for ${uuid}. Flushing ${clientQueue.length} queued messages.`);
+              while (clientQueue.length > 0) {
+                const msg = clientQueue.shift();
+                if (msg && targetWs.readyState === WebSocket.OPEN) {
+                  targetWs.send(msg.data, { binary: msg.isBinary });
+                }
               }
             });
 
+            // Pipe data from client to target
+            clientWs.on('message', (data, isBinary) => {
+              if (isCleanedUp) return;
+              if (targetWs.readyState === WebSocket.OPEN) {
+                targetWs.send(data, { binary: isBinary });
+              } else if (targetWs.readyState === WebSocket.CONNECTING) {
+                if (clientQueue.length < MAX_QUEUE_SIZE) {
+                  clientQueue.push({ data, isBinary });
+                } else {
+                  console.warn(`[WS-Proxy] Client message queue full (${MAX_QUEUE_SIZE}) for ${uuid}`);
+                }
+              }
+            });
+
+            // Pipe data from target to client
             targetWs.on('message', (data, isBinary) => {
+              if (isCleanedUp) return;
               if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.send(data, { binary: isBinary });
               }
             });
 
+            const cleanup = () => {
+              if (isCleanedUp) return;
+              isCleanedUp = true;
+              clientQueue.length = 0;
+              if (clientWs.readyState === WebSocket.OPEN || clientWs.readyState === WebSocket.CONNECTING) {
+                try { clientWs.close(); } catch {}
+              }
+              if (targetWs.readyState === WebSocket.OPEN || targetWs.readyState === WebSocket.CONNECTING) {
+                try { targetWs.close(); } catch {}
+              }
+            };
+
             clientWs.on('close', () => {
-              targetWs.close();
+              cleanup();
             });
 
             targetWs.on('close', () => {
-              clientWs.close();
+              cleanup();
             });
 
             clientWs.on('error', (err) => {
               console.error(`[WS-Proxy] Client socket error for ${uuid}:`, err.message);
-              targetWs.close();
+              cleanup();
             });
 
             targetWs.on('error', (err) => {
               console.error(`[WS-Proxy] Target socket error for ${uuid} (${targetUrl}):`, err.message);
-              clientWs.close();
+              cleanup();
             });
           });
         } else {

@@ -3,3 +3,12 @@ node_modules/
 .env
 *.pem
 *.key
+src/data/saves/
+search_*.js
+list_running.js
+.terraform/
+*.tfstate
+*.tfstate.*
+*.zip
+*.b64
+

@@ -50,87 +50,66 @@ The background scaling loop (`reconcilePool`) runs every 60 seconds and follows 
 
 ---
 
-## 3. Buffer Claiming Mechanics
+## 3. Buffer Claiming & Multi-Buffer Fallback
 
 When a user triggers `/api/instances/connect-available`:
-1. **Evaluation**: Checks the registry for any instance with `assignedTo === "Buffer"` and `status === "stopped"`.
-2. **Buffer Claim (Success)**:
-   - Claims the instance by reassigning its pool role to `assignedTo = "OnDemand-xxxxxx"` and setting `status = "pending"`. Saves to DB.
-   - Triggers an AWS `StartInstancesCommand` to wake it up.
-   - **After `StartInstancesCommand` resolves**, immediately re-writes `status = "pending"` to DB a second time. This closes the race window where a dashboard poll landing between the initial claim write and the first AWS status-poll confirmation could display a stale `"Stopped"` badge on an active session row.
-   - Instantly returns the startup configuration to the client.
-   - The background replenishment loop (`reconcilePool`) will detect the reduced buffer count on the next tick and spawn a replacement prewarm instance.
-3. **Fallback (Empty Buffer)**:
-   - If no ready stopped buffer instances exist, the system spawns a brand new on-demand instance (`assignedTo = "OnDemand-xxxxxx"`, `status = "pending"`).
+1. **Multi-Buffer Loop**: The system queries all stopped instances (`assignedTo === "Buffer"` && `status === "stopped"`).
+2. **Sequential Selection**:
+   - The backend claims a candidate buffer, assigns `assignedTo = "OnDemand-xxxxxx"`, sets `status = "pending"`, and calls AWS `StartInstancesCommand`.
+   - If AWS `StartInstancesCommand` returns an error (e.g. `InsufficientInstanceCapacity` in that buffer's AZ), the backend **rolls back the claim** (`assignedTo = "Buffer"`, `status = "stopped"`) and immediately tries the next candidate Ready Buffer.
+   - If all candidate buffers fail, the backend displays a clean Russian error message: `"Сервер временно недоступен. Пожалуйста, попробуйте снова через несколько секунд."`.
+3. **On-Demand Fallback**:
+   - If no ready buffer instances exist in the pool, the system executes `createInstance` with Multi-AZ fallback across all VPC public subnets.
 
 ---
 
-## 4. Admin Pool Control ("Применить и выровнять")
+## 4. Base / Extra Pool Model & Reconcile Invariants
 
-The Dashboard topbar exposes two numeric inputs and a single action button:
+The standby capacity is managed via two parameters:
+- **`Base` (`minBufferTarget`)**: Permanent standby floor. Automatically replenished whenever buffers are consumed.
+- **`Extra` (`lastExtraBoost`)**: Expendable surge buffer. Consumed by users without triggering replacement prewarms.
 
-| Input | Field | Persisted in |
-|-------|-------|-------------|
-| **База** (Base) | `minBufferTarget` | `SettingsService` → `GET /api/settings` |
-| **Доп.** (Extra boost) | `lastExtraBoost` | `SettingsService` → `GET /api/settings` |
+### Invariant Math:
+$$\text{MaxAllowed} = \max(0, \text{Base} + \text{Extra} - \text{Active})$$
+$$\text{EffectiveBuffer} = \text{Ready} + \text{Recycling} + \text{Prewarming}$$
+$$\text{Deficit} = \max(0, \text{Base} - \text{EffectiveBuffer})$$
+$$\text{Surplus} = \max(0, \text{EffectiveBuffer} - \text{MaxAllowed})$$
 
-Clicking **"Применить и выровнять"** calls `POST /api/admin/pool/realign` with `{ baseTarget, extraBoost }`:
-
-1. Persists both values to `SettingsService` so any browser on any device sees the active configuration via `GET /api/settings` (inputs are populated from this endpoint on every login/page load — not from `localStorage`).
-2. Computes `combinedTarget = baseTarget + extraBoost`.
-3. **Deficit** (`combinedTarget > currentTotal`): launches the missing number of prewarm instances concurrently.
-4. **Surplus** (`combinedTarget < currentTotal`): terminates stopped Buffer instances only (LIFO — newest first). In-flight Prewarm instances are never force-aborted; they complete naturally and settle into the Buffer.
-5. **Already aligned** (`delta === 0`): no action taken.
-
-After the one-time alignment, the background auto-loop reverts to maintaining only `baseTarget` (ignoring the extra boost).
+1. **Expendable Consumption**: When a user claims an Extra buffer, `Active` increases by 1, reducing `MaxAllowed` by 1. `Deficit` remains 0, preventing redundant prewarms.
+2. **Base Consumption**: When a user consumes below the Base floor, `Deficit > 0`, triggering exactly 1 replacement prewarm.
+3. **Surplus Pruning**: When `Surplus > 0`, only stopped Buffer instances are stopped/terminated (LIFO). In-flight prewarms are never force-killed.
 
 ---
 
-## 5. User Disconnect & Teardown Flow
+## 5. User Disconnect, Grace Period & Instance Recycling
 
-When a user closes their browser tab or loses connection, the WebSocket connection drops, triggering the teardown sequence:
+When a user disconnects:
 
 ```mermaid
 graph TD
-    Disconnect[WS Disconnect] --> Flicker[15s Flicker Recovery Countdown]
+    Disconnect[WS Disconnect] --> CheckOthers{Other Active Tabs?}
+    CheckOthers -->|Yes| KeepAlive[Keep Instance & Display Active]
+    CheckOthers -->|No| Flicker[15s Flicker Recovery Countdown]
     Flicker -->|Reconnected| Active[Session Restored]
     Flicker -->|No Reconnection| Grace[60s Grace Period Countdown]
     Grace -->|Reconnected| Active
-    Grace -->|Grace Expires| Teardown[terminateAndRemove]
-    Teardown --> Terminate[AWS TerminateInstancesCommand]
-    Teardown --> Delete[Delete from Memory DB]
+    Grace -->|Grace Expires| CheckHealth{Instance Running & Healthy?}
+    CheckHealth -->|Yes| Recycle[recycleInstanceToBuffer]
+    CheckHealth -->|No| Terminate[terminateAndRemove]
+    Recycle --> StopEC2[AWS StopInstancesCommand]
+    StopEC2 --> BufferReturn[Returned to Stopped Buffer Pool]
 ```
 
-1. **Flicker Recovery (15s)**: Pauses for 15 seconds to allow for network switching or page refreshes. If the client reconnects with the same session token, the timer is canceled.
-2. **Grace Period (60s)**: If the client does not reconnect within 15 seconds, the instance enters the Grace Period. If no user reconnects before 60 seconds expire, the instance teardown is executed.
-3. **Teardown**: Calls `terminateAndRemove(instanceId)`, issuing an AWS `TerminateInstancesCommand` to terminate the EC2 instance and deleting it from the in-memory database registry.
+1. **Multi-Tab Safety**: If one tab closes while another tab on the same device is active, the display timer and stream remain active.
+2. **Flicker Recovery (15s)**: Network flickers or quick page reloads do not trigger grace periods.
+3. **Grace Period (60s)**: If no reconnection occurs after 15s, a 60s countdown begins.
+4. **Automated Recycling (`recycleInstanceToBuffer`)**: When the grace period expires on a running instance, the backend sends AWS `StopInstancesCommand`. Once confirmed as `stopped`, the instance is returned to `assignedTo = "Buffer"` in the pool for instant reuse.
 
 ---
 
-## 6. User Inactivity (Idle Timeout) Flow
+## 6. Multi-Tab Session Ownership & Protection
 
-To prevent GPU instances from running indefinitely when users leave their browser tabs open without interacting, the system enforces an Idle Timeout mechanism:
-
-```mermaid
-stateDiagram-v2
-    [*] --> Active_Tracking : User interacting
-    Active_Tracking --> Warning_Countdown : Inactivity >= IDLE_TIMEOUT_MINUTES
-    Warning_Countdown --> Redirect_And_Stop : Countdown reaches 0 (30 seconds)
-    Warning_Countdown --> Active_Tracking : Click "Я здесь!" button
-    Redirect_And_Stop --> [*] : AWS termination & session cleared
-```
-
-1. **Active Tracking**: The backend monitors client presence. Every time the user interacts with the page (mouse move, click, key down, touch start), a `user-activity` message is sent via WebSockets to reset the backend timer.
-2. **Warning Countdown (30s)**: If no activity is received for `IDLE_TIMEOUT_MINUTES` (configured in Settings), the backend emits an `idle-warning` event to the client. The client displays a glassmorphic modal with a 30-second countdown.
-3. **Modal Reset**: The user must explicitly click the **"Я здесь!"** button to close the modal and reset the timer. Normal movements/keystrokes are ignored during the warning state.
-4. **Shutdown Trigger**: If the 30-second countdown expires without a response, the backend emits `idle-timeout`, clears the client session, and triggers `terminateAndRemove()` to shut down the EC2 instance.
-
----
-
-## 7. Streamer Disconnection Webhook Flow
-
-If the Unreal Engine application crashes or is closed directly on the host machine:
-1. The signaling server's `streamerRegistry` detects that the connection to `DefaultStreamer` was lost.
-2. The signaling server POSTs a notification to the orchestrator's `/api/instances/:uuid/streamer-disconnected` webhook endpoint.
-3. Upon receiving this webhook, the orchestrator verifies the shared secret and immediately initiates the 60-second grace period countdown.
-4. If the streamer does not reconnect within the grace period, the backend issues an AWS `TerminateInstancesCommand` to tear down the instance.
+To prevent multiple browser tabs on the same device from consuming separate GPU instances:
+1. **Host Token Mapping**: Each active session is identified by `hostToken` and `deviceId`.
+2. **Secondary Tab Interception**: If a user opens a secondary tab while an active stream is already playing, the backend emits `session-in-use` and displays: `"3D-комната уже открыта в другой вкладке."`.
+3. **Session Re-attachment**: Page refreshes (F5) re-attach to the existing session via `hostToken` without spawning duplicate instances.

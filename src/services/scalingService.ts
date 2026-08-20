@@ -143,6 +143,9 @@ export class ScalingService {
   /** Set of instanceIds currently running through the pre-warm lifecycle. */
   private activePrewarms: Set<string> = new Set();
 
+  /** Map of instanceId → AbortController to cancel surplus prewarms. */
+  private activePrewarmAbortControllers: Map<string, AbortController> = new Map();
+
   /** Count of instances currently undergoing async launch execution. */
   private launchingCount: number = 0;
 
@@ -159,6 +162,9 @@ export class ScalingService {
   /** Count of instances currently in grace period (set by WebSocketService). */
   private gracePeriodCount: number = 0;
 
+  /** Sequential operation queue to serialize pool reconciliation and realignment. */
+  private poolOperationChain: Promise<any> = Promise.resolve();
+
   private constructor() {
     this.ec2Service = new EC2Service();
     this.db = DatabaseService.getInstance();
@@ -169,6 +175,22 @@ export class ScalingService {
       ScalingService.instance = new ScalingService();
     }
     return ScalingService.instance;
+  }
+
+  /** Serializes async pool operations to eliminate concurrency races. */
+  private async withPoolLock<T>(opName: string, fn: () => Promise<T>): Promise<T> {
+    const run = async (): Promise<T> => {
+      console.log(`[Scaling] [Lock] Acquired pool lock for ${opName}`);
+      try {
+        return await fn();
+      } finally {
+        console.log(`[Scaling] [Lock] Released pool lock for ${opName}`);
+      }
+    };
+
+    const nextPromise = this.poolOperationChain.then(run, run);
+    this.poolOperationChain = nextPromise.catch(() => {});
+    return nextPromise;
   }
 
   /** Returns current phase (1–5) for each actively pre-warming instance. */
@@ -208,126 +230,149 @@ export class ScalingService {
 
   // ── Pool Reconciliation ───────────────────────────────────────────────────
   private async reconcilePool(): Promise<void> {
-    // ── Step 1: Read the target minimum from Dashboard settings ───────────
-    // This is fetched fresh on every tick so live Dashboard changes take
-    // effect within the next 60-second audit window — no restart needed.
-    const settings = SettingsService.getInstance().getSettings();
-    // Use nullish coalescing so that an explicit 0 is honoured (passive mode).
-    // The old && guard treated 0 as falsy and fell back to 3, breaking passive startup.
-    const minBufferTarget = settings.minBufferTarget ?? 0;
+    return this.withPoolLock('reconcilePool', async () => {
+      // ── Step 1: Read target settings from Dashboard ───────────────────────
+      const settings = SettingsService.getInstance().getSettings();
+      const baseTarget = settings.minBufferTarget ?? 0;
+      const extraBoost = settings.lastExtraBoost ?? 0;
 
-    // ── Step 2: AWS Sync — discover manually-created stopped LinuxClient ──
-    // Any Name=LinuxClient instance that is STOPPED in AWS but not yet
-    // tracked in our DB gets upserted as assignedTo="Buffer". This handles
-    // the case where an admin manually creates extra instances in the
-    // AWS Console and wants them absorbed into the buffer pool automatically.
-    try {
-      const discoveryTag = process.env.EC2_DISCOVERY_TAG ?? 'LinuxClient';
-      const discovered = await this.ec2Service.discoverInstancesByTag('Name', discoveryTag);
-      const currentInstances = this.db.getInstances();
+      // ── Step 2: AWS Sync — discover manually-created stopped LinuxClient ──
+      try {
+        const discoveryTag = process.env.EC2_DISCOVERY_TAG ?? 'LinuxClient';
+        const discovered = await this.ec2Service.discoverInstancesByTag('Name', discoveryTag);
+        const currentInstances = this.db.getInstances();
 
-      for (const inst of discovered) {
-        const existing = currentInstances[inst.uuid];
-        if (!existing && inst.status === 'stopped') {
-          // New stopped instance not yet tracked — absorb as Buffer
-          inst.assignedTo = BUFFER_LABEL;
-          await this.db.saveInstance(inst.uuid, inst);
-          console.log(
-            `[Scaling] AWS Sync: Absorbed untracked stopped instance ${inst.instanceId} into buffer pool.`
-          );
+        for (const inst of discovered) {
+          const existing = currentInstances[inst.uuid];
+          if (!existing && inst.status === 'stopped') {
+            inst.assignedTo = BUFFER_LABEL;
+            await this.db.saveInstance(inst.uuid, inst);
+            console.log(
+              `[Scaling] AWS Sync: Absorbed untracked stopped instance ${inst.instanceId} into buffer pool.`
+            );
+          }
         }
-        // Note: We do NOT overwrite existing entries here; the admin manual
-        // sync (POST /api/admin/instances/sync) handles the full upsert.
-        // This lightweight check only handles net-new stopped instances.
-      }
-      // ── Ghost purge: remove Buffer DB records whose instance no longer
-      //    exists in AWS. This is the root cause of the auto-loop blindness
-      //    bug: when an admin terminates instances externally (AWS Console or
-      //    dashboard Delete button), the DB still holds stale Buffer records.
-      //    On the next tick the guard counts these ghosts, sees bufferCount >=
-      //    minBufferTarget, and never launches replacements.
-      //    We ONLY purge Buffer instances here — Prewarm and active session
-      //    instances have their own cleanup paths.
-      const discoveredIds = new Set(discovered.map(d => d.uuid));
-      const dbInstances = this.db.getInstances();
-      for (const [uuid, inst] of Object.entries(dbInstances)) {
-        if (inst.assignedTo === BUFFER_LABEL && !discoveredIds.has(uuid) && !uuid.startsWith('i-mock')) {
-          console.log(
-            `[Scaling] Reconcile ghost purge: Buffer instance ${inst.instanceId} ` +
-            `not found in AWS — removing stale DB record.`
-          );
-          await this.db.deleteInstance(uuid);
+
+        // Ghost purge: remove Buffer DB records whose instance no longer exists in AWS
+        const discoveredIds = new Set(discovered.map(d => d.uuid));
+        const dbInstances = this.db.getInstances();
+        for (const [uuid, inst] of Object.entries(dbInstances)) {
+          if (inst.assignedTo === BUFFER_LABEL && !discoveredIds.has(uuid) && !uuid.startsWith('i-mock')) {
+            console.log(
+              `[Scaling] Reconcile ghost purge: Buffer instance ${inst.instanceId} not found in AWS — removing stale DB record.`
+            );
+            await this.db.deleteInstance(uuid);
+          }
         }
+      } catch (syncErr: any) {
+        console.warn(`[Scaling] Reconcile AWS sync error (non-fatal): ${syncErr.message}`);
       }
-    } catch (syncErr: any) {
-      // Non-fatal — a transient AWS API error must not block the prewarm guard
-      console.warn(`[Scaling] Reconcile AWS sync error (non-fatal): ${syncErr.message}`);
-    }
 
-    // ── Step 3: Count current pool state (after sync upsert) ─────────────
-    const instances = this.db.getInstances();
+      // ── Step 3: Count current pool state ──────────────────────────────────
+      const instances = this.db.getInstances();
 
-    // Count stopped instances already in the buffer (assignedTo = 'Buffer')
-    const bufferCount = Object.values(instances).filter(
-      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped'
-    ).length;
-
-    // Count instances that are Prewarm-labeled but we lost track of (server restart)
-    const reconciledPrewarms = Object.values(instances).filter(
-      i => i.assignedTo === PREWARM_LABEL
-    );
-
-    // Re-adopt orphaned pre-warms from a previous server lifetime
-    // GUARD: only re-adopt instances the backend itself launched (managedByBackend=true).
-    // This prevents manually-created AWS instances that happen to carry a
-    // Purpose=Prewarm tag from being absorbed into the prewarm lifecycle
-    // and eventually auto-terminated when their tunnel timeout fires.
-    for (const inst of reconciledPrewarms) {
-      if (!this.activePrewarms.has(inst.instanceId)) {
-        if (inst.managedByBackend !== true) {
-          console.warn(
-            `[Scaling] Skipping orphan re-adoption for ${inst.instanceId}: ` +
-            `managedByBackend flag not set — likely manually created. Will not track as prewarm.`
-          );
-          continue;
-        }
-        console.log(`[Scaling] Reconciling orphaned prewarm instance: ${inst.instanceId}`);
-        this.activePrewarms.add(inst.instanceId);
-        // Resume the lifecycle without blocking the reconcile loop
-        this.waitForWarmupAndStop(inst.instanceId).catch(err => {
-          console.error(`[Scaling] Reconciled prewarm ${inst.instanceId} lifecycle error:`, err.message);
-        });
-      }
-    }
-
-    // Count instances actively going through the pre-warm lifecycle in memory
-    // (after adoption) plus currently launching ones
-    const prewarmCount = this.activePrewarms.size + this.launchingCount;
-
-    // ── Step 4: Guard — skip prewarm if buffer already meets target ───────
-    // This prevents redundant pre-warming and avoids unnecessary AWS costs
-    // when the buffer has been manually expanded above the minimum target.
-    if (bufferCount >= minBufferTarget) {
-      console.log(
-        `[Scaling] Pool check: ${bufferCount} buffer-ready ≥ target ${minBufferTarget}. ` +
-        `Pre-warming suppressed (${prewarmCount} active). No action needed.`
+      // Ready stopped buffers
+      const bufferReady = Object.values(instances).filter(
+        i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped'
       );
-      return;
+
+      // Healthy instances currently being recycled (status='stopping', assignedTo='Buffer')
+      const recycling = Object.values(instances).filter(
+        i => i.assignedTo === BUFFER_LABEL && i.status === 'stopping'
+      );
+
+      // Active user sessions
+      const activeSessions = Object.values(instances).filter(
+        i => i.assignedTo && i.assignedTo.startsWith('OnDemand-') && i.status === 'running'
+      );
+
+      // Re-adopt orphaned pre-warms from a previous server restart
+      const reconciledPrewarms = Object.values(instances).filter(
+        i => i.assignedTo === PREWARM_LABEL
+      );
+
+      for (const inst of reconciledPrewarms) {
+        if (!this.activePrewarms.has(inst.instanceId)) {
+          if (inst.managedByBackend !== true) {
+            console.warn(
+              `[Scaling] Skipping orphan re-adoption for ${inst.instanceId}: managedByBackend flag not set.`
+            );
+            continue;
+          }
+          console.log(`[Scaling] Reconciling orphaned prewarm instance: ${inst.instanceId}`);
+          this.activePrewarms.add(inst.instanceId);
+          const abortController = new AbortController();
+          this.activePrewarmAbortControllers.set(inst.instanceId, abortController);
+          this.waitForWarmupAndStop(inst.instanceId, abortController.signal).catch(err => {
+            console.error(`[Scaling] Reconciled prewarm ${inst.instanceId} lifecycle error:`, err.message);
+          }).finally(() => {
+            this.activePrewarmAbortControllers.delete(inst.instanceId);
+          });
+        }
+      }
+
+      const prewarmCount = this.activePrewarms.size + this.launchingCount;
+      const effectiveBuffer = bufferReady.length + recycling.length + prewarmCount;
+      
+      // Deficit: only triggers if protected Base reserve is penetrated
+      const deficit = Math.max(0, baseTarget - effectiveBuffer);
+
+      // Max allowed buffer capacity for the current active user count:
+      // When users are active, they have consumed from Extra first; pool target is bounded below by Base.
+      const maxAllowedBuffer = Math.max(baseTarget, baseTarget + extraBoost - activeSessions.length);
+
+      // Surplus: buffer capacity exceeding the maximum allowed capacity for the current active sessions
+      const surplus = Math.max(0, effectiveBuffer - maxAllowedBuffer);
+
+      console.log(
+        `[Scaling] Pool Audit: Ready=${bufferReady.length}, Recycling=${recycling.length}, Prewarming=${prewarmCount}, Active=${activeSessions.length} | ` +
+        `Base=${baseTarget}, Extra=${extraBoost}, MaxAllowed=${maxAllowedBuffer} | EffectiveBuffer=${effectiveBuffer}, Deficit=${deficit}, Surplus=${surplus}`
+      );
+
+      // ── Step 4: Handle Deficit (Protected Base reserve penetrated) ─────────
+      if (deficit > 0) {
+        console.log(`[Scaling] Base reserve penetrated! Launching ${deficit} prewarm instance(s) to restore Base=${baseTarget}...`);
+        const launches = Array.from({ length: deficit }, () => this.launchPrewarmInstance());
+        await Promise.allSettled(launches);
+        return;
+      }
+
+      // ── Step 5: Handle Surplus Prewarms (Active users left while replacement prewarm ran) ──
+      if (surplus > 0 && this.activePrewarms.size > 0) {
+        const toCancel = Math.min(surplus, this.activePrewarms.size);
+        console.log(`[Scaling] Surplus prewarm detected: EffectiveBuffer (${effectiveBuffer}) > MaxAllowed (${maxAllowedBuffer}). Cancelling ${toCancel} surplus prewarm(s)...`);
+        await this.cancelSurplusPrewarms(toCancel);
+        return;
+      }
+
+      console.log(
+        `[Scaling] Pool in balance (EffectiveBuffer=${effectiveBuffer}, Base=${baseTarget}, MaxAllowed=${maxAllowedBuffer}). No scaling action needed.`
+      );
+    });
+  }
+
+  /**
+   * Safely cancels and terminates in-progress prewarm instances that have become surplus
+   * because active user sessions ended and their instances recycled back to Buffer.
+   */
+  private async cancelSurplusPrewarms(surplusCount: number): Promise<number> {
+    if (surplusCount <= 0 || this.activePrewarms.size === 0) return 0;
+    const prewarmIds = Array.from(this.activePrewarms);
+    const toCancel = prewarmIds.slice(0, surplusCount);
+    console.log(`[Scaling] Identified ${toCancel.length} surplus prewarm instance(s) to cancel: ${toCancel.join(', ')}`);
+
+    for (const instId of toCancel) {
+      const controller = this.activePrewarmAbortControllers.get(instId);
+      if (controller) {
+        controller.abort();
+        this.activePrewarmAbortControllers.delete(instId);
+      }
+      this.activePrewarms.delete(instId);
+      this.prewarmPhases.delete(instId);
+      await this.terminateAndRemove(instId);
+      console.log(`[Scaling] Prewarm ${instId} successfully cancelled and terminated as surplus.`);
     }
-
-    // ── Step 5: Insurance — launch prewarm instances to fill the deficit ──
-    const deficit = minBufferTarget - bufferCount - prewarmCount;
-
-    console.log(
-      `[Scaling] Pool check: ${bufferCount} buffer-ready, ${prewarmCount} pre-warming, ` +
-      `target=${minBufferTarget} → deficit=${deficit}`
-    );
-
-    if (deficit <= 0) return;
-
-    // Launch one instance per deficit unit, concurrently
-    const launches = Array.from({ length: deficit }, () => this.launchPrewarmInstance());
-    await Promise.allSettled(launches);
+    return toCancel.length;
   }
 
   // ── Launch a single pre-warm EC2 instance ─────────────────────────────────
@@ -366,10 +411,6 @@ export class ScalingService {
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
         assignedTo: PREWARM_LABEL,
-        // Mark this instance as backend-launched so the orphan re-adoption
-        // guard can distinguish it from manually-created instances.
-        // The same flag is stamped as an EC2 tag (ManagedByBackend=true) so
-        // it persists across server restarts and is readable from AWS.
         managedByBackend: true,
         ec2Config: {
           instanceType: 'g4dn.2xlarge',
@@ -381,18 +422,24 @@ export class ScalingService {
         activeSessions: new Map(),
       });
 
-      this.activePrewarms.add(instanceId);
-      this.prewarmPhases.set(instanceId, 1);  // Start at Phase 1: Boot
+      const prewarmId = instanceId;
+      this.activePrewarms.add(prewarmId);
+      this.prewarmPhases.set(prewarmId, 1);  // Start at Phase 1: Boot
+      const abortController = new AbortController();
+      this.activePrewarmAbortControllers.set(prewarmId, abortController);
 
       // Run the lifecycle asynchronously — do NOT await here so reconcilePool returns
-      this.waitForWarmupAndStop(instanceId).catch(err => {
-        console.error(`[Scaling] Prewarm ${instanceId} lifecycle error:`, err.message);
+      this.waitForWarmupAndStop(prewarmId, abortController.signal).catch(err => {
+        console.error(`[Scaling] Prewarm ${prewarmId} lifecycle error:`, err.message);
+      }).finally(() => {
+        this.activePrewarmAbortControllers.delete(prewarmId);
       });
 
     } catch (err: any) {
       console.error('[Scaling] Failed to launch prewarm instance:', err.message);
       if (instanceId) {
         this.activePrewarms.delete(instanceId);
+        this.activePrewarmAbortControllers.delete(instanceId);
         this.prewarmPhases.delete(instanceId);
         TimeTrackerService.getInstance().stopRealTimer(instanceId);
         // Best-effort cleanup on AWS
@@ -405,14 +452,21 @@ export class ScalingService {
   }
 
   // ── 5-Phase Pre-warm Lifecycle ────────────────────────────────────────────
-  private async waitForWarmupAndStop(instanceId: string): Promise<void> {
+  private async waitForWarmupAndStop(instanceId: string, abortSignal?: AbortSignal): Promise<void> {
     const tag = `[Scaling] Prewarm ${instanceId}`;
 
     const fatal = async (reason: string): Promise<void> => {
       console.error(`${tag} FATAL triggered! Reason: "${reason}". Call stack:\n`, new Error().stack);
       this.prewarmPhases.delete(instanceId);
+      this.activePrewarms.delete(instanceId);
+      this.activePrewarmAbortControllers.delete(instanceId);
       await this.terminateAndRemove(instanceId);
     };
+
+    if (abortSignal?.aborted) {
+      console.log(`${tag} Prewarm aborted before start. Exiting lifecycle.`);
+      return;
+    }
 
     // ── Phase 1: Boot — wait for AWS state = 'running' ────────────────────
     this.prewarmPhases.set(instanceId, 1);
@@ -421,20 +475,29 @@ export class ScalingService {
     let publicIp: string | null = null;
 
     for (let i = 0; i < BOOT_MAX; i++) {
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 1 BOOT. Exiting lifecycle.`);
+        return;
+      }
       await sleep(POLL_MS);
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 1 BOOT. Exiting lifecycle.`);
+        return;
+      }
       try {
         const awsStatus = await this.ec2Service.getInstanceStatus(instanceId);
         console.log(`${tag} Phase 1 BOOT [${i + 1}/${BOOT_MAX}]: ${instanceId} → ${awsStatus.state}`);
 
         if (awsStatus.state === 'running') {
           publicIp = awsStatus.ip;
+          const privateIp = awsStatus.privateIp;
           booted = true;
-          console.log(`${tag} Phase 1 BOOT: ✓ ${instanceId} is running (ip: ${publicIp})`);
-          // Update DB status
+          console.log(`${tag} Phase 1 BOOT: ✓ ${instanceId} is running (public: ${publicIp}, private: ${privateIp})`);
           const inst = this.db.getInstance(instanceId);
           if (inst) {
             inst.status = 'running';
             inst.publicIp = publicIp || undefined;
+            inst.privateIp = privateIp || undefined;
             await this.db.saveInstance(instanceId, inst);
             TimeTrackerService.getInstance().startRealTimer(instanceId);
           }
@@ -451,6 +514,7 @@ export class ScalingService {
     }
 
     if (!booted) {
+      if (abortSignal?.aborted) return;
       await fatal('Timed out waiting for instance to reach running state');
       return;
     }
@@ -458,24 +522,35 @@ export class ScalingService {
     // ── Phase 2: Tunnel — Bypassed (Direct connection proxying) ─────────────
     this.prewarmPhases.set(instanceId, 2);
     console.log(`${tag} Phase 2 TUNNEL: Bypassed. Using direct IP for proxying.`);
-    const urlToCheck = `http://${publicIp}:8000`;
 
     // ── Phase 3 & 4: Signal + Streamer — wait for UE5 streamer connection ──
     this.prewarmPhases.set(instanceId, 3);
     console.log(`${tag} Phase 3 SIGNAL: Waiting for signaling server & UE5 streamer...`);
     let signalingConfirmed = false;
-    let serverAliveEver    = false;   // True once we get ANY HTTP response through the tunnel
+    let serverAliveEver    = false;
 
     for (let i = 0; i < SIGNAL_MAX; i++) {
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 3 SIGNAL. Exiting lifecycle.`);
+        return;
+      }
       await sleep(POLL_MS);
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 3 SIGNAL. Exiting lifecycle.`);
+        return;
+      }
 
-      // Re-read publicIp in case it was updated
       const inst = this.db.getInstance(instanceId);
       if (!inst) {
+        if (abortSignal?.aborted) {
+          console.log(`${tag} Prewarm record removed via cancellation during signal wait. Exiting lifecycle.`);
+          return;
+        }
         await fatal('Instance disappeared from DB during signal wait');
         return;
       }
-      const instanceUrl = `http://${inst.publicIp}:8000`;
+      const targetIp = inst.privateIp || inst.publicIp;
+      const instanceUrl = `http://${targetIp}:8000`;
 
       const streamerStatus = await checkStreamerStatus(instanceUrl);
       console.log(
@@ -493,32 +568,26 @@ export class ScalingService {
       }
 
       if (streamerStatus === 'alive') {
-        // Signaling server is reachable — streamer not connected yet, keep waiting
         serverAliveEver = true;
         console.log(`${tag} Phase 3 SIGNAL [${i + 1}/${SIGNAL_MAX}]: Server alive, streamer not yet connected. Waiting...`);
       } else {
-        // 'unreachable' — could be transient HTTPS cert warmup or Pinggy delay
-        console.log(`${tag} Phase 3 SIGNAL [${i + 1}/${SIGNAL_MAX}]: Server unreachable via tunnel. Will retry...`);
+        console.log(`${tag} Phase 3 SIGNAL [${i + 1}/${SIGNAL_MAX}]: Server unreachable via direct IP. Will retry...`);
       }
     }
 
-    // ── Signal phase result ───────────────────────────────────────────────
-    // NON-FATAL path: if we never got any HTTP response at all through the
-    // tunnel, the instance is likely broken — terminate it.
-    // But if the server was reachable (serverAliveEver=true) and we just
-    // didn't see the streamer confirm within the window, we still proceed:
-    // the AMI startup script already ran UE5, so the instance IS warmed up.
+    if (abortSignal?.aborted) {
+      console.log(`${tag} Prewarm aborted after Phase 3. Exiting lifecycle.`);
+      return;
+    }
+
     if (!signalingConfirmed) {
       if (!serverAliveEver) {
-        // Tunnel URL never responded — instance networking is broken
-        await fatal('Signaling server never responded through tunnel — instance networking broken');
+        await fatal('Signaling server never responded — instance networking broken');
         return;
       }
       console.warn(
-        `${tag} Phase 3 SIGNAL: Streamer did not confirm within timeout, but server was alive. ` +
-        `Proceeding to stop — instance is prewarmed (UE5 runs on AMI boot).`
+        `${tag} Phase 3 SIGNAL: Streamer did not confirm within timeout, but server was alive. Proceeding to stop.`
       );
-      // Mark phase 4 reached (best-effort)
       this.prewarmPhases.set(instanceId, 4);
     }
 
@@ -530,14 +599,22 @@ export class ScalingService {
       const inst = this.db.getInstance(instanceId);
       if (inst) { inst.status = 'stopping'; await this.db.saveInstance(instanceId, inst); }
     } catch (err: any) {
+      if (abortSignal?.aborted) return;
       await fatal(`Failed to issue stop command: ${err.message}`);
       return;
     }
 
-    // Wait for AWS to confirm stopped
     let stopped = false;
     for (let i = 0; i < STOP_MAX; i++) {
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 5 STOP. Exiting lifecycle.`);
+        return;
+      }
       await sleep(POLL_MS);
+      if (abortSignal?.aborted) {
+        console.log(`${tag} Prewarm aborted during Phase 5 STOP. Exiting lifecycle.`);
+        return;
+      }
       try {
         const awsStatus = await this.ec2Service.getInstanceStatus(instanceId);
         console.log(`${tag} Phase 5 STOP [${i + 1}/${STOP_MAX}]: ${instanceId} → ${awsStatus.state}`);
@@ -550,6 +627,7 @@ export class ScalingService {
           console.error(`${tag} Phase 5 STOP: Instance terminated unexpectedly while stopping.`);
           await this.db.deleteInstance(instanceId);
           this.activePrewarms.delete(instanceId);
+          this.activePrewarmAbortControllers.delete(instanceId);
           return;
         }
       } catch (err: any) {
@@ -558,6 +636,7 @@ export class ScalingService {
     }
 
     if (!stopped) {
+      if (abortSignal?.aborted) return;
       await fatal('Timed out waiting for instance to stop');
       return;
     }
@@ -567,54 +646,245 @@ export class ScalingService {
     if (finalInst) {
       finalInst.status = 'stopped';
       finalInst.assignedTo = BUFFER_LABEL;
-      finalInst.streamerConnected = false;  // Reset for next use
+      finalInst.streamerConnected = false;
       await this.db.saveInstance(instanceId, finalInst);
       TimeTrackerService.getInstance().stopRealTimer(instanceId);
     }
     this.activePrewarms.delete(instanceId);
-    this.prewarmPhases.delete(instanceId);  // Remove from phase tracking — now in buffer
+    this.activePrewarmAbortControllers.delete(instanceId);
+    this.prewarmPhases.delete(instanceId);
     console.log(`${tag} ✅ Successfully moved to buffer pool. assignedTo=Buffer, status=stopped.`);
   }
 
   // ── Claim a buffer instance for a real user ───────────────────────────────
   /**
-   * Called by WebSocketService when a new user needs an instance.
-   * Returns the instanceId of a claimed buffer instance, or null if none available.
+   * Reserves a stopped Buffer instance for a user.
+   * Does NOT trigger pool reconciliation until confirmed via confirmBufferClaim.
+   * This prevents premature replacement prewarm launches if AWS startInstance fails.
    */
-  async claimBufferInstance(): Promise<string | null> {
+  async claimBufferInstance(excludedIds: string[] = []): Promise<string | null> {
     const instances = this.db.getInstances();
+    const excludeSet = new Set(excludedIds);
     const bufferInst = Object.values(instances).find(
-      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped'
+      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped' && !excludeSet.has(i.instanceId)
     );
     if (!bufferInst) return null;
 
+    const remainingReady = Object.values(instances).filter(
+      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped' && i.instanceId !== bufferInst.instanceId
+    ).length;
+
+    const settings = SettingsService.getInstance().getSettings();
+    const baseTarget = settings.minBufferTarget ?? 0;
+    const extraBoost = settings.lastExtraBoost ?? 0;
+    const isBasePenetrated = remainingReady < baseTarget;
+
     // Immediately rename so no other claim races for the same one
-    bufferInst.assignedTo = 'LinuxClient';
+    bufferInst.assignedTo = 'Claimed';
     await this.db.saveInstance(bufferInst.instanceId, bufferInst);
 
-    console.log(`[Scaling] Buffer instance ${bufferInst.instanceId} claimed for user.`);
-
-    // Trigger pool reconciliation to launch a replacement
-    setTimeout(() => this.reconcilePool(), 0);
-
+    console.log(
+      `[Scaling] Buffer instance ${bufferInst.instanceId} reserved for user. ` +
+      `Remaining stopped: ${remainingReady} | Base target: ${baseTarget}, Extra target: ${extraBoost}. ` +
+      `Claim Type: ${isBasePenetrated ? 'PROTECTED BASE RESERVE CONSUMED (Replacement prewarm needed)' : 'EXPENDABLE EXTRA CAPACITY CONSUMED (No prewarm needed)'}.`
+    );
     return bufferInst.instanceId;
   }
 
-  // ── Terminate and permanently remove an instance ──────────────────────────
   /**
-   * Physically destroys the EC2 instance on AWS and removes it from the DB.
-   * Used by: admin delete button, fatal pre-warm errors, grace period expiry.
+   * Confirms that a claimed buffer instance was successfully started on AWS.
+   * Triggers pool reconciliation to launch a replacement prewarm instance if Base is penetrated.
    */
+  async confirmBufferClaim(instanceId: string): Promise<void> {
+    console.log(`[Scaling] Buffer claim confirmed for ${instanceId}. Triggering pool reconciliation check...`);
+    setTimeout(() => this.reconcilePool(), 0);
+  }
+
+  /**
+   * Rolls back a buffer claim when AWS startInstance fails or returns an ambiguous result.
+   */
+  async rollbackBufferClaim(instanceId: string, hostToken?: string, error?: any): Promise<void> {
+    console.warn(`[Scaling] Rolling back buffer claim for ${instanceId}. Reason: ${error?.message || 'unknown'}`);
+    const instance = this.db.getInstance(instanceId);
+    if (!instance) return;
+
+    if (hostToken) {
+      instance.activeSessions.delete(hostToken);
+    }
+
+    let realState = 'unknown';
+    let publicIp: string | null = null;
+    let privateIp: string | null = null;
+    try {
+      const awsStatus = await this.ec2Service.getInstanceStatus(instanceId);
+      realState = awsStatus.state;
+      publicIp = awsStatus.ip;
+      privateIp = awsStatus.privateIp;
+    } catch (queryErr: any) {
+      const queryMsg = (queryErr?.message || '').toLowerCase();
+      if (queryMsg.includes('notfound') || queryMsg.includes('does not exist') || queryMsg.includes('invalidinstanceid')) {
+        realState = 'not-found';
+      }
+    }
+
+    console.log(`[Scaling] Rollback inspection for ${instanceId}: AWS realState='${realState}' (error was: ${error?.message})`);
+
+    if (realState === 'stopped') {
+      instance.status = 'stopped';
+      instance.assignedTo = BUFFER_LABEL;
+      await this.db.saveInstance(instanceId, instance);
+      console.log(`[Scaling] Buffer instance ${instanceId} confirmed stopped on AWS — returned to buffer pool.`);
+    } else if (realState === 'pending' || realState === 'running') {
+      console.warn(`[Scaling] Ambiguous start: ${instanceId} is actually '${realState}' on AWS. Issuing stop command...`);
+      instance.status = 'stopping';
+      instance.assignedTo = BUFFER_LABEL;
+      instance.publicIp = publicIp || instance.publicIp;
+      instance.privateIp = privateIp || instance.privateIp;
+      await this.db.saveInstance(instanceId, instance);
+
+      try {
+        await this.ec2Service.stopInstance(instanceId);
+      } catch (stopErr: any) {
+        console.error(`[Scaling] Failed to issue stop for ambiguous instance ${instanceId}:`, stopErr.message);
+      }
+      setTimeout(() => this.reconcilePool(), 0);
+    } else if (realState === 'terminated' || realState === 'shutting-down' || realState === 'not-found') {
+      console.error(`[Scaling] Claimed instance ${instanceId} is '${realState}' on AWS. Terminating & purging DB record.`);
+      await this.terminateAndRemove(instanceId);
+      setTimeout(() => this.reconcilePool(), 0);
+    } else {
+      console.warn(`[Scaling] AWS status unreachable for ${instanceId}. Marking status='stopping' to prevent unsafe claim.`);
+      instance.status = 'stopping';
+      instance.assignedTo = BUFFER_LABEL;
+      await this.db.saveInstance(instanceId, instance);
+      setTimeout(() => this.reconcilePool(), 0);
+    }
+  }
+
+  // ── Recycle healthy completed instance back to Buffer pool ───────────────
+  /**
+   * Gracefully stops a healthy user instance upon session exit and returns it to Buffer.
+   * Preserves the warm EBS volume and persistent Vulkan/PSO shader caches.
+   */
+  async recycleInstanceToBuffer(instanceId: string): Promise<void> {
+    const inst = this.db.getInstance(instanceId);
+    if (!inst) {
+      console.warn(`[Scaling] [Recycle] ${instanceId} not found in DB.`);
+      return;
+    }
+
+    console.log(`[Scaling] [Recycle] Initiating recycling for healthy instance ${instanceId}...`);
+    TimeTrackerService.getInstance().stopRealTimer(instanceId);
+    TimeTrackerService.getInstance().stopDisplayTimer(instanceId);
+
+    // Clean session ownership immediately
+    inst.activeSessions.clear();
+    inst.assignedTo = BUFFER_LABEL;
+    inst.status = 'stopping';
+    inst.streamerConnected = false;
+    await this.db.saveInstance(instanceId, inst);
+
+    // Trigger reconciliation so pool accounts for this instance as recycling (R_stopping)
+    setTimeout(() => this.reconcilePool(), 0);
+
+    // Issue EC2 stop command
+    try {
+      console.log(`[Scaling] [Recycle] Sending StopInstances for ${instanceId}...`);
+      await this.ec2Service.stopInstance(instanceId);
+    } catch (err: any) {
+      console.error(`[Scaling] [Recycle] Failed to issue stop for ${instanceId}:`, err.message);
+      // Fallback: terminate if stop failed to prevent stuck instance
+      await this.terminateAndRemove(instanceId);
+      setTimeout(() => this.reconcilePool(), 0);
+      return;
+    }
+
+    // Monitor asynchronously until stopped
+    this.waitForRecycleStop(instanceId).catch(err => {
+      console.error(`[Scaling] [Recycle] Error waiting for ${instanceId} to stop:`, err.message);
+    });
+  }
+
+  private async waitForRecycleStop(instanceId: string): Promise<void> {
+    const tag = `[Scaling] [Recycle] ${instanceId}`;
+    let stopped = false;
+
+    for (let i = 0; i < STOP_MAX; i++) {
+      await sleep(POLL_MS);
+      try {
+        const awsStatus = await this.ec2Service.getInstanceStatus(instanceId);
+        console.log(`${tag} STOP poll [${i + 1}/${STOP_MAX}]: ${instanceId} → ${awsStatus.state}`);
+
+        if (awsStatus.state === 'stopped') {
+          stopped = true;
+          break;
+        }
+        if (awsStatus.state === 'terminated' || awsStatus.state === 'shutting-down') {
+          console.error(`${tag} Instance terminated unexpectedly while stopping.`);
+          await this.db.deleteInstance(instanceId);
+          setTimeout(() => this.reconcilePool(), 0);
+          return;
+        }
+      } catch (err: any) {
+        console.warn(`${tag} STOP poll error: ${err.message}`);
+      }
+    }
+
+    if (!stopped) {
+      console.error(`${tag} Timed out waiting for instance to reach 'stopped'. Terminating.`);
+      await this.terminateAndRemove(instanceId);
+      setTimeout(() => this.reconcilePool(), 0);
+      return;
+    }
+
+    // Check pool capacity against combined target
+    const settings = SettingsService.getInstance().getSettings();
+    const baseTarget = settings.minBufferTarget ?? 0;
+    const extraBoost = settings.lastExtraBoost ?? 0;
+    const maxDesiredPool = baseTarget + extraBoost;
+
+    const allInstances = this.db.getInstances();
+    const currentStoppedBufferCount = Object.values(allInstances).filter(
+      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped' && i.instanceId !== instanceId
+    ).length;
+
+    const finalInst = this.db.getInstance(instanceId);
+    if (!finalInst) return;
+
+    if (maxDesiredPool > 0 && currentStoppedBufferCount >= maxDesiredPool) {
+      console.log(
+        `${tag} Pool is full (${currentStoppedBufferCount} ready >= max target ${maxDesiredPool}). ` +
+        `Terminating surplus recycled instance.`
+      );
+      await this.terminateAndRemove(instanceId);
+    } else {
+      finalInst.status = 'stopped';
+      finalInst.assignedTo = BUFFER_LABEL;
+      finalInst.streamerConnected = false;
+      await this.db.saveInstance(instanceId, finalInst);
+      console.log(
+        `${tag} ✅ Recycled instance confirmed stopped on AWS — returned to buffer pool. ` +
+        `Total ready buffer: ${currentStoppedBufferCount + 1}.`
+      );
+    }
+
+    // Trigger reconciliation to re-evaluate prewarm demand and cancel any redundant prewarm
+    setTimeout(() => this.reconcilePool(), 0);
+  }
+
+  // ── Terminate and permanently remove an instance ──────────────────────────
   async terminateAndRemove(instanceId: string): Promise<void> {
     const inst = this.db.getInstance(instanceId);
     console.log(`[Scaling] terminateAndRemove called for instance ${instanceId}. Call stack:\n`, new Error().stack);
     TimeTrackerService.getInstance().stopRealTimer(instanceId);
+    TimeTrackerService.getInstance().stopDisplayTimer(instanceId);
+    this.activePrewarms.delete(instanceId);
+    this.activePrewarmAbortControllers.delete(instanceId);
+    this.prewarmPhases.delete(instanceId);
+
     if (!inst) {
-      // Not in DB — attempt AWS termination anyway as best effort
       console.warn(`[Scaling] terminateAndRemove: ${instanceId} not found in DB. Attempting AWS termination anyway.`);
       try { await this.ec2Service.terminateInstance(instanceId); } catch {}
-      this.activePrewarms.delete(instanceId);
-      this.prewarmPhases.delete(instanceId);
       return;
     }
 
@@ -625,105 +895,88 @@ export class ScalingService {
     try {
       await this.ec2Service.terminateInstance(instanceId);
       await this.db.deleteInstance(instanceId);
-      this.activePrewarms.delete(instanceId);
-      this.prewarmPhases.delete(instanceId);
       console.log(`[Scaling] ✓ Terminated and removed ${instanceId}.`);
     } catch (err: any) {
       console.error(`[Scaling] Failed to terminate ${instanceId}:`, err.message);
-      // Remove from DB even if AWS call failed, to prevent stuck entries
       await this.db.deleteInstance(instanceId);
-      this.activePrewarms.delete(instanceId);
-      this.prewarmPhases.delete(instanceId);
     }
   }
 
   // ── Re-align pool on-demand (admin "Apply & Re-align" button) ────────────
-  /**
-   * One-shot, admin-triggered pool alignment to an exact combined target.
-   * Intentionally NOT called by the automatic reconcile loop.
-   *
-   * Steps:
-   *  1. Persist baseTarget as new minBufferTarget → re-anchors auto-loop floor.
-   *  2. Snapshot current pool state.
-   *  3. combinedTarget = baseTarget + extraBoost
-   *  4a. Deficit  → launch missing prewarm instances.
-   *  4b. Surplus  → terminate min(surplus, bufferCount) stopped Buffer instances.
-   *      Never aborts in-progress Prewarm lifecycles (would corrupt activePrewarms).
-   */
   async realignPool(baseTarget: number, extraBoost: number): Promise<{
     launched:        number;
     terminated:      number;
     skippedPrewarms: number;
     combinedTarget:  number;
   }> {
-    // Step 1: Re-anchor auto-loop to new base immediately, and persist extra
-    // so that GET /api/settings always reflects the full admin-configured target.
-    await SettingsService.getInstance().save({ minBufferTarget: baseTarget, lastExtraBoost: extraBoost });
-    console.log(`[Scaling] realignPool: baseTarget=${baseTarget}, extraBoost=${extraBoost} saved to settings.`);
+    return this.withPoolLock('realignPool', async () => {
+      await SettingsService.getInstance().save({ minBufferTarget: baseTarget, lastExtraBoost: extraBoost });
+      console.log(`[Scaling] realignPool: baseTarget=${baseTarget}, extraBoost=${extraBoost} saved to settings.`);
 
-    // Step 2: Snapshot
-    const instances = this.db.getInstances();
-    const bufferInstances = Object.values(instances).filter(
-      i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped'
-    );
-    const bufferCount  = bufferInstances.length;
-    const prewarmCount = this.activePrewarms.size + this.launchingCount;
-    const currentTotal = bufferCount + prewarmCount;
-    // Step 3: Compute combined target and delta
-    const combinedTarget = baseTarget + extraBoost;
-    const delta          = combinedTarget - currentTotal;  // positive = deficit, negative = surplus
+      const instances = this.db.getInstances();
+      const bufferInstances = Object.values(instances).filter(
+        i => i.assignedTo === BUFFER_LABEL && i.status === 'stopped'
+      );
+      const recyclingInstances = Object.values(instances).filter(
+        i => i.assignedTo === BUFFER_LABEL && i.status === 'stopping'
+      );
+      const activeSessions = Object.values(instances).filter(
+        i => i.assignedTo && i.assignedTo.startsWith('OnDemand-') && i.status === 'running'
+      );
+      const bufferCount  = bufferInstances.length;
+      const prewarmCount = this.activePrewarms.size + this.launchingCount;
+      const currentTotal = bufferCount + recyclingInstances.length + prewarmCount;
+      const combinedTarget = Math.max(baseTarget, baseTarget + extraBoost - activeSessions.length);
+      const delta          = combinedTarget - currentTotal;
 
-    console.log(
-      `[Scaling] realignPool: combinedTarget=${combinedTarget}, ` +
-      `bufferCount=${bufferCount}, prewarmCount=${prewarmCount}, delta=${delta}`
-    );
+      console.log(
+        `[Scaling] realignPool: combinedTarget=${combinedTarget} (Base=${baseTarget}, Extra=${extraBoost}, Active=${activeSessions.length}), ` +
+        `bufferCount=${bufferCount}, recyclingCount=${recyclingInstances.length}, prewarmCount=${prewarmCount}, delta=${delta}`
+      );
 
-    let launched        = 0;
-    let terminated      = 0;
-    let skippedPrewarms = 0;
+      let launched        = 0;
+      let terminated      = 0;
+      let skippedPrewarms = 0;
 
-    if (delta > 0) {
-      // Deficit — launch missing prewarms concurrently
-      const launches = Array.from({ length: delta }, () => this.launchPrewarmInstance());
-      await Promise.allSettled(launches);
-      launched = delta;
-      console.log(`[Scaling] realignPool: launched ${launched} prewarm instance(s).`);
-    } else if (delta < 0) {
-      // Surplus — terminate stopped Buffer instances only (LIFO), never Prewarm
-      const surplus      = Math.abs(delta);
-      const canTerminate = Math.min(surplus, bufferCount);
-      skippedPrewarms    = surplus - canTerminate;
+      if (delta > 0) {
+        const launches = Array.from({ length: delta }, () => this.launchPrewarmInstance());
+        await Promise.allSettled(launches);
+        launched = delta;
+        console.log(`[Scaling] realignPool: launched ${launched} prewarm instance(s).`);
+      } else if (delta < 0) {
+        const surplus = Math.abs(delta);
+        // First cancel any active prewarms
+        const cancelledPrewarms = await this.cancelSurplusPrewarms(surplus);
+        const remainingSurplus = surplus - cancelledPrewarms;
 
-      if (skippedPrewarms > 0) {
-        console.warn(
-          `[Scaling] realignPool: ${skippedPrewarms} surplus Prewarm(s) left running — ` +
-          `will settle into Buffer once complete.`
-        );
+        // Then terminate stopped buffers if still surplus
+        const canTerminate = Math.min(remainingSurplus, bufferCount);
+        skippedPrewarms = remainingSurplus - canTerminate;
+
+        const toTerminate = bufferInstances
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, canTerminate);
+
+        await Promise.allSettled(toTerminate.map(i => this.terminateAndRemove(i.instanceId)));
+        terminated = canTerminate;
+        console.log(`[Scaling] realignPool: cancelled ${cancelledPrewarms} prewarms, terminated ${terminated} Buffer instance(s).`);
       }
 
-      // LIFO: terminate newest Buffer instances first to preserve longest-idling ones
-      const toTerminate = bufferInstances
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, canTerminate);
-
-      await Promise.allSettled(toTerminate.map(i => this.terminateAndRemove(i.instanceId)));
-      terminated = canTerminate;
-      console.log(`[Scaling] realignPool: terminated ${terminated} Buffer instance(s).`);
-    }
-
-    return { launched, terminated, skippedPrewarms, combinedTarget };
+      return { launched, terminated, skippedPrewarms, combinedTarget };
+    });
   }
 
-
   // ── Abort a prewarm instance (admin action) ───────────────────────────────
-  /**
-   * Immediately terminates a prewarm instance and triggers reconciliation.
-   * Called by the admin "Прервать" button.
-   */
   async abortPrewarm(instanceId: string): Promise<void> {
     console.log(`[Scaling] Admin aborted prewarm: ${instanceId}`);
+    const controller = this.activePrewarmAbortControllers.get(instanceId);
+    if (controller) {
+      controller.abort();
+      this.activePrewarmAbortControllers.delete(instanceId);
+    }
+    this.activePrewarms.delete(instanceId);
+    this.prewarmPhases.delete(instanceId);
     await this.terminateAndRemove(instanceId);
-    // Trigger reconciliation to launch a replacement
     setTimeout(() => this.reconcilePool(), 0);
   }
 }

@@ -6,6 +6,7 @@ import {
   RunInstancesCommand,
   TerminateInstancesCommand,
   DescribeImagesCommand,
+  DescribeSubnetsCommand,
   Filter,
 } from '@aws-sdk/client-ec2';
 import { config } from '../config';
@@ -14,6 +15,8 @@ import { randomUUID } from 'crypto';
 
 export class EC2Service {
   private client: EC2Client;
+  private cachedSubnets: Array<{ subnetId: string; az: string; vpcId: string }> = [];
+  private lastSubnetFetchTime = 0;
 
   constructor() {
     this.client = new EC2Client({
@@ -23,6 +26,54 @@ export class EC2Service {
         secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
       },
     });
+  }
+
+  /**
+   * Discovers all public subnets within the same VPC to support multi-AZ capacity placement.
+   */
+  async getAvailableSubnets(preferredSubnetId?: string): Promise<string[]> {
+    const primary = preferredSubnetId || config.AWS_SUBNET_ID;
+    const now = Date.now();
+
+    if (this.cachedSubnets.length === 0 || now - this.lastSubnetFetchTime > 5 * 60 * 1000) {
+      try {
+        const command = new DescribeSubnetsCommand({});
+        const response = await this.client.send(command);
+        const subnets = response.Subnets || [];
+
+        // Find VPC of primary subnet or default VPC
+        const primarySubnet = subnets.find(s => s.SubnetId === primary);
+        const targetVpcId = primarySubnet?.VpcId || subnets[0]?.VpcId;
+
+        if (targetVpcId) {
+          this.cachedSubnets = subnets
+            .filter(s => s.VpcId === targetVpcId && s.MapPublicIpOnLaunch !== false)
+            .map(s => ({
+              subnetId: s.SubnetId!,
+              az: s.AvailabilityZone || '',
+              vpcId: s.VpcId || '',
+            }));
+          this.lastSubnetFetchTime = now;
+          console.log(`[EC2] Discovered ${this.cachedSubnets.length} multi-AZ public subnet(s) in VPC ${targetVpcId}:`,
+            this.cachedSubnets.map(s => `${s.subnetId} (${s.az})`).join(', ')
+          );
+        }
+      } catch (err: any) {
+        console.warn(`[EC2] DescribeSubnets failed: ${err.message}. Using default subnet.`);
+      }
+    }
+
+    const ordered: string[] = [];
+    if (primary && !primary.includes('xxxxx')) {
+      ordered.push(primary);
+    }
+    for (const s of this.cachedSubnets) {
+      if (!ordered.includes(s.subnetId)) {
+        ordered.push(s.subnetId);
+      }
+    }
+
+    return ordered.length > 0 ? ordered : [primary];
   }
 
   async startInstance(instanceId: string): Promise<{ success: boolean; state: string }> {
@@ -44,13 +95,14 @@ export class EC2Service {
     return { success: true };
   }
 
-  async getInstanceStatus(instanceId: string): Promise<{ state: string; ip: string | null }> {
+  async getInstanceStatus(instanceId: string): Promise<{ state: string; ip: string | null; privateIp: string | null }> {
     const command = new DescribeInstancesCommand({ InstanceIds: [instanceId] });
     const response = await this.client.send(command);
     const instance = response.Reservations?.[0]?.Instances?.[0];
     return {
       state: instance?.State?.Name || 'unknown',
       ip: instance?.PublicIpAddress || null,
+      privateIp: instance?.PrivateIpAddress || null,
     };
   }
 
@@ -111,38 +163,64 @@ export class EC2Service {
     subnetId?: string,
     securityGroupId?: string
   ): Promise<{ instanceId: string }> {
-    const finalSubnetId = subnetId || config.AWS_SUBNET_ID;
     const finalSecurityGroupId = securityGroupId || config.AWS_SECURITY_GROUP_ID;
+    const candidateSubnets = await this.getAvailableSubnets(subnetId);
 
-    const runParams: any = {
-      ImageId: amiId,
-      InstanceType: instanceType as any,
-      MinCount: 1,
-      MaxCount: 1,
-      TagSpecifications: [
-        {
-          ResourceType: 'instance',
-          Tags: [
-            { Key: 'Name', Value: 'LinuxClient' },
-            { Key: 'Purpose', Value: 'Prewarm' },
-            { Key: 'ManagedByBackend', Value: 'true' },
-          ]
+    let lastError: any = null;
+
+    for (let i = 0; i < candidateSubnets.length; i++) {
+      const targetSubnet = candidateSubnets[i];
+      const runParams: any = {
+        ImageId: amiId,
+        InstanceType: instanceType as any,
+        MinCount: 1,
+        MaxCount: 1,
+        TagSpecifications: [
+          {
+            ResourceType: 'instance',
+            Tags: [
+              { Key: 'Name', Value: 'LinuxClient' },
+              { Key: 'Purpose', Value: 'Prewarm' },
+              { Key: 'ManagedByBackend', Value: 'true' },
+            ]
+          }
+        ]
+      };
+
+      if (targetSubnet && !targetSubnet.includes('xxxxx')) {
+        runParams.SubnetId = targetSubnet;
+      }
+      if (finalSecurityGroupId && !finalSecurityGroupId.includes('xxxxx')) {
+        runParams.SecurityGroupIds = [finalSecurityGroupId];
+      }
+
+      try {
+        console.log(`[EC2] Attempting RunInstances in subnet ${targetSubnet} (candidate ${i + 1}/${candidateSubnets.length})...`);
+        const command = new RunInstancesCommand(runParams);
+        const response = await this.client.send(command);
+        const instanceId = response.Instances?.[0]?.InstanceId;
+        if (!instanceId) throw new Error('Failed to create instance: no instanceId returned');
+        console.log(`[EC2] Successfully created instance ${instanceId} in subnet ${targetSubnet}`);
+        return { instanceId };
+      } catch (err: any) {
+        lastError = err;
+        const msg = err.message || '';
+        const isCapacityError =
+          err.name === 'InsufficientInstanceCapacity' ||
+          msg.includes('InsufficientInstanceCapacity') ||
+          msg.includes('capacity') ||
+          msg.includes('Availability Zone');
+
+        console.warn(`[EC2] RunInstances failed in subnet ${targetSubnet}: ${msg}`);
+        if (!isCapacityError || i === candidateSubnets.length - 1) {
+          if (!isCapacityError) break;
+        } else {
+          console.log(`[EC2] Multi-AZ Fallback: Retrying RunInstances in next available subnet...`);
         }
-      ]
-    };
-
-    if (finalSubnetId && !finalSubnetId.includes('xxxxx')) {
-      runParams.SubnetId = finalSubnetId;
-    }
-    if (finalSecurityGroupId && !finalSecurityGroupId.includes('xxxxx')) {
-      runParams.SecurityGroupIds = [finalSecurityGroupId];
+      }
     }
 
-    const command = new RunInstancesCommand(runParams);
-    const response = await this.client.send(command);
-    const instanceId = response.Instances?.[0]?.InstanceId;
-    if (!instanceId) throw new Error('Failed to create instance');
-    return { instanceId };
+    throw lastError || new Error('Failed to create instance across all candidate subnets');
   }
 
   /**
@@ -209,6 +287,7 @@ export class EC2Service {
           assignedTo,
           managedByBackend,
           publicIp: ec2.PublicIpAddress || undefined,
+          privateIp: ec2.PrivateIpAddress || undefined,
           ec2Config: {
             instanceType: ec2.InstanceType ?? 'g4dn.2xlarge',
             region: config.AWS_REGION || 'eu-central-1',

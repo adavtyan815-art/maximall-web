@@ -12,6 +12,7 @@ export interface Instance {
   assignedTo: string | null;          // Optional client name
   pinggyUrl?: string;                 // Dynamic Pinggy tunnel URL reported by EC2 on boot
   publicIp?: string;                  // Public IP of the instance for direct connection proxying
+  privateIp?: string;                 // Private VPC IP of the instance for fast, reliable intra-VPC routing
   streamerConnected?: boolean;        // True once UE5 streamer has connected to signaling server
   managedByBackend?: boolean;
   ec2Config: {
@@ -24,7 +25,8 @@ export interface Instance {
 }
 
 export interface Session {
-  socketId?: string;                  // Socket.io connection ID
+  socketId?: string;                  // Primary Socket.io connection ID
+  socketIds?: string[];               // Active Socket.io connection IDs for this session (multi-tab support)
   hostToken: string;                  // Random token for this session
   lastSeenAt: number;                 // Unix timestamp (ms)
   displayStarted: boolean;            // Whether display timer is active
