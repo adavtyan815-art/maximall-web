@@ -1,8 +1,9 @@
 ﻿# Maximall Web Orchestrator: Master Architecture & Source of Truth
 
 > **Repository**: `https://github.com/adavtyan815-art/maximall-web.git`  
-> **Primary Role**: Multi-Instance GPU Orchestrator, Hot-Standby Pool Manager, Reverse Proxy, and Session Control Backend for Epic Games Pixel Streaming.  
-> **Target Environment**: AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).  
+> **Primary Role**: Web Application, Multi-Instance GPU Orchestrator, Hot-Standby Pool Manager, Reverse Proxy, and Session Control Backend.  
+> **Orchestrator Host Environment**: AWS EC2 CPU instance (`t3.micro` / `t3.medium`, Ubuntu Linux with Node.js/Docker).  
+> **Managed GPU Streaming Fleet**: AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).  
 > **Active Roadmap / Planned Sprints**: [`docs/todo.md`](todo.md).  
 
 ---
@@ -28,7 +29,7 @@
 
 ## 1. System Overview & Purpose
 
-`maximall-web` is the central orchestration server for the MaxiMall 3D Web experience. It coordinates AWS EC2 GPU instances running Unreal Engine 5 (`awsTutorial`) and Epic Games Wilbur signaling (`maximall-pixel-config`).
+`maximall-web` is the central web and orchestration server for the MaxiMall 3D Web platform. Hosted on a standard AWS EC2 CPU instance (e.g. `t3.micro` / `t3.medium`), it orchestrates an elastic fleet of AWS EC2 GPU instances (`g4dn.2xlarge`) running Unreal Engine 5 (`awsTutorial`) and Epic Games Wilbur signaling (`maximall-pixel-config`).
 
 ```mermaid
 flowchart TD
@@ -37,21 +38,21 @@ flowchart TD
         Player[player.html / player.js WebRTC Viewport]
     end
 
-    subgraph Orchestrator [maximall-web Backend]
+    subgraph OrchestratorHost [maximall-web Host (EC2 t3.medium / Node.js)]
         API[Express REST API]
         Proxy[HTTP & WSS Reverse Proxy]
         Pool[ScalingService Standby Pool Loop]
         DB[(In-Memory Database & Settings)]
     end
 
-    subgraph AWS [AWS Cloud (eu-central-1)]
-        EC2_Active[Active GPU Instance: g4dn.2xlarge]
-        EC2_Stopped[Stopped Buffer Pool: g4dn.2xlarge]
+    subgraph ManagedGPUFleet [Managed AWS GPU Fleet (eu-central-1)]
+        EC2_Active[Active GPU Instance: g4dn.2xlarge (LinuxClientAMI)]
+        EC2_Stopped[Stopped Buffer Pool: g4dn.2xlarge (LinuxClientAMI)]
     end
 
     UI -->|POST /api/instances/connect-available| API
     API -->|Allocate / Claim| Pool
-    Pool -->|Start / Stop / Describe| AWS
+    Pool -->|Start / Stop / Describe / Run| ManagedGPUFleet
     Player <-->|GET /instance/:uuid/player.html| Proxy
     Player <-->|WSS /instance/:uuid/ws| Proxy
     Proxy <-->|Private IP:8000| EC2_Active
@@ -62,7 +63,7 @@ flowchart TD
 
 ## 2. Ecosystem Architecture & Inter-Project Contracts
 
-The MaxiMall platform consists of three distinct repositories with strict separation of concerns:
+The MaxiMall platform is composed of three distinct repositories with strict boundaries:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -83,12 +84,14 @@ The MaxiMall platform consists of three distinct repositories with strict separa
 ```
 
 ### 2.1 Interface with `maximall-pixel-config`
+- **Role**: Epic Games Pixel Streaming signaling infrastructure and compiled web player application.
 - **Location**: Deployed at `/home/ssm-user/web/` on the AWS GPU instance AMI (`LinuxClientAMI`).
 - **Signaling Endpoint**: Wilbur runs on port `8000`. `maximall-web` reverse-proxies HTTP asset requests (`/instance/:uuid/*`) and WebSocket signaling upgrades (`/instance/:uuid/ws`) directly to `http://${privateIp}:8000/`.
-- **Socket.io Back-Channel**: `player.ts` dynamically connects back to `maximall-web` to emit `display-start`, `heartbeat` (every 10s), and `user-activity`. `maximall-web` emits `instance-stopping` when recycling the instance.
+- **Socket.io Control Channel**: `player.ts` dynamically connects back to `maximall-web` to emit `display-start`, `heartbeat` (every 10s), and `user-activity`. `maximall-web` emits `instance-stopping` when recycling the instance.
 
 ### 2.2 Interface with `awsTutorial` (Unreal Engine 5)
-- **Packaging & Builds**: Functional C++ logic is built on PC2 (UE 5.6) and packaged into the Linux client binary on the GPU instance AMI.
+- **Role**: Functional 3D interactive application containing the C++ showroom, room constructor, camera navigation, and booth management logic.
+- **Packaging & Builds**: Official production Client/Server builds are packaged on **PC2** using Unreal Engine 5.6 into Linux binaries deployed on the GPU instance AMI.
 - **Save/Load REST Calls**: Unreal Engine's `UUserSaveGame` and web subsystem make HTTP calls to `maximall-web`:
   - `GET /api/saves?user=<username>`: Fetches user room designs.
   - `POST /api/saves`: Uploads serialized furniture coordinates, booth states, and Base64 preview screenshots.
@@ -165,7 +168,7 @@ maximall-web/
 
 ## 5. Standby Pool State Machine & Dynamic Capacity Formulas
 
-To provide instant startup times while minimizing AWS GPU idle costs, `ScalingService` maintains a pre-warmed pool of stopped EC2 instances:
+To provide fast startup times while minimizing AWS GPU idle costs, `ScalingService` maintains a pre-warmed pool of stopped EC2 GPU instances:
 
 ```
                   ┌───────────────────────────────┐
@@ -176,7 +179,7 @@ To provide instant startup times while minimizing AWS GPU idle costs, `ScalingSe
           ▼                                               ▼
 ┌──────────────────┐                            ┌──────────────────┐
 │  Stopped Buffer  │ (Wakes in 25-40s)          │ Launch On-Demand │ (Launches in 60-90s)
-│      Ready       │                            │    as Prewarm    │
+│  g4dn.2xlarge    │                            │   g4dn.2xlarge   │
 └─────────┬────────┘                            └─────────┬────────┘
           │                                               │
           └───────────────────────┬───────────────────────┘
@@ -196,7 +199,7 @@ To provide instant startup times while minimizing AWS GPU idle costs, `ScalingSe
                                   ▼
                     ┌───────────────────────────┐
                     │   Returned to 'Buffer'    │
-                    │      (Stopped Pool)       │
+                    │   (Stopped GPU Pool)      │
                     └───────────────────────────┘
 ```
 
@@ -206,7 +209,7 @@ $$\text{EffectiveBuffer} = \text{Ready (stopped Buffer)} + \text{Recycling} + \t
 $$\text{Deficit} = \max(0, \text{Base} - \text{EffectiveBuffer})$$
 $$\text{Surplus} = \max(0, \text{EffectiveBuffer} - \text{MaxAllowed})$$
 
-- **Deficit Handling**: When $\text{Deficit} > 0$, the scaling loop launches a new on-demand EC2 instance tagged `Prewarm`, validates Wilbur readiness over private IP, stops the instance, and assigns it to `assignedTo = "Buffer"`.
+- **Deficit Handling**: When $\text{Deficit} > 0$, the scaling loop launches a new on-demand GPU instance tagged `Prewarm`, validates Wilbur readiness over private IP, stops the instance, and assigns it to `assignedTo = "Buffer"`.
 - **Surplus Handling**: When $\text{Surplus} > 0$, excess instances are terminated LIFO from stopped buffers only. In-flight prewarms are never prematurely killed.
 
 ---
@@ -222,7 +225,7 @@ sequenceDiagram
     participant API as maximall-web (/api/instances)
     participant Pool as ScalingService
     participant AWS as AWS EC2 API
-    participant GPU as GPU Instance (Private IP)
+    participant GPU as Managed GPU Instance (Private IP)
 
     User->>API: POST /connect-available (hostToken, deviceId)
     alt User has active session
@@ -336,11 +339,16 @@ The built-in web portal at `/admin.html` provides real-time monitoring and manag
 
 ## 12. Production Environment, Terraform & AWS Infrastructure
 
-- **VPC & Subnets**: Orchestrator runs in public subnets of `eu-central-1` (Frankfurt) across multi-AZ (`eu-central-1a`, `eu-central-1b`).
+- **Orchestrator Host (`aws_instance.maximall_web`)**:
+  - Runs on a standard AWS EC2 CPU instance (`t3.micro` / `t3.medium`, Ubuntu Linux 22.04 LTS).
+  - Deployed in the public subnet of `eu-central-1` (Frankfurt).
+  - Runs Docker & Docker Compose to host the `maximall-web` Node.js server.
+- **Managed GPU Streaming Fleet**:
+  - `g4dn.2xlarge` instances with NVIDIA Tesla T4 GPUs running `LinuxClientAMI`.
+  - Discovered automatically by EC2 tag (`Name=LinuxClient`).
 - **Security Groups**:
-  - `orchestrator-sg`: Allows inbound HTTP (80/443), SSH (22), and outbound traffic to GPU instances on port 8000.
-  - `pixelstreaming-sg`: Allows inbound port 8000 from orchestrator private IP, UDP 49152–65535 for WebRTC, and port 3478 for STUN/TURN.
-- **Terraform Directory (`terraform/`)**: Contains `main.tf`, `variables.tf`, and `outputs.tf` for deploying the orchestrator instance and security groups.
+  - `pixel_streaming_sg`: Allows inbound port 80/443 to the orchestrator, and intra-VPC port 8000 from the orchestrator to GPU instances.
+- **Terraform Directory (`terraform/`)**: Contains `main.tf`, `variables.tf`, and `outputs.tf` for deploying the orchestrator host instance.
 
 ---
 
@@ -387,4 +395,4 @@ For upcoming sprint tasks, billing persistence improvements, and edge-case watch
 👉 **[`docs/todo.md`](todo.md)**
 
 ---
-*Document Version: 1.0.0 — Canonical Source of Truth for maximall-web*
+*Document Version: 1.1.0 — Canonical Source of Truth for maximall-web*

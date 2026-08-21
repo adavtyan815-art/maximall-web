@@ -2,11 +2,21 @@
 
 ---
 
-## 1. Project Overview & Primary Sources of Truth
+## 1. Project Overview & Repository Roles
 
-`maximall-web` is the Node.js TypeScript orchestrator and reverse-proxy backend managing multi-instance Epic Games Pixel Streaming on AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, running custom AMI `LinuxClientAMI`).
+`maximall-web` is the Node.js TypeScript orchestrator and reverse-proxy backend. It runs on a standard CPU host (e.g. AWS EC2 `t3.micro`/`t3.medium` or container) and dynamically manages a fleet of AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).
 
-- **What it does**: Dynamically manages a hot-standby pool of stopped GPU instances, wakes or launches instances on user demand, reverse-proxies HTTP player assets and WebSocket signaling over intra-VPC private IPs (`172.31.x.x:8000`), enforces session ownership and time limits, and gracefully recycles idle instances back into the buffer pool.
+### Clear Separation of the Three Repositories:
+1. **`maximall-web` (This Repository)**:
+   - Web application, REST API, standby pool manager, and reverse proxy.
+   - Dynamically wakes/stops/pre-warms GPU instances and proxies WebRTC signaling/player assets over intra-VPC private IPs (`172.31.x.x:8000`).
+2. **`maximall-pixel-config` (Separate Repository)**:
+   - Epic Games Pixel Streaming infrastructure (Wilbur signaling server and compiled WebRTC frontend player).
+   - Deployed at `/home/ssm-user/web/` on the AWS GPU instances (`g4dn.2xlarge` / `LinuxClientAMI`).
+3. **`awsTutorial` (Separate Unreal Engine Project)**:
+   - Contains the functional C++ source, 3D showroom, furniture placement, and booth constructor logic.
+   - Packaged and compiled into Linux Client/Server production binaries on **PC2** using Unreal Engine 5.6.
+
 - **Deep Source of Truth**: Before making architectural, scaling, or backend changes, Claude Code, Antigravity, and future AI agents **must read** [`docs/MAXIMALL_WEB_GUIDE.md`](MAXIMALL_WEB_GUIDE.md).
 - **Roadmap & Future Tasks**: Active planned work and edge-case tasks are tracked in [`docs/todo.md`](todo.md).
 
