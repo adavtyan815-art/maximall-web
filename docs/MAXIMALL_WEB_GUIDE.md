@@ -1,8 +1,8 @@
-﻿# Maximall Web Orchestrator: Master Architecture & Source of Truth
+# Maximall Web Orchestrator: Master Architecture & Source of Truth
 
 > **Repository**: `https://github.com/adavtyan815-art/maximall-web.git`  
 > **Primary Role**: Web Application, Multi-Instance GPU Orchestrator, Hot-Standby Pool Manager, Reverse Proxy, and Session Control Backend.  
-> **Orchestrator Host Environment**: AWS EC2 CPU instance (`t3.micro` / `t3.medium`, Ubuntu Linux with Node.js/Docker).  
+> **Orchestrator Host Environment**: AWS EC2 instance (`t3.micro`, `eu-central-1b`, Ubuntu Linux with Node.js/Docker).  
 > **Managed GPU Streaming Fleet**: AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).  
 > **Active Roadmap / Planned Sprints**: [`docs/todo.md`](todo.md).  
 
@@ -29,7 +29,7 @@
 
 ## 1. System Overview & Purpose
 
-`maximall-web` is the central web and orchestration server for the MaxiMall 3D Web platform. Hosted on a standard AWS EC2 CPU instance (e.g. `t3.micro` / `t3.medium`), it orchestrates an elastic fleet of AWS EC2 GPU instances (`g4dn.2xlarge`) running Unreal Engine 5 (`awsTutorial`) and Epic Games Wilbur signaling (`maximall-pixel-config`).
+`maximall-web` is the central web and orchestration server for the MaxiMall 3D Web platform. Hosted on an AWS EC2 `t3.micro` instance (`eu-central-1b`), it orchestrates an elastic fleet of AWS EC2 GPU instances (`g4dn.2xlarge`) running Unreal Engine 5 (`awsTutorial`) and Epic Games Wilbur signaling (`maximall-pixel-config`).
 
 ```mermaid
 flowchart TD
@@ -38,7 +38,7 @@ flowchart TD
         Player[player.html / player.js WebRTC Viewport]
     end
 
-    subgraph OrchestratorHost [maximall-web Host (EC2 t3.medium / Node.js)]
+    subgraph OrchestratorHost [maximall-web Host (EC2 t3.micro / Node.js)]
         API[Express REST API]
         Proxy[HTTP & WSS Reverse Proxy]
         Pool[ScalingService Standby Pool Loop]
@@ -68,7 +68,7 @@ The MaxiMall platform is composed of three distinct repositories with strict bou
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              maximall-web                                   │
-│  (Node.js / Express Orchestrator on Ubuntu AWS EC2 t3.medium or container)  │
+│  (Node.js / Express Orchestrator on Ubuntu AWS EC2 t3.micro in eu-central-1b) │
 └──────────────────────┬───────────────────────────────┬──────────────────────┘
                        │                               │
                        │ Reverse-proxies WebRTC        │ Exchanges Save/Load
@@ -340,7 +340,7 @@ The built-in web portal at `/admin.html` provides real-time monitoring and manag
 ## 12. Production Environment, Terraform & AWS Infrastructure
 
 - **Orchestrator Host (`aws_instance.maximall_web`)**:
-  - Runs on a standard AWS EC2 CPU instance (`t3.micro` / `t3.medium`, Ubuntu Linux 22.04 LTS).
+  - Runs on an AWS EC2 `t3.micro` instance in `eu-central-1b` (Ubuntu Linux 22.04 LTS).
   - Deployed in the public subnet of `eu-central-1` (Frankfurt).
   - Runs Docker & Docker Compose to host the `maximall-web` Node.js server.
 - **Managed GPU Streaming Fleet**:

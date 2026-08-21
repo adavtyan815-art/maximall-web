@@ -1,10 +1,10 @@
-﻿# Claude Code & AI Agent Guide — Maximall Web Orchestrator (`maximall-web`)
+# Claude Code & AI Agent Guide — Maximall Web Orchestrator (`maximall-web`)
 
 ---
 
 ## 1. Project Overview & Repository Roles
 
-`maximall-web` is the Node.js TypeScript orchestrator and reverse-proxy backend. It runs on a standard CPU host (e.g. AWS EC2 `t3.micro`/`t3.medium` or container) and dynamically manages a fleet of AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).
+`maximall-web` is the Node.js TypeScript orchestrator and reverse-proxy backend. It runs on an AWS EC2 `t3.micro` instance (`eu-central-1b`, Ubuntu Linux with Node.js/Docker) and dynamically manages a fleet of AWS EC2 GPU instances (`g4dn.2xlarge` with NVIDIA Tesla T4 GPU, AMI `LinuxClientAMI`).
 
 ### Clear Separation of the Three Repositories:
 1. **`maximall-web` (This Repository)**:
