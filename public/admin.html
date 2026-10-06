@@ -5,42 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Панель администратора | Maximall</title>
   <meta name="description" content="Панель управления EC2 инстансами и буфером предзагрузки Maximall">
-  <link rel="icon" href="assets/images/favicon-black.svg" type="image/svg+xml">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="assets/brand/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* Design language: MaxiMall Splash (handoff/html/MaxiMall Splash.dc.html) —
+       dark #0E0E0E window on the #D9D9D9 canvas, white hairlines, Instrument Sans,
+       light primary buttons (radius 12). Status colours stay functional. */
     :root {
-      --bg-page:       #f0f4f8;
-      --bg-sidebar:    #ffffff;
-      --bg-card:       #ffffff;
-      --bg-card-hover: #fafbfc;
-      --text-main:     #1e293b;
-      --text-muted:    #64748b;
-      --text-light:    #94a3b8;
-      --accent:        #3b82f6;
-      --accent-light:  #eff6ff;
-      --accent-hover:  #2563eb;
-      --success:       #10b981;
-      --success-light: #ecfdf5;
-      --warning:       #f59e0b;
-      --warning-light: #fffbeb;
-      --danger:        #ef4444;
-      --danger-light:  #fef2f2;
-      --purple:        #8b5cf6;
-      --purple-light:  #f5f3ff;
-      --border:        #e2e8f0;
-      --border-light:  #f1f5f9;
-      --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-md:     0 4px 12px rgba(0,0,0,0.08);
-      --radius:        12px;
-      --radius-sm:     8px;
+      color-scheme: dark;
+      --canvas:        #d9d9d9;
+      --window:        #0e0e0e;
+      --gap:           16px;
+      --bg-page:       rgba(255,255,255,0.04);
+      --bg-sidebar:    #0e0e0e;
+      --bg-card:       #141414;
+      --bg-card-hover: #181818;
+      --text-main:     #f2f2f2;
+      --text-muted:    #a8a8a8;
+      --text-light:    #8c8c8c;
+      --accent:        #ffffff;
+      --accent-light:  rgba(255,255,255,0.08);
+      --accent-hover:  #e6e6e6;
+      --success:       #3ecf8e;
+      --success-light: rgba(62,207,142,0.12);
+      --warning:       #f5b544;
+      --warning-light: rgba(245,181,68,0.12);
+      --danger:        #ff6b5e;
+      --danger-light:  rgba(255,107,94,0.12);
+      --purple:        #b39bff;
+      --purple-light:  rgba(179,155,255,0.12);
+      --border:        rgba(255,255,255,0.10);
+      --border-light:  rgba(255,255,255,0.06);
+      --shadow-sm:     none;
+      --shadow-md:     0 18px 40px -12px rgba(0,0,0,0.6);
+      --radius:        14px;
+      --radius-sm:     12px;
       --sidebar-w:     220px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg-page);
+      font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      background: var(--canvas);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
@@ -409,6 +419,74 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ══ Splash design language — layout & component overrides ══════════════ */
+    body { padding: var(--gap); -webkit-font-smoothing: antialiased; }
+
+    /* One dark window: fixed sidebar + main panel share the window frame */
+    .sidebar {
+      top: var(--gap); left: var(--gap); bottom: var(--gap);
+      border: 1px solid var(--border);
+      border-right-color: var(--border-light);
+      border-radius: 18px 0 0 18px;
+    }
+    .main-content {
+      margin-left: var(--sidebar-w);
+      min-height: calc(100vh - 2 * var(--gap));
+      background: var(--window);
+      border: 1px solid var(--border);
+      border-left: 0;
+      border-radius: 0 18px 18px 0;
+      box-shadow: 0 40px 90px -30px rgba(0,0,0,0.55);
+      color: var(--text-main);
+    }
+
+    /* Brand: MAXIMALL › ПАНЕЛЬ (splash path: 12 / 600 / 0.30em) */
+    .brand { gap: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.26em; text-indent: 0.26em; }
+    .brand-mall { color: var(--text-light); }
+    .brand-here { color: #ffffff; }
+    .brand-chevron { width: 5px; height: 5px; border-right: 1px solid #6e6e6e; border-top: 1px solid #6e6e6e; transform: rotate(45deg); text-indent: 0; }
+
+    .nav-section, .pool-panel-title, .stat-label, thead th, .realign-label { font-weight: 600; letter-spacing: 0.12em; }
+    .pool-panel { background: var(--bg-page); }
+
+    .topbar-title { font-weight: 600; letter-spacing: -0.015em; color: #ffffff; }
+    .section-title { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; color: #ffffff; }
+    .stat-value { font-size: clamp(20px, 1.7vw, 28px); font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .stat-card { flex-wrap: wrap; row-gap: 10px; column-gap: 8px; }
+    .time-display, .pool-count, .section-badge { font-variant-numeric: tabular-nums; }
+
+    /* Buttons: light primary (splash «Повторить»: 38 / r12), dark secondary */
+    .btn { height: 38px; padding: 0 16px; font-weight: 500; letter-spacing: -0.01em; transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn-primary, .btn-accent {
+      background: rgba(255,255,255,0.92); color: #0e0e0e; font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+    }
+    .btn-primary:hover:not(:disabled), .btn-accent:hover:not(:disabled) { background: #ffffff; transform: none; }
+    .btn-secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+    .btn-action-sm, .btn-danger-sm, .stat-reset-btn { border-radius: 9px; }
+    .btn-action-sm:hover, .stat-reset-btn:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+    .btn-danger-sm:hover { color: #0e0e0e; }
+
+    .extra-count-input { height: 38px; background: var(--bg-page); }
+    .extra-count-input:focus { border-color: #ffffff; }
+    .form-control { height: 42px; }
+    .form-control:focus { border-color: rgba(255,255,255,0.6); box-shadow: 0 0 0 3px rgba(255,255,255,0.10); }
+
+    /* Status */
+    .badge-stopped { background: rgba(255,255,255,0.08); }
+    .section-badge { background: rgba(255,255,255,0.08); color: #ffffff; }
+    .tunnel-link { color: var(--text-main); }
+
+    /* Toasts: light on dark, like the splash CTA */
+    .toast { background: #ffffff; color: #0e0e0e; border-radius: 12px; }
+    .toast.success { background: var(--success); color: #0e0e0e; }
+    .toast.error   { background: var(--danger);  color: #0e0e0e; }
+
+    :focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
   </style>
 </head>
 <body>
@@ -416,7 +494,9 @@
   <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
   <aside class="sidebar">
     <div class="brand">
-      <img src="assets/images/image05.png" alt="Maximall Logo">
+      <span class="brand-mall">MAXIMALL</span>
+      <span class="brand-chevron" aria-hidden="true"></span>
+      <span class="brand-here">ПАНЕЛЬ</span>
     </div>
 
     <div class="nav-items">

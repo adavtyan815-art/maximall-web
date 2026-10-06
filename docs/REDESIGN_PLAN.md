@@ -70,7 +70,21 @@ An independent review found no regressions in emits, payloads, storage keys or r
 - `public/assets/app.js`: socket logic plus the view state machine.
 - `public/assets/brand/`: favicons 16/32 and the apple-touch icon from `handoff/brand`.
 
-## 5. Next phases (not in this change)
+## 5. Admin and login (same design language)
+
+- `login.html`: a 420px splash window on the `#D9D9D9` canvas with the `MAXIMALL › ПАНЕЛЬ` path, dark inputs and a light «Войти» button. **The `<script>` block is byte-identical to the previous version.** Only the markup text moved to Russian.
+- `admin.html`: CSS only. New `:root` tokens (dark window, white hairlines, Instrument Sans, functional status colours), a splash-path brand block, and an override block that turns sidebar and main into one dark window. **The `<script>` block, element ids and inline handlers are byte-identical.**
+
+## 6. Verification performed
+
+| Check | Result |
+|---|---|
+| Landing, old (`e944774`) vs new, 13 scenarios (normal, rescued, error→retry, busy→retry, stopped with error, clean stop, stopping, another tab, auto-resume, `reason=idle`, cancel, drop mid-boot, drop before assignment) | Socket emits and payloads identical in all 13. Redirect URLs identical. sessionStorage identical. Button state identical except "drop before assignment", where the old page stays locked (bug fixed) |
+| Admin, old vs new: stop, delete ×2, abort prewarm, reset time, AWS sync, realign (3+1), save settings | Identical API calls, methods and request bodies. Identical rendering of the stats and tables |
+| Login, old vs new | Identical `POST /api/admin/login` body and redirect to `/admin.html` |
+| Desktop sizes 1280×600 – 5120×1305 | No scrolling, no overlaps |
+| `npm run build` | Passes |
+
+## 7. Next phases
 
 - Mobile layout.
-- Brand reskin of `login.html` and `admin.html` (draft kept in `git stash`: "deferred: login/admin brand reskin").

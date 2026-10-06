@@ -1,69 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login | ArchiTek Soft</title>
-  <link rel="icon" href="assets/images/favicon-black.svg" type="image/svg+xml">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Вход — MaxiMall</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="assets/brand/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* Design language: MaxiMall Splash — dark window on the #D9D9D9 canvas */
+    :root { color-scheme: dark; }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
-      font-family: 'Inter', sans-serif;
-      background: #f8fafc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 40px 24px;
+      background: #d9d9d9;
+      font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
     }
     .login-card {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 2.5rem;
-      border-radius: 1rem;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 400px;
+      position: relative;
+      width: 420px;
+      max-width: 100%;
+      padding: 48px 44px 44px;
+      background: #0e0e0e;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 18px;
+      box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
     }
+    .path {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.30em;
+      text-indent: 0.30em;
+    }
+    .path__mall { color: #8c8c8c; }
+    .path__here { color: #ffffff; }
+    .path__chevron { width: 5px; height: 5px; border-right: 1px solid #6e6e6e; border-top: 1px solid #6e6e6e; transform: rotate(45deg); text-indent: 0; }
     .login-card h2 {
-      margin-bottom: 1.5rem;
-      color: #334155;
+      margin: 0 0 32px;
+      font-size: 26px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-indent: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      color: #ffffff;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #8c8c8c;
+    }
+    input {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: #ffffff;
+      font: inherit;
+      font-size: 15px;
+      transition: border-color 160ms ease, background-color 160ms ease;
+    }
+    input:hover { border-color: rgba(255, 255, 255, 0.22); }
+    input:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.06); }
+    button {
+      width: 100%;
+      height: 44px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #0e0e0e;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      transition: background-color 160ms ease, transform 120ms ease;
+    }
+    button:hover { background: #ffffff; }
+    button:active { background: #f2f0ed; transform: scale(0.98); }
+    button:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+    .error {
+      display: none;
+      margin-top: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #ffffff;
       text-align: center;
     }
-    .form-group { margin-bottom: 1rem; }
-    label { display: block; margin-bottom: 0.5rem; color: #64748b; font-size: 0.9rem; }
-    input {
-      width: 100%; padding: 0.75rem; border-radius: 0.5rem;
-      border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit;
+    .error::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin: 0 8px 1px 0;
+      border-radius: 50%;
+      background: #ffffff;
+      vertical-align: middle;
     }
-    button {
-      width: 100%; padding: 0.75rem; background: #57A6FA; color: white;
-      border: none; border-radius: 0.5rem; cursor: pointer; margin-top: 1rem;
-      font-weight: 600; font-size: 1rem; font-family: inherit;
-    }
-    button:hover { background: #3b8fd9; }
-    .error { color: #ef4444; text-align: center; margin-top: 1rem; font-size: 0.9rem; display: none; }
+    .foot { font-size: 12px; color: #5c5c5c; }
   </style>
 </head>
 <body>
   <div class="login-card">
-    <div style="text-align: center; margin-bottom: 1.5rem;">
-      <img src="assets/images/image05.png" alt="Logo" style="max-height: 45px;">
+    <div class="path">
+      <span class="path__mall">MAXIMALL</span>
+      <span class="path__chevron" aria-hidden="true"></span>
+      <span class="path__here">ПАНЕЛЬ</span>
     </div>
-    <h2>Admin Login</h2>
+    <h2>Вход</h2>
     <form id="loginForm">
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="username" required>
+        <label for="username">Логин</label>
+        <input type="text" id="username" autocomplete="username" required>
       </div>
       <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="password" required>
+        <label for="password">Пароль</label>
+        <input type="password" id="password" autocomplete="current-password" required>
       </div>
-      <button type="submit">Log In</button>
-      <div id="errorMsg" class="error">Invalid credentials</div>
+      <button type="submit">Войти</button>
+      <div id="errorMsg" class="error">Неверный логин или пароль</div>
     </form>
   </div>
+  <span class="foot">© Maxi Mall</span>
   <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
