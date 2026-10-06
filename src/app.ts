@@ -59,7 +59,12 @@ app.options('/api/ai/health', (req, res) => {
 });
 app.get('/api/ai/health', (req, res) => {
   aiHealthCors(req, res);
-  res.json(aiModule ? aiModule.health() : { ok: true, enabled: false });
+  if (!aiModule) return res.json({ ok: true, enabled: false });
+  const h = aiModule.health();
+  // Public endpoint: in production only what the player needs; spend, budget, key presence and session counts stay
+  // for LOCAL_MODE / AI_HEALTH_VERBOSE=1 (the admin AI pages show them behind the login).
+  const verbose = process.env.LOCAL_MODE === '1' || process.env.AI_HEALTH_VERBOSE === '1';
+  res.json(verbose ? h : { ok: h.ok, enabled: h.enabled, avatar: h.avatar });
 });
 
 // Middleware
