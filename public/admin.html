@@ -12,13 +12,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* Design language: MaxiMall Splash (handoff/html/MaxiMall Splash.dc.html) —
-       dark #0E0E0E window on the #D9D9D9 canvas, white hairlines, Instrument Sans,
+       full-screen dark #0E0E0E stage, white hairlines, Instrument Sans,
        light primary buttons (radius 12). Status colours stay functional. */
     :root {
       color-scheme: dark;
-      --canvas:        #d9d9d9;
       --window:        #0e0e0e;
-      --gap:           16px;
       --bg-page:       rgba(255,255,255,0.04);
       --bg-sidebar:    #0e0e0e;
       --bg-card:       #141414;
@@ -50,7 +48,7 @@
 
     body {
       font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      background: var(--canvas);
+      background: var(--window);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
@@ -421,25 +419,11 @@
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
     /* ══ Splash design language — layout & component overrides ══════════════ */
-    body { padding: var(--gap); -webkit-font-smoothing: antialiased; }
+    body { -webkit-font-smoothing: antialiased; }
 
-    /* One dark window: fixed sidebar + main panel share the window frame */
-    .sidebar {
-      top: var(--gap); left: var(--gap); bottom: var(--gap);
-      border: 1px solid var(--border);
-      border-right-color: var(--border-light);
-      border-radius: 18px 0 0 18px;
-    }
-    .main-content {
-      margin-left: var(--sidebar-w);
-      min-height: calc(100vh - 2 * var(--gap));
-      background: var(--window);
-      border: 1px solid var(--border);
-      border-left: 0;
-      border-radius: 0 18px 18px 0;
-      box-shadow: 0 40px 90px -30px rgba(0,0,0,0.55);
-      color: var(--text-main);
-    }
+    /* Full screen: fixed sidebar + main content on the dark stage, split by a hairline */
+    .sidebar { border-right: 1px solid var(--border-light); }
+    .main-content { background: var(--window); color: var(--text-main); }
 
     /* Brand: MAXIMALL › ПАНЕЛЬ (splash path: 12 / 600 / 0.30em) */
     .brand { gap: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.26em; text-indent: 0.26em; }
