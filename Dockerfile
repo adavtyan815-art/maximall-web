@@ -18,7 +18,9 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 
 # Compile TypeScript → dist/
-RUN npm run build
+# The AI layer (+ @anthropic-ai/sdk types) makes tsc exceed Node's default heap on the 1 GiB t3.micro host
+# (2026-10-06: "JavaScript heap out of memory"); the host has 2 GiB swap.
+RUN NODE_OPTIONS=--max-old-space-size=1536 npm run build
 
 # ─── Stage 2: Production image ────────────────────────────────────────────────
 FROM node:22-alpine AS production
