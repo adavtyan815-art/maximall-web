@@ -1,12 +1,19 @@
 # windows-deploy.ps1
 # Run after terraform apply to upload the app and start it on the EC2 instance.
 # Uses AWS SSM (no .pem file needed).
+#
+# The server keeps its own /opt/maximall-web/.env (AWS keys, ADMIN_PASSWORD_HASH, SESSION_SECRET, AI_* settings) and its
+# runtime data (data/: saves, AI ledger, dossiers, leads, logs). The local .env is NOT uploaded unless -IncludeEnv is
+# passed, and the unpack step replaces only the code paths in the archive; it never wipes the directory.
 param(
     [Parameter(Mandatory=$true)]
     [string]$InstanceId,
-    
-    [Parameter(Mandatory=$true)]  
-    [string]$PublicIp
+
+    [Parameter(Mandatory=$true)]
+    [string]$PublicIp,
+
+    # Upload the local .env too (first install on a fresh instance only): it OVERWRITES the server's .env.
+    [switch]$IncludeEnv
 )
 
 $Region = "eu-central-1"
@@ -18,12 +25,18 @@ Write-Host "`n[1/4] Creating deployment archive..." -ForegroundColor Yellow
 $ZipPath = "$env:TEMP\maximall-web-deploy.zip"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
-# Files to include in the zip
+# Files to include in the zip. data/catalog + contracts: the Dockerfile COPYs them (AI catalog index, JSON contracts).
 $IncludeFiles = @(
-    "src", "public", "Dockerfile", "docker-compose.yml", 
-    "nginx.conf", "package.json", "package-lock.json", 
-    "tsconfig.json", ".dockerignore", ".env"
+    "src", "public", "Dockerfile", "docker-compose.yml",
+    "nginx.conf", "package.json", "package-lock.json",
+    "tsconfig.json", ".dockerignore", "data/catalog", "contracts"
 )
+if ($IncludeEnv) {
+    Write-Host "  -IncludeEnv: the local .env will REPLACE /opt/maximall-web/.env on the server" -ForegroundColor Red
+    $IncludeFiles += ".env"
+}
+# Local runtime data that must never be uploaded (local test saves, uploaded AR models)
+$ExcludeDirs = @("src/data/saves", "public/ar/models")
 
 # Remove old zip if exists
 if (Test-Path $ZipPath) { Remove-Item $ZipPath }
@@ -37,7 +50,11 @@ function Add-DirToZip {
     Get-ChildItem -Path $dir -Recurse -File | ForEach-Object {
         $relativePath = $_.FullName.Substring($dir.Length + 1).Replace('\', '/')
         $entryName = if ($entryPrefix) { "$entryPrefix/$relativePath" } else { $relativePath }
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName) | Out-Null
+        $skip = $false
+        foreach ($ex in $ExcludeDirs) { if ($entryName.StartsWith("$ex/")) { $skip = $true } }
+        if (-not $skip) {
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName) | Out-Null
+        }
     }
 }
 
@@ -79,14 +96,27 @@ until systemctl is-active docker; do sleep 2; done
 # Download app archive from S3
 aws s3 cp s3://$BucketName/maximall-web.zip /tmp/maximall-web.zip --region $Region
 
-# Extract to /opt/maximall-web
-rm -rf /opt/maximall-web
+# Extract to /opt/maximall-web WITHOUT wiping it: .env and data/ (saves, AI spend ledger, dossiers, leads, logs) stay.
+# Only the code directories shipped in the archive are replaced as a whole; other files are overwritten in place.
 mkdir -p /opt/maximall-web
 cd /opt/maximall-web
+rm -rf src contracts data/catalog
 unzip -o /tmp/maximall-web.zip
+mkdir -p data/saves data/runtime data/ai_logs data/ai_clips data/renders data/dossiers
+
+if [ ! -f .env ]; then
+  echo 'ERROR: /opt/maximall-web/.env is missing (first install: rerun with -IncludeEnv). Aborting before docker compose.'
+  exit 1
+fi
 
 # Update BASE_URL in .env with real IP
 sed -i 's|BASE_URL=http://REPLACE_WITH_EC2_IP|BASE_URL=http://$PublicIp|g' .env
+
+# One-time migration: UE project saves used to live only inside the container (/app/dist/data/saves); docker-compose now
+# mounts ./data/saves there. Copy them out of the running container before it is replaced (no-op when none / already done).
+if [ -z "`$(ls -A data/saves 2>/dev/null)" ] && docker ps --format '{{.Names}}' | grep -qx pixel-connector; then
+  docker cp pixel-connector:/app/dist/data/saves/. data/saves/ 2>/dev/null && echo "Copied existing saves out of the container: `$(ls data/saves | wc -l) file(s)" || true
+fi
 
 echo 'Building and starting Docker Compose...'
 docker compose down --remove-orphans 2>/dev/null || true
