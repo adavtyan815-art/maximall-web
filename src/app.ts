@@ -4,6 +4,7 @@ import cors from 'cors';
 import session from 'express-session';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto'; // before SESSION_SECRET below (CommonJS output keeps import order)
 import { config } from './config';
 import type { WebSocketService } from './services/websocketService';
 
@@ -14,12 +15,56 @@ export function setWsService(ws: WebSocketService) { wsService = ws; }
 // Import services (pure in-memory — no MongoDB)
 import { DatabaseService } from './services/databaseService';
 import { SettingsService } from './services/settingsService';
+import { adminAuthMode, safeEqual, verifyAdminLogin } from './services/adminAuth';
+import { adminOriginGuard } from './services/adminOrigin';
+import { RateLimiter, clientIp, envInt } from './ai/util/rateLimit';
+import type { AiModule } from './ai';
 
 const app = express();
+app.disable('x-powered-by');
+
+// Security review: never sign admin sessions with the public default secret ('secret' in config when SESSION_SECRET is unset).
+const SESSION_SECRET = process.env.SESSION_SECRET || (() => {
+  console.warn('[Auth] SESSION_SECRET is not set: using a random per-process secret (admin sessions end on restart). Set it in .env.');
+  return crypto.randomBytes(32).toString('hex');
+})();
+
+/**
+ * AI consultant on/off (default off). Without AI_ENABLED=1|true the AI layer is not even loaded: no catalog, no AI dirs,
+ * no /ai Socket.io namespace, no AI routes — the server behaves like the pre-AI orchestrator. Only GET /api/ai/health
+ * always answers, so the player page can tell whether to show the consultant ({ok:true, enabled:false} here).
+ */
+export function aiEnabledFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
+  const v = String(env.AI_ENABLED ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true';
+}
+export const AI_ENABLED = aiEnabledFromEnv();
 
 const NGROK_ORIGIN = 'https://hooly-superblessed-shan.ngrok-free.dev';
 
+// AI health probe: fetched by the player page (cross-origin in local tests), so it has its own CORS — reflect the
+// Origin, GET only, no credentials. Mounted before the app-wide cors() so that one (credentials: true) does not apply.
+const aiHealthCors = (req: express.Request, res: express.Response) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', String(origin));
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Cache-Control', 'no-store');
+};
+app.options('/api/ai/health', (req, res) => {
+  aiHealthCors(req, res);
+  res.status(204).end();
+});
+app.get('/api/ai/health', (req, res) => {
+  aiHealthCors(req, res);
+  res.json(aiModule ? aiModule.health() : { ok: true, enabled: false });
+});
+
 // Middleware
+// Admin CSRF hardening: /api/admin/* with a foreign Origin -> 403 before cors() can add allow headers.
+app.use(adminOriginGuard());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow ngrok domain, localhost variants, and the EC2 instances (any IP)
@@ -30,28 +75,33 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning'],
 }));
 app.options('*', cors());    // Pre-flight for all routes
-app.use(express.json());
+app.use(express.json({ limit: '25mb' })); // save records carry a thumbnail + metrics (save_project)
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: config.SESSION_SECRET,
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  // Only the admin login uses this session. Strict + httpOnly; Secure whenever the request arrived over https
+  // (nginx terminates TLS and sets X-Forwarded-Proto; `proxy: true` trusts it for this cookie only, not app-wide).
+  proxy: true,
+  cookie: { sameSite: 'strict', httpOnly: true, secure: 'auto' },
 }));
 
-import crypto from 'crypto';
 import { EC2Service } from './services/ec2Service';
 import { TimeTrackerService } from './services/timeTrackerService';
 import { ScalingService } from './services/scalingService';
 
 // Authentication Middleware
 app.use((req, res, next) => {
-  if (req.path === '/admin.html' || req.path.startsWith('/api/admin') || req.path.startsWith('/api/debug')) {
-    if (req.path === '/api/admin/login' || req.path === '/api/admin/logout') {
+  // Express routing is case-insensitive: /API/Admin/... reaches the admin handlers, so the check must be too.
+  const p = req.path.toLowerCase();
+  if (p === '/admin.html' || p.startsWith('/api/admin') || p.startsWith('/api/debug')) {
+    if (p === '/api/admin/login' || p === '/api/admin/logout') {
       return next();
     }
     if (!(req.session as any).isAdmin) {
-      if (req.path === '/admin.html') {
+      if (p === '/admin.html') {
         return res.redirect('/login.html');
       } else {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -93,6 +143,9 @@ app.all('/instance/:uuid/*', (req, res) => {
   // Copy and normalize incoming headers
   const headers = { ...req.headers };
   headers.host = ip; // Set target host
+  // Security review: the backend's own cookies (the admin session) never go to the pool instance.
+  delete headers.cookie;
+  delete headers.authorization;
 
   if (targetPath.endsWith('player.html') || targetPath.endsWith('player.js')) {
     console.log(`[HTTP-Proxy] [${uuid}] Serving ${targetPath} -> http://${ip}:8000/${targetPath}`);
@@ -491,9 +544,27 @@ app.put('/api/admin/instances/:uuid', async (req, res) => {
 });
 
 // ── Auth ─────────────────────────────────────────────────────────────────
-app.post('/api/admin/login', (req, res) => {
-  const { username, password } = req.body;
-  if (username === config.ADMIN_USERNAME && password === config.ADMIN_PASSWORD_HASH) {
+// Fail closed (security fix 2026-09-30): empty ADMIN_PASSWORD_HASH refuses every admin login; bcrypt hashes are verified with
+// bcrypt.compare; a plaintext value is compared in constant time. LOCAL_MODE may use LOCAL_ADMIN_PASSWORD from the untracked .env.
+const adminAuthConfig = () => ({
+  ADMIN_USERNAME: config.ADMIN_USERNAME,
+  ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH ?? config.ADMIN_PASSWORD_HASH,
+  LOCAL_MODE: process.env.LOCAL_MODE === '1',
+  LOCAL_ADMIN_PASSWORD: process.env.LOCAL_ADMIN_PASSWORD,
+});
+if (adminAuthMode(adminAuthConfig()) === 'disabled') {
+  console.warn('[Auth] ADMIN_PASSWORD_HASH is not set: admin login is DISABLED (every attempt returns 401).');
+}
+
+// Security review: brute-force guard — failed logins per address (default 10 per 15 min), then 429.
+const loginFailures = new RateLimiter(envInt('ADMIN_LOGIN_MAX_FAILURES_15MIN', 10), 15 * 60_000);
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body ?? {};
+  const ip = clientIp(req);
+  if (loginFailures.count(ip) >= loginFailures.max) return res.status(429).json({ success: false, error: 'Too many attempts, try later' });
+  if (await verifyAdminLogin(username, password, adminAuthConfig())) {
+    // new session id on login (no session fixation)
+    await new Promise<void>((resolve, reject) => req.session.regenerate((e) => (e ? reject(e) : resolve())));
     (req.session as any).isAdmin = true;
 
     // Run async sync & replenishment check immediately on successful admin login
@@ -503,6 +574,7 @@ app.post('/api/admin/login', (req, res) => {
 
     res.json({ success: true });
   } else {
+    loginFailures.take(ip);
     res.status(401).json({ success: false, error: 'Invalid credentials' });
   }
 });
@@ -717,7 +789,7 @@ app.post('/api/instances/:uuid/report-tunnel', async (req, res) => {
 
   // Simple shared-secret guard so only trusted EC2 scripts can call this.
   const expectedSecret = process.env.TUNNEL_REPORT_SECRET || '';
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!expectedSecret || !safeEqual(String(secret ?? ''), expectedSecret)) { // constant-time (security review)
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -750,7 +822,7 @@ app.post('/api/instances/:uuid/streamer-disconnected', async (req, res) => {
 
   // Verify secret if configured (using TUNNEL_REPORT_SECRET as the default key)
   const expectedSecret = process.env.TUNNEL_REPORT_SECRET || '';
-  if (expectedSecret && secret !== expectedSecret) {
+  if (expectedSecret && !safeEqual(String(secret ?? ''), expectedSecret)) { // constant-time (security review); still open when unset — see SECURITY_REVIEW
     console.warn(`[Streamer Disconnect Webhook] Unauthorized request for instance ${uuid}`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -789,10 +861,30 @@ if (!fs.existsSync(SAVES_DIR)) {
   fs.mkdirSync(SAVES_DIR, { recursive: true });
 }
 
+// QA-004 (adjusted for production): the username builds a file path, so it must be path-safe — but any Unicode
+// letters/digits are fine (existing Cyrillic logins keep saving). Allowed: letters, marks, digits, space, . _ @ -;
+// refused: / \ .. NUL/control chars, more than 64 characters; the resolved file must stay directly inside SAVES_DIR.
+const SAFE_USERNAME_RE = /^[\p{L}\p{M}\p{N} ._@-]+$/u;
+export function isSafeUsername(u: unknown): u is string {
+  if (typeof u !== 'string' || !u) return false;
+  if ([...u].length > 64) return false;
+  if (u === '.' || u.includes('..')) return false;
+  if (/[\/\\\u0000-\u001f\u007f-\u009f]/.test(u)) return false;
+  return SAFE_USERNAME_RE.test(u);
+}
+/** The user's save file, or null when the name is unsafe or would resolve outside SAVES_DIR. */
+function savesFileFor(username: unknown): string | null {
+  if (!isSafeUsername(username)) return null;
+  const root = path.resolve(SAVES_DIR);
+  const filePath = path.resolve(root, `${username}.json`);
+  return path.dirname(filePath) === root ? filePath : null;
+}
+
 // 1. GET saves for a specific user
 app.get('/api/saves/:username', (req, res) => {
   const username = req.params.username;
-  const filePath = path.join(SAVES_DIR, `${username}.json`);
+  const filePath = savesFileFor(username);
+  if (!filePath) return res.status(400).json({ error: 'Invalid username' });
 
   if (!fs.existsSync(filePath)) {
     return res.json([]);
@@ -816,7 +908,8 @@ app.post('/api/saves', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const filePath = path.join(SAVES_DIR, `${username}.json`);
+  const filePath = savesFileFor(username);
+  if (!filePath) return res.status(400).json({ error: 'Invalid username' });
   let saves: any[] = [];
 
   if (fs.existsSync(filePath)) {
@@ -851,7 +944,8 @@ app.post('/api/saves', (req, res) => {
 // 3. DELETE save for a user
 app.delete('/api/saves/:username/:saveId', (req, res) => {
   const { username, saveId } = req.params;
-  const filePath = path.join(SAVES_DIR, `${username}.json`);
+  const filePath = savesFileFor(username);
+  if (!filePath) return res.status(400).json({ error: 'Invalid username' });
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'No saves found for user' });
@@ -936,6 +1030,27 @@ app.post(
     }
   }
 );
+
+// ─── AI CONSULTANT (catalog, orchestrator, voice clips, render, dossier) — only with AI_ENABLED=1 ───
+// Mounted before the SPA fallback. The Socket.io /ai namespace is attached in server.ts. The module is required lazily,
+// so with AI off none of its code (catalog, sharp, puppeteer, provider SDKs: about +45 MB RSS) is even loaded.
+// /api/ar/upload is NOT part of it: the live handler above (public/ar/viewer.html) serves the UE client.
+function loadAiLayer(): typeof import('./ai') {
+  // vitest runs the TypeScript sources, where CommonJS require('./ai') cannot resolve index.ts: test/setup.ts preloads
+  // the layer into this global. The compiled server (dist/) always takes the plain require.
+  return (globalThis as any).__MAXIMALL_AI_LAYER__ ?? require('./ai');
+}
+export const aiModule: AiModule | null = AI_ENABLED
+  ? loadAiLayer().createAiModule({
+      savesDir: SAVES_DIR,
+      // Security review: a pool session (hostToken from connect-available / display-start) of that instance; used only with AI_REQUIRE_HOST_TOKEN=1.
+      verifyHostToken: (instanceUuid, hostToken) => {
+        const sessions = DatabaseService.getInstance().getInstance(instanceUuid)?.activeSessions;
+        return !!sessions && (sessions.has(hostToken) || [...sessions.values()].some((x: any) => x?.hostToken === hostToken));
+      },
+    })
+  : null;
+if (aiModule) app.use(aiModule.router);
 
 // Fallback to index.html
 app.get('*', (req, res) => {

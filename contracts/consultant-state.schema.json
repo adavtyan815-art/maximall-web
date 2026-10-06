@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/consultant-state.schema.json",
+  "title": "Replicated consultant state (AMaxiConsultantCharacter -> UMaxiConsultantAnimInstance)",
+  "description": "DEPRECATED in v2.0: the 3D consultant is disabled at runtime and not cooked; its Source stays untouched. The consultant is a 2D avatar in the web UI.",
+  "type": "object",
+  "properties": {
+    "AnimState": {
+      "enum": [
+        "Idle",
+        "Listening",
+        "Thinking",
+        "Talking",
+        "Presenting",
+        "Walking"
+      ],
+      "description": "UENUM EConsultantAnimState, replicated"
+    },
+    "bIsSpeaking": {
+      "type": "boolean",
+      "description": "Replicated"
+    },
+    "SubtitleLine": {
+      "type": "string",
+      "description": "Replicated FString, Russian"
+    },
+    "GestureTargetLocation": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Replicated FVector, world; ZeroVector + bHasGestureTarget=false = none"
+    },
+    "bHasGestureTarget": {
+      "type": "boolean"
+    },
+    "GestureHeight": {
+      "enum": [
+        "Low",
+        "High"
+      ],
+      "description": "Low = vanity/cabinet, High = wall cabinet / mirror"
+    },
+    "FocusPlayer": {
+      "type": "string",
+      "description": "Replicated APlayerState* of the visitor being addressed; each client's anim instance looks at its own camera when it is the focus player, else at the focus player's pawn"
+    },
+    "SpeechEnvelope": {
+      "type": "number",
+      "description": "Local only (not replicated): 0..1 RMS of the PCM clip being played on this client, drives jaw/head bob"
+    },
+    "PlannerInstanceID": {
+      "type": "string",
+      "description": "Replicated; which planner room this consultant belongs to"
+    }
+  }
+}

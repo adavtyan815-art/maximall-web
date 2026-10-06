@@ -12,3 +12,17 @@ list_running.js
 *.zip
 *.b64
 
+
+# AI consultant runtime data
+data/ai_logs/
+data/ai_clips/
+data/renders/
+data/dossiers/
+data/ar/
+.env.*.local
+data/reports-out/
+data/leads.jsonl
+leads.jsonl
+data/**/leads.jsonl
+*.pcm
+src/data/saves/

@@ -1,0 +1,92 @@
+[
+	{
+		"Name": "NewRow",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Combined_A3BFB288.Combined_A3BFB288",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/10.10",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 0,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_0",
+		"Mesh": "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma120.Parma120",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/1__2_.1__2_",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_1",
+		"Mesh": "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma100.Parma100",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/2.2",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_2",
+		"Mesh": "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma80.Parma80",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/3.3",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_3",
+		"Mesh": "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/60Parma.60Parma",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/4.4",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_4",
+		"Mesh": "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik120.ParmaAttik120",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/5.5",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_5",
+		"Mesh": "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik90.ParmaAttik90",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/6.6",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_6",
+		"Mesh": "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik70.ParmaAttik70",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/8.8",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 2,
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_7",
+		"Mesh": "/Game/AllModels/Mirrors/mirror/Geometries/Box3016.Box3016",
+		"Thumbnail": "/Game/AllModels/Mirrors/Photo/9.9",
+		"Colors": [],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"MirrorMaterialOverride": "/Engine/BasicShapes/mirror.mirror",
+		"MirrorMaterialSlotIndex": 0,
+		"bAllowColorCatalog": false
+	}
+]

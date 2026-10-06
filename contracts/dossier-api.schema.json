@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/dossier-api.schema.json",
+  "title": "Save metrics block and dossier API",
+  "$defs": {
+    "metrics": {
+      "description": "Added by the UE save-record builder (4a #9) as top-level `metrics` of the /api/saves body for save_project. Only planner booths of this planner instance.",
+      "type": "object",
+      "properties": {
+        "plannerInstanceId": {"type": "string"},
+        "perimeterM": {"type": "number"},
+        "floorAreaM2": {"type": "number"},
+        "wallFaces": {"type": "array", "items": {"type": "object", "properties": {"segmentId": {"type": "integer"}, "side": {"enum": ["left", "right"]}, "areaM2": {"type": "number"}, "finish": {"type": "string"}}}},
+        "sets": {"type": "array", "items": {"type": "object", "properties": {"setId": {"type": "string"}, "config": {"$ref": "commands.schema.json#/$defs/config"}, "productName": {"type": "string"}, "sku": {"type": "string"}, "customColours": {"type": "array", "items": {"type": "object", "properties": {"component": {"type": "string"}, "rgb": {"type": "string"}, "code": {"type": "string", "description": "RAL/NCS code when known (4a #14)"}}}}}}},
+        "layoutJson": {"type": "string", "description": "ExportLayoutToJSON output for the SVG floor plan"}
+      }
+    },
+    "dossierRequest": {"type": "object", "required": ["sessionId"], "properties": {"sessionId": {"type": "string"}, "username": {"type": "string"}, "saveId": {"type": "string"}, "renderIds": {"type": "array", "items": {"type": "string"}}}},
+    "dossierResponse": {"type": "object", "properties": {"dossierId": {"type": "string"}, "pdfUrl": {"type": "string", "description": "/api/dossier/:id.pdf"}, "shortUrl": {"type": "string", "description": "/d/:shortId mobile page (PDF, reopen design, book a visit)"}, "qrPngUrl": {"type": "string"}}}
+  },
+  "x-rules": [
+    "The PDF is Russian, prices in BYN from the catalog index with its syncedAt; `estimated` mappings are marked «цена уточняется».",
+    "Specification lists only planner booths of the visitor's planner instance, never salon booths.",
+    "Floor plan is an SVG built from metrics.layoutJson.",
+    "The lead record = username + saveId + dossierId + timestamp; no separate contact form (decision 6)."
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/catalog-mapping.schema.json",
+  "title": "Catalog index + mapping (lives in maximall-web; DataTables are never edited)",
+  "description": "Inputs: (1) UE export D:/AI_Consultant_Workspace/catalog/ue_export/*.json produced by the tech artist's read-only editor Python commandlet from DT_FurnitureCatalog, DT_SharedCountertops, DT_SharedSinks, AllowedFaucetIDs, AllowedMirrorIDs, DT_CabinetSetLayouts; (2) scraped oliveeka.by products (cache D:/AI_Consultant_Workspace/catalog/scrape_cache). Output: maximall-web/data/catalog/index.json = {syncedAt, source, products:[scrapedProduct], mappings:[mapping], unmapped:[...]}. Coverage goal: every (productId, component, sizeIndex, colourIndex) option present in the UE export has exactly one mapping with a price.",
+  "$defs": {
+    "scrapedProduct": {
+      "type": "object",
+      "required": [
+        "articleCode",
+        "name",
+        "priceBYN",
+        "url"
+      ],
+      "properties": {
+        "articleCode": {
+          "type": "string",
+          "description": "As printed on the site, e.g. MIL80A+CMA80W"
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceBYN": {
+          "type": "number"
+        },
+        "oldPriceBYN": {
+          "type": "number"
+        },
+        "collection": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "dimensionsCm": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "depth": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          }
+        },
+        "materials": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "colour": {
+          "type": "string"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "url": {
+          "type": "string"
+        },
+        "fetchedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "required": [
+        "productId",
+        "component",
+        "sizeIndex",
+        "colourIndex",
+        "articleCode",
+        "priceBYN",
+        "match"
+      ],
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "DT_FurnitureCatalog RowName (for shared components: the owning product row)"
+        },
+        "collection": {
+          "enum": [
+            "Milu",
+            "Urban",
+            "Avenu",
+            "Terra",
+            "Tuma"
+          ]
+        },
+        "component": {
+          "enum": [
+            "cabinet",
+            "closet",
+            "countertop",
+            "sink",
+            "faucet",
+            "mirror"
+          ]
+        },
+        "sharedId": {
+          "type": "string",
+          "description": "Row name in DT_Shared*/Allowed* for countertop/sink/faucet/mirror"
+        },
+        "sizeIndex": {
+          "type": "integer",
+          "description": "Cabinet/closet: size index. Shared components: model index in the booth-resolved option space of cabinetSizeIndex (CR-AI-01)."
+        },
+        "sizeName": {
+          "type": "string"
+        },
+        "colourIndex": {
+          "type": "integer",
+          "description": "Cabinet/closet: index into the component's full colour list. Countertop/sink/faucet/mirror: index in the booth-resolved option space (AShowroomBooth::GetResolvedComponentOptions) of cabinetSizeIndex — dangling ids skipped, colours filtered by SizeIndices and re-indexed, faucets split by countertop type (CR-AI-01, QA-007)."
+        },
+        "colourName": {
+          "type": "string"
+        },
+        "articleCode": {
+          "type": "string"
+        },
+        "priceBYN": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "dimensionsCm": {
+          "type": "object"
+        },
+        "match": {
+          "enum": [
+            "exact_sku",
+            "url",
+            "name_size_colour",
+            "manual",
+            "estimated"
+          ],
+          "description": "estimated = no scraped product found; price derived from the closest sibling and flagged in the UI/dossier as «цена уточняется». Must be listed in the QA log."
+        },
+        "cabinetSizeIndex": {
+          "type": "integer",
+          "description": "Shared components: the cabinet size whose resolved option space sizeIndex/colourIndex address"
+        },
+        "topKind": {
+          "enum": [
+            "SurfaceMounted",
+            "BuiltIn"
+          ],
+          "description": "Faucets only: countertop type the faucet list belongs to"
+        },
+        "rawColourIndex": {
+          "type": "integer"
+        },
+        "partCode": {
+          "type": "string"
+        },
+        "estimatedFrom": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "unpriced": {
+          "type": "boolean",
+          "description": "No price source at all; priceBYN=0, excluded from totals, shown as «цена уточняется»"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,197 @@
+[
+	{
+		"Name": "ForUrbanNerkarucvoxRakovinaKlor",
+		"Sizes": [
+			"/Game/Models2306/urban/Geometries/Oliveeka1000x502_80.Oliveeka1000x502_80",
+			"/Game/Models2306/urban/Geometries/Oliveeka1000x501_100.Oliveeka1000x501_100"
+		],
+		"Thumbnail": "/Game/Models2306/urban/Geometries/UrbanRakovina.UrbanRakovina",
+		"Colors": [],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": true
+	},
+	{
+		"Name": "ForUrbanStoleshka",
+		"Sizes": [
+			"/Game/Models2306/urban/Geometries/Object6087.Object6087",
+			"/Game/Models2306/urban/Geometries/Object6086.Object6086"
+		],
+		"Thumbnail": "/Game/Models2306/urban/Geometries/UrbanWhite.UrbanWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/urban/Geometries/UrbanWhite.UrbanWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"1AAFB43A48A6BA9BE033D9B5EEC3B4F7\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 795х458 мм\"),SKU=\"T795C2\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/urban/Geometries/UrbanGrey.UrbanGrey\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"37C5FEC14C073D237750A38B9664A934\", \"Столешница Oliveeka Urban 18 мм Серая, 2 выреза, 790х505 мм\"),SKU=\"CU80M\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/urban/Geometries/UrbanWhite.UrbanWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"68ED35B540E48E9A8DD253880D409CA4\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 995х458 мм\"),SKU=\"T995C2\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/urban/Geometries/UrbanGrey.UrbanGrey\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"023755C145746756BB2DEC8C716FE31C\", \"Столешница Oliveeka Urban 18 мм Серая, 2 выреза, 990х505 мм\"),SKU=\"CU100M\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))"
+		],
+		"CountertopType": "SurfaceMounted",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": true
+	},
+	{
+		"Name": "ForMiluNerkarucvoxRakovinaKlor",
+		"Sizes": [
+			"/Game/Models2306/nora/Geometries/Milu1000x502.Milu1000x502",
+			"/Game/Models2306/nora/Geometries/Milu1000x504.Milu1000x504"
+		],
+		"Thumbnail": "/Game/Models2306/nora/Milu.Milu",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"C318AC7D46985F17C8AC0BA516B76B80\", \"Раковина накладная с отверстием под смеситель Oliveeka Urban белая\"),SKU=\"U80WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"60A94CFE41B023AD3581B3ABD8F1D5A7\", \"Раковина накладная с отверстием под смеситель Oliveeka Urban белая\"),SKU=\"U100WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForMiluStoleshka",
+		"Sizes": [
+			"/Game/Models2306/white/Geometries/Box2138785089.Box2138785089",
+			"/Game/Models2306/white/Geometries/Box2138785092.Box2138785092"
+		],
+		"Thumbnail": "/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"002C158D452B05A82A1EA89F80127986\", \"Столешница Oliveeka Milu 18 мм Белая, 2 выреза, 800х500 мм\"),SKU=\"CMA80W\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluOrex.MiluOrex\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Wood_tyuii.Wood_tyuii\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"EE5306BB4EFCB76E3A61EABD0145B294\", \"Столешница Oliveeka Milu 18 мм Орех, 2 выреза, 800х500 мм\"),SKU=\"CMA80A\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluDub.MiluDub\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/base_Black_MDF_dirt.base_Black_MDF_dirt\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"B72816C9473C417128E8E8B6787718AB\", \"Столешница Oliveeka Milu 18 мм Дуб, 2 выреза, 800х500 мм\"),SKU=\"CMA80R\",URL=\"\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"CCF4FE48459771BE18FA7093C0EF4352\", \"Столешница Oliveeka Milu 18 мм Белая, 2 выреза, 1000х500 мм\"),SKU=\"CMA100W\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluOrex.MiluOrex\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Wood_tyuii.Wood_tyuii\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"884518454F25DE812EC29CAF08B8B6A8\", \"Столешница Oliveeka Milu 18 мм Орех, 2 выреза, 1000х500 мм\"),SKU=\"CMA100A\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluDub.MiluDub\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/base_Black_MDF_dirt.base_Black_MDF_dirt\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5A5C81A94C870ED0FC117C83CC4EDC18\", \"Столешница Oliveeka Milu 18 мм Дуб, 2 выреза, 1000х500 мм\"),SKU=\"CMA100R\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "SurfaceMounted",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTerraStoleshka",
+		"Sizes": [
+			"/Game/Models2306/terra/Geometries/Box2138785084.Box2138785084",
+			"/Game/Models2306/terra/Geometries/Box2138785083.Box2138785083"
+		],
+		"Thumbnail": "/Game/Models2306/cardona/TumaWhite.TumaWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/cardona/TumaWhite.TumaWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/terra/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"212DEC46427E1DA5906B1EAD0916D4B0\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 695х458 мм\"),SKU=\"T695C2\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/terra/Geometries/TerraBrown.TerraBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/terra/Materials/Material__-2147483627.Material__-2147483627\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/cardona/TumaWhite.TumaWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/terra/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"C13A4771461AA8E5429ABBB84599FAEC\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 795х458 мм\"),SKU=\"T795C2\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/terra/Geometries/TerraBrown.TerraBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/terra/Materials/Material__-2147483627.Material__-2147483627\")),ProductName=\"\",SKU=\"\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "SurfaceMounted",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTerraNerkarucvoxFlow",
+		"Sizes": [
+			"/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut003_70.SurfaceCut003_70",
+			"/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut1_80.SurfaceCut1_80"
+		],
+		"Thumbnail": "/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473072.Material__2147473072\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5DFD9CC744AA1E77689D11BDA496B1AE\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow  белая\"),SKU=\"F70WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowBrown.FlowBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473138.Material__2147473138\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"9E0A1E8F449B3605318341B8D9759E84\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow темный коричневый\"),SKU=\"F70BF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473072.Material__2147473072\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5DFD9CC744AA1E77689D11BDA496B1AE\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow  белая\"),SKU=\"F80WF\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowBrown.FlowBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473138.Material__2147473138\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"83E40FD04AE90512A9F0A28022899987\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow темный коричневый\"),SKU=\"F80BF\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=1.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTerraNerkarucvoxRakovina",
+		"Sizes": [
+			"/Game/Models2306/terra/Geometries/umyvalnikkk001.umyvalnikkk001",
+			"/Game/Models2306/terra/Geometries/umyvalnikkk004.umyvalnikkk004"
+		],
+		"Thumbnail": "/Game/Models2306/terra/Geometries/Terra.Terra",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"A57E67684B613F66A94B1EBCF2D2CAA2\", \"Раковина накладная с отвестием под смеситель Oliveeka Looma белая\"),SKU=\"T70WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"44202B6041CEF021EF644B85B793C21F\", \"Раковина накладная с отвестием под смеситель Oliveeka Looma белая\"),SKU=\"T80WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForAvenuStoleshka",
+		"Sizes": [
+			"/Game/Models2306/nora/Geometries/Box2138785072.Box2138785072",
+			"/Game/Models2306/nora/Geometries/Box2138785073.Box2138785073"
+		],
+		"Thumbnail": "/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"312FCD4B4CBCA9D979C57CB698B71E06\", \"Столешница Oliveeka Milu 18 мм Белая, 2 выреза, 800х500 мм\"),SKU=\"CMA80W\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluDub.MiluDub\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/base_Black_MDF_dirt.base_Black_MDF_dirt\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"CB62DA6A43ACAD2E7C4E01B2A68E4B1E\", \"Столешница Oliveeka Milu 18 мм Дуб, 2 выреза, 800х500 мм\"),SKU=\"CMA80R\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluWhite.MiluWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"885529F9412F575ADD85A9B9F05EED9D\", \"Столешница Oliveeka Milu 18 мм Белая, 2 выреза, 1000х500 мм\"),SKU=\"CMA100W\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluDub.MiluDub\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/nora/Materials/base_Black_MDF_dirt.base_Black_MDF_dirt\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"C113550B44026B182D36FBAF5B138D26\", \"Столешница Oliveeka Milu 18 мм Дуб, 2 выреза, 1000х500 мм\"),SKU=\"CMA100R\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluOrex.MiluOrex\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Wood_tyuii.Wood_tyuii\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"EE5306BB4EFCB76E3A61EABD0145B294\", \"Столешница Oliveeka Milu 18 мм Орех, 2 выреза, 800х500 мм\"),SKU=\"CMA80A\",URL=\"\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/white/MiluPhoto/MiluOrex.MiluOrex\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/white/Materials/Wood_tyuii.Wood_tyuii\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"1C0819D14FB312651F3F28BD793F391D\", \"Столешница Oliveeka Milu 18 мм Орех, 2 выреза, 1000х500 мм\"),SKU=\"CMA100A\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "SurfaceMounted",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForAvenuNerkarucvoxRakovinaKlor",
+		"Sizes": [
+			"/Game/Models2306/nora/Geometries/Milu1000x502.Milu1000x502",
+			"/Game/Models2306/nora/Geometries/Milu1000x504.Milu1000x504"
+		],
+		"Thumbnail": "/Game/Models2306/nora/Milu.Milu",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"C318AC7D46985F17C8AC0BA516B76B80\", \"Раковина накладная с отверстием под смеситель Oliveeka Urban белая\"),SKU=\"U80WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"60A94CFE41B023AD3581B3ABD8F1D5A7\", \"Раковина накладная с отверстием под смеситель Oliveeka Urban белая\"),SKU=\"U100WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTumaStoleshka",
+		"Sizes": [
+			"/Game/Models2306/cardona/Geometries/Box2138785082.Box2138785082",
+			"/Game/Models2306/cardona/Geometries/Box2138785079.Box2138785079"
+		],
+		"Thumbnail": "/Game/Models2306/cardona/TumaWhite.TumaWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/cardona/TumaWhite.TumaWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/cardona/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"D22138A641F61C9CB064A7AF97D4814E\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 695х458 мм\"),SKU=\"T695C2\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/cardona/TumaPalisandr.TumaPalisandr\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/cardona/Materials/Material__-2147483626.Material__-2147483626\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5714CE644393FA609C5393B8B8B42B46\", \"Столешница Oliveeka Tuma 18 мм Палисандр, 2 выреза, 695х458 мм\"),SKU=\"CT70R\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=None,MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/cardona/Materials/Material__2147483644.Material__2147483644\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"91AEB2FF4C29D18460D494AB415BD2B6\", \"Столешница из влагостойкой фанеры 18 мм Белая, 2 выреза, 795х458 мм\"),SKU=\"T795C2\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=None,MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/cardona/Materials/Material__-2147483626.Material__-2147483626\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"0BE81F864918DA3513057E866163CDB8\", \"Столешница Oliveeka Tuma 18 мм Палисандр, 2 выреза, 795х458 мм\"),SKU=\"CT80R\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "SurfaceMounted",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTumaNerkarucvoxFlowWhite",
+		"Sizes": [
+			"/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut003_70.SurfaceCut003_70",
+			"/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut1_80.SurfaceCut1_80"
+		],
+		"Thumbnail": "/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473072.Material__2147473072\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5DFD9CC744AA1E77689D11BDA496B1AE\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow  белая\"),SKU=\"F70WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowBrown.FlowBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473138.Material__2147473138\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"9E0A1E8F449B3605318341B8D9759E84\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow темный коричневый\"),SKU=\"F70BF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowWhite.FlowWhite\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473072.Material__2147473072\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"5DFD9CC744AA1E77689D11BDA496B1AE\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow  белая\"),SKU=\"F80WF\",URL=\"\",SizeIndices=(1))",
+			"(Thumbnail=\"/Game/Models2306/RakovinaNerk/flow_box/Geometries/FlowBrown.FlowBrown\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/RakovinaNerk/flow_box/Materials/Material__2147473138.Material__2147473138\")),ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"83E40FD04AE90512A9F0A28022899987\", \"Раковина накладная с отверстием под смеситель Oliveeka Flow темный коричневый\"),SKU=\"F80BF\",URL=\"\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=-3.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "ForTumaNerkarucvoxRakovina",
+		"Sizes": [
+			"/Game/Models2306/terra/Geometries/umyvalnikkk001.umyvalnikkk001",
+			"/Game/Models2306/terra/Geometries/umyvalnikkk004.umyvalnikkk004"
+		],
+		"Thumbnail": "/Game/Models2306/terra/Geometries/Terra.Terra",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"A57E67684B613F66A94B1EBCF2D2CAA2\", \"Раковина накладная с отвестием под смеситель Oliveeka Looma белая\"),SKU=\"T70WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(0))",
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[13B7150E295FFFEC5E59310CDEA5F0FA]\", \"44202B6041CEF021EF644B85B793C21F\", \"Раковина накладная с отвестием под смеситель Oliveeka Looma белая\"),SKU=\"T80WF\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=(1))"
+		],
+		"CountertopType": "BuiltIn",
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=-4.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	}
+]

@@ -1,0 +1,93 @@
+[
+	{
+		"Name": "NewRow",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetErkar/Taps_Tap1_low.Taps_Tap1_low",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetErkar/1.1",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"URB80M\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Standard",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_0",
+		"Mesh": "/Game/Test/Fantini_Nostromo_Corona/Geometries/Single-hole_high_washbasin_mixer.Single-hole_high_washbasin_mixer",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetErkar/2.2",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__24.Material__24\"),(SlotIndex=1,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__65.Material__65\"),(SlotIndex=2,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__59.Material__59\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__82.Material__82\"),(SlotIndex=1,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__65.Material__65\"),(SlotIndex=2,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__59.Material__59\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__58.Material__58\"),(SlotIndex=1,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__65.Material__65\"),(SlotIndex=2,Material=\"/Game/Test/Fantini_Nostromo_Corona/Materials/Material__59.Material__59\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Standard",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_4",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetPati/RILIEVO_59093.RILIEVO_59093",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetPati/Adobe_Express_-_file.Adobe_Express_-_file",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=10.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Standard",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_5",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetPati/Taps_Tap4_low.Taps_Tap4_low",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetPati/Adobe_Express_-_file__1_.Adobe_Express_-_file__1_",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=10.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Standard",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_1",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_344.SM_MERGED_StaticMeshActor_344",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetErkar/5.5",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=-20.000000,Z=-8.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Integrated",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_2",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_322.SM_MERGED_StaticMeshActor_322",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetErkar/4.4",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=-20.000000,Z=-8.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Integrated",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_3",
+		"Mesh": "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_437.SM_MERGED_StaticMeshActor_437",
+		"Thumbnail": "/Game/Models/Interaction/Faucet/FaucetErkar/6.6",
+		"Colors": [
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Silver.Silver\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__556.Material__556\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Gold.Gold\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__5535.Material__5535\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)",
+			"(Thumbnail=\"/Game/Models/Interaction/Faucet/FaucetErkar/Black.Black\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/material_santehniki/Material__243.Material__243\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/santehnika-oliveeka/\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=-20.000000,Z=-8.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"FaucetType": "Integrated",
+		"bAllowColorCatalog": false
+	}
+]

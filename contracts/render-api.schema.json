@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/render-api.schema.json",
+  "title": "Capture and render API (UE client -> maximall-web)",
+  "description": "POST {BackendURL}/api/render, multipart/form-data with parts: beauty (PNG 8-bit sRGB, WxH), depth (PNG 16-bit grayscale, same WxH, value = min(sceneDepthCm, 65535) i.e. 1 unit = 1 cm, 65535 = sky/far), mask (PNG 8-bit grayscale, same WxH, 255 = product pixels from the ShowOnlyActors capture of this instance's planner booths, 0 elsewhere), meta (application/json, below). The backend composites the ORIGINAL beauty pixels back where final mask = (mask>127) AND (|depth - productDepth| < 3 cm), productDepth being the depth rendered in the ShowOnlyActors pass (optional part `maskDepth`, 16-bit). Response 202 {renderId}. Progress goes out on Socket.io ai.render to the session. Files served at GET /api/render/:renderId/{beauty,preview,final}.png.",
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "renderId",
+        "sessionId",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "renderId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "preset": {
+          "enum": [
+            "corner",
+            "frontal",
+            "wide",
+            "booth"
+          ]
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "fovDeg": {
+          "type": "number"
+        },
+        "camera": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "rotation": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "setId": {
+                "type": "string"
+              },
+              "config": {
+                "$ref": "commands.schema.json#/$defs/config"
+              }
+            }
+          }
+        },
+        "finishes": {
+          "type": "object"
+        },
+        "roomAreaM2": {
+          "type": "number"
+        },
+        "boothId": {
+          "type": "string",
+          "description": "v2.2: salon booth actor name when preset = booth"
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "renderId": {
+          "type": "string"
+        },
+        "status": {
+          "const": "accepted"
+        }
+      }
+    }
+  },
+  "x-ar-upload": "POST /api/ar/upload must accept exactly what UARExportSubsystem.cpp (ARExport/ARExportSubsystem.cpp:431) sends; backend role reads that code and implements it; response contract = whatever that code parses."
+}

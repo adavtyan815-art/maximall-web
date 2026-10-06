@@ -1,6 +1,6 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import app, { setWsService } from './app';
+import app, { setWsService, aiModule } from './app';
 import { config } from './config';
 import { DatabaseService } from './services/databaseService';
 import { SettingsService } from './services/settingsService';
@@ -158,6 +158,21 @@ async function bootstrap() {
     const wsService = new WebSocketService(server);
     setWsService(wsService);
     console.log('[Server] WebSocket service initialized');
+
+    // 5b. AI consultant Socket.io namespace /ai (same Socket.io server, default namespace unchanged) — only with AI_ENABLED=1
+    if (aiModule) {
+      aiModule.attach(wsService.getIo());
+      aiModule.startRetention(); // QA-058: runtime data retention (on start + hourly; off by default in LOCAL_MODE)
+      console.log(`[Server] AI namespace /ai ready (mock providers: ${JSON.stringify(aiModule.providers.mock)}, catalog: ${aiModule.orchestrator.catalog ? aiModule.orchestrator.catalog.syncedAt : 'not built'})`);
+      if (!process.env.PUBLIC_BASE_URL && process.env.LOCAL_MODE !== '1') {
+        console.warn('[Server] ############################################################################');
+        console.warn('[Server] WARNING: AI_ENABLED=1 but PUBLIC_BASE_URL is not set: voice clip, photo, dossier and QR links');
+        console.warn(`[Server] will point to http://localhost:${process.env.PORT ?? 3000} and break for visitors. Set PUBLIC_BASE_URL in .env.`);
+        console.warn('[Server] ############################################################################');
+      }
+    } else {
+      console.log('[Server] AI consultant disabled (AI_ENABLED is not 1/true): no /ai namespace, no AI routes; /api/ai/health -> enabled:false');
+    }
 
     // 6. Start Pre-warm Buffer Pool Loop
     ScalingService.getInstance().startPrewarmLoop();

@@ -13,6 +13,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # AI budget ledger on the persisted runtime volume (the cap counts everything spent so far)
+      - AI_SPEND_LOG=/app/data/runtime/api_spend.jsonl
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/settings"]
       interval: 30s
@@ -20,7 +22,19 @@ services:
       start_period: 15s
       retries: 3
     volumes:
+      # Read-write on purpose: the live AR upload (/api/ar/upload) writes GLBs to public/ar/models and mkdirs it at start.
       - ./public:/app/public
+      # AI runtime data (used only with AI_ENABLED=1): ai_logs, ai_clips, renders, dossiers (+ leads.jsonl),
+      # api_spend.jsonl (budget ledger). Must persist across rebuilds, or the $ budget cap restarts from 0 and dossier links break.
+      # (No data/ar volume: AR upload stays the live handler above, writing to public/ar/models.)
+      - ./data/ai_logs:/app/data/ai_logs
+      - ./data/ai_clips:/app/data/ai_clips
+      - ./data/renders:/app/data/renders
+      - ./data/dossiers:/app/data/dossiers
+      - ./data/runtime:/app/data/runtime
+      # UE project saves (/api/saves) are written to dist/data/saves inside the image: keep them across rebuilds too.
+      # Before the first deploy with this mount, copy the running container's saves out (see deploy/ai.env.example).
+      - ./data/saves:/app/dist/data/saves
 
   nginx:
     image: nginx:alpine

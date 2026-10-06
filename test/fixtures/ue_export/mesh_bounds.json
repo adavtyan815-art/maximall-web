@@ -1,0 +1,835 @@
+{
+ "/Game/AllModels/Mirrors/mirror/Geometries/Box3016.Box3016": {
+  "max": [
+   30.0,
+   2.0,
+   40.0
+  ],
+  "min": [
+   -30.0,
+   -0.0,
+   -40.0
+  ],
+  "sizeCm": [
+   60.0,
+   2.0,
+   80.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik120.ParmaAttik120": {
+  "max": [
+   59.5,
+   13.0,
+   30.0
+  ],
+  "min": [
+   -59.5,
+   0.0,
+   -27.0
+  ],
+  "sizeCm": [
+   119.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik70.ParmaAttik70": {
+  "max": [
+   34.5,
+   13.0,
+   30.006
+  ],
+  "min": [
+   -34.5,
+   0.0,
+   -26.994
+  ],
+  "sizeCm": [
+   69.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/parma_attik/Geometries/ParmaAttik90.ParmaAttik90": {
+  "max": [
+   44.5,
+   13.0,
+   30.006
+  ],
+  "min": [
+   -44.5,
+   0.0,
+   -26.994
+  ],
+  "sizeCm": [
+   89.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/60Parma.60Parma": {
+  "max": [
+   29.5,
+   13.0,
+   30.0
+  ],
+  "min": [
+   -29.5,
+   -0.0,
+   -27.0
+  ],
+  "sizeCm": [
+   59.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma100.Parma100": {
+  "max": [
+   49.5,
+   13.0,
+   30.0
+  ],
+  "min": [
+   -49.5,
+   -0.0,
+   -27.0
+  ],
+  "sizeCm": [
+   99.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma120.Parma120": {
+  "max": [
+   59.5,
+   13.0,
+   30.0
+  ],
+  "min": [
+   -59.5,
+   0.0,
+   -27.0
+  ],
+  "sizeCm": [
+   119.0,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/AllModels/Mirrors/zerkalo_Parma/Geometries/Parma80.Parma80": {
+  "max": [
+   39.5,
+   13.0,
+   30.0
+  ],
+  "min": [
+   -39.494,
+   -0.0,
+   -27.0
+  ],
+  "sizeCm": [
+   78.994,
+   13.0,
+   57.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Combined_A3BFB288.Combined_A3BFB288": {
+  "max": [
+   35.75,
+   3.167,
+   35.25
+  ],
+  "min": [
+   -35.25,
+   -0.0,
+   -35.75
+  ],
+  "sizeCm": [
+   71.0,
+   3.167,
+   71.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Cardona.Cardona": {
+  "max": [
+   21.0,
+   20.968,
+   10.498
+  ],
+  "min": [
+   -21.0,
+   -21.032,
+   0.498
+  ],
+  "sizeCm": [
+   42.0,
+   42.0,
+   10.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/CardonaBox.CardonaBox": {
+  "max": [
+   21.5,
+   21.5,
+   15.497
+  ],
+  "min": [
+   -21.5,
+   -21.5,
+   0.497
+  ],
+  "sizeCm": [
+   43.0,
+   43.0,
+   15.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Nora.Nora": {
+  "max": [
+   27.493,
+   17.489,
+   10.466
+  ],
+  "min": [
+   -27.507,
+   -17.511,
+   0.466
+  ],
+  "sizeCm": [
+   55.0,
+   35.0,
+   10.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/NoraBox.NoraBox": {
+  "max": [
+   25.003,
+   17.511,
+   10.5
+  ],
+  "min": [
+   -24.997,
+   -17.489,
+   0.5
+  ],
+  "sizeCm": [
+   50.0,
+   35.0,
+   10.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Terra.Terra": {
+  "max": [
+   18.011,
+   17.995,
+   10.5
+  ],
+  "min": [
+   -17.989,
+   -18.005,
+   0.5
+  ],
+  "sizeCm": [
+   36.0,
+   36.0,
+   10.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/UrbanBox.UrbanBox": {
+  "max": [
+   29.999,
+   20.0,
+   13.463
+  ],
+  "min": [
+   -30.001,
+   -20.0,
+   0.463
+  ],
+  "sizeCm": [
+   60.0,
+   40.0,
+   13.0
+  ]
+ },
+ "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/WhiteBox.WhiteBox": {
+  "max": [
+   27.992,
+   16.002,
+   15.979
+  ],
+  "min": [
+   -28.008,
+   -15.998,
+   0.479
+  ],
+  "sizeCm": [
+   56.0,
+   32.0,
+   15.5
+  ]
+ },
+ "/Game/MedaFurniturePack/Furniture/Sofas/SM_Sofa-Blazer-283.SM_Sofa-Blazer-283": {
+  "max": [
+   144.486,
+   56.282,
+   66.114
+  ],
+  "min": [
+   -144.49,
+   -56.288,
+   -0.011
+  ],
+  "sizeCm": [
+   288.976,
+   112.569,
+   66.124
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_322.SM_MERGED_StaticMeshActor_322": {
+  "max": [
+   2.6,
+   14.45,
+   5.32
+  ],
+  "min": [
+   -2.6,
+   -2.65,
+   -9.848
+  ],
+  "sizeCm": [
+   5.2,
+   17.1,
+   15.168
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_344.SM_MERGED_StaticMeshActor_344": {
+  "max": [
+   2.5,
+   14.1,
+   9.3
+  ],
+  "min": [
+   -2.5,
+   -2.4,
+   -9.7
+  ],
+  "sizeCm": [
+   5.0,
+   16.5,
+   19.0
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetErkar/SM_MERGED_StaticMeshActor_437.SM_MERGED_StaticMeshActor_437": {
+  "max": [
+   2.493,
+   13.917,
+   8.189
+  ],
+  "min": [
+   -2.493,
+   -2.503,
+   -9.631
+  ],
+  "sizeCm": [
+   4.986,
+   16.42,
+   17.82
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetErkar/Taps_Tap1_low.Taps_Tap1_low": {
+  "max": [
+   2.34,
+   20.661,
+   13.418
+  ],
+  "min": [
+   -2.34,
+   -2.3,
+   -17.703
+  ],
+  "sizeCm": [
+   4.68,
+   22.962,
+   31.121
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetPati/RILIEVO_59093.RILIEVO_59093": {
+  "max": [
+   17.55,
+   17.109,
+   5.003
+  ],
+  "min": [
+   -4.55,
+   -2.0,
+   -8.842
+  ],
+  "sizeCm": [
+   22.099,
+   19.109,
+   13.845
+  ]
+ },
+ "/Game/Models/Interaction/Faucet/FaucetPati/Taps_Tap4_low.Taps_Tap4_low": {
+  "max": [
+   13.619,
+   18.492,
+   2.539
+  ],
+  "min": [
+   -3.041,
+   -1.49,
+   -9.46
+  ],
+  "sizeCm": [
+   16.66,
+   19.982,
+   12.0
+  ]
+ },
+ "/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut003_70.SurfaceCut003_70": {
+  "max": [
+   34.499,
+   23.455,
+   10.0
+  ],
+  "min": [
+   -35.512,
+   -28.938,
+   -4.7
+  ],
+  "sizeCm": [
+   70.011,
+   52.393,
+   14.7
+  ]
+ },
+ "/Game/Models2306/RakovinaNerk/flow_box/Geometries/SurfaceCut1_80.SurfaceCut1_80": {
+  "max": [
+   38.99,
+   23.455,
+   10.0
+  ],
+  "min": [
+   -40.009,
+   -28.938,
+   -4.7
+  ],
+  "sizeCm": [
+   78.998,
+   52.393,
+   14.7
+  ]
+ },
+ "/Game/Models2306/cardona/Geometries/Box2138785079.Box2138785079": {
+  "max": [
+   39.711,
+   23.939,
+   7.7
+  ],
+  "min": [
+   -39.789,
+   -21.861,
+   5.9
+  ],
+  "sizeCm": [
+   79.5,
+   45.8,
+   1.8
+  ]
+ },
+ "/Game/Models2306/cardona/Geometries/Box2138785082.Box2138785082": {
+  "max": [
+   34.547,
+   22.869,
+   7.58
+  ],
+  "min": [
+   -34.953,
+   -22.931,
+   5.78
+  ],
+  "sizeCm": [
+   69.5,
+   45.8,
+   1.8
+  ]
+ },
+ "/Game/Models2306/nora/Geometries/Box2138785072.Box2138785072": {
+  "max": [
+   39.561,
+   25.668,
+   13.274
+  ],
+  "min": [
+   -39.561,
+   -25.004,
+   11.474
+  ],
+  "sizeCm": [
+   79.122,
+   50.672,
+   1.8
+  ]
+ },
+ "/Game/Models2306/nora/Geometries/Box2138785073.Box2138785073": {
+  "max": [
+   50.0,
+   25.575,
+   13.236
+  ],
+  "min": [
+   -50.0,
+   -25.097,
+   11.436
+  ],
+  "sizeCm": [
+   100.0,
+   50.672,
+   1.8
+  ]
+ },
+ "/Game/Models2306/nora/Geometries/Milu1000x502.Milu1000x502": {
+  "max": [
+   39.0,
+   25.004,
+   12.574
+  ],
+  "min": [
+   -39.0,
+   -25.004,
+   -12.574
+  ],
+  "sizeCm": [
+   78.0,
+   50.008,
+   25.149
+  ]
+ },
+ "/Game/Models2306/nora/Geometries/Milu1000x504.Milu1000x504": {
+  "max": [
+   50.008,
+   25.004,
+   12.574
+  ],
+  "min": [
+   -50.008,
+   -25.004,
+   -12.574
+  ],
+  "sizeCm": [
+   100.017,
+   50.008,
+   25.149
+  ]
+ },
+ "/Game/Models2306/terra/Geometries/Box2138785083.Box2138785083": {
+  "max": [
+   39.75,
+   22.592,
+   11.909
+  ],
+  "min": [
+   -39.75,
+   -23.208,
+   10.109
+  ],
+  "sizeCm": [
+   79.5,
+   45.8,
+   1.8
+  ]
+ },
+ "/Game/Models2306/terra/Geometries/Box2138785084.Box2138785084": {
+  "max": [
+   34.75,
+   22.603,
+   11.913
+  ],
+  "min": [
+   -34.75,
+   -23.197,
+   10.113
+  ],
+  "sizeCm": [
+   69.5,
+   45.8,
+   1.8
+  ]
+ },
+ "/Game/Models2306/terra/Geometries/umyvalnikkk001.umyvalnikkk001": {
+  "max": [
+   34.523,
+   23.0,
+   11.607
+  ],
+  "min": [
+   -34.523,
+   -23.0,
+   -11.607
+  ],
+  "sizeCm": [
+   69.045,
+   46.0,
+   23.214
+  ]
+ },
+ "/Game/Models2306/terra/Geometries/umyvalnikkk004.umyvalnikkk004": {
+  "max": [
+   40.0,
+   23.0,
+   11.607
+  ],
+  "min": [
+   -40.0,
+   -23.0,
+   -11.607
+  ],
+  "sizeCm": [
+   80.0,
+   46.0,
+   23.214
+  ]
+ },
+ "/Game/Models2306/urban/Geometries/Object6086.Object6086": {
+  "max": [
+   49.5,
+   25.0,
+   8.562
+  ],
+  "min": [
+   -49.5,
+   -25.0,
+   7.862
+  ],
+  "sizeCm": [
+   99.0,
+   50.0,
+   0.7
+  ]
+ },
+ "/Game/Models2306/urban/Geometries/Object6087.Object6087": {
+  "max": [
+   40.0,
+   25.0,
+   8.562
+  ],
+  "min": [
+   -40.0,
+   -25.0,
+   7.862
+  ],
+  "sizeCm": [
+   80.0,
+   50.0,
+   0.7
+  ]
+ },
+ "/Game/Models2306/urban/Geometries/Oliveeka1000x501_100.Oliveeka1000x501_100": {
+  "max": [
+   49.0,
+   25.0,
+   8.575
+  ],
+  "min": [
+   -49.0,
+   -25.0,
+   -8.575
+  ],
+  "sizeCm": [
+   98.0,
+   50.0,
+   17.15
+  ]
+ },
+ "/Game/Models2306/urban/Geometries/Oliveeka1000x502_80.Oliveeka1000x502_80": {
+  "max": [
+   39.998,
+   25.0,
+   8.575
+  ],
+  "min": [
+   -39.998,
+   -25.0,
+   -8.575
+  ],
+  "sizeCm": [
+   79.997,
+   50.0,
+   17.15
+  ]
+ },
+ "/Game/Models2306/white/Geometries/Box2138785089.Box2138785089": {
+  "max": [
+   39.561,
+   25.668,
+   13.274
+  ],
+  "min": [
+   -39.561,
+   -25.004,
+   11.474
+  ],
+  "sizeCm": [
+   79.122,
+   50.672,
+   1.8
+  ]
+ },
+ "/Game/Models2306/white/Geometries/Box2138785092.Box2138785092": {
+  "max": [
+   50.0,
+   25.336,
+   13.274
+  ],
+  "min": [
+   -50.0,
+   -25.336,
+   11.474
+  ],
+  "sizeCm": [
+   100.0,
+   50.672,
+   1.8
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/dining_chair_02/dining_chair_02_2k/StaticMeshes/dining_chair_02_2k.dining_chair_02_2k": {
+  "max": [
+   21.679,
+   24.54,
+   97.466
+  ],
+  "min": [
+   -21.679,
+   -33.102,
+   0.129
+  ],
+  "sizeCm": [
+   43.357,
+   57.642,
+   97.338
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/drawer_cabinet/drawer_cabinet_2k/StaticMeshes/drawer_cabinet_2k.drawer_cabinet_2k": {
+  "max": [
+   57.054,
+   24.043,
+   188.125
+  ],
+  "min": [
+   -57.054,
+   -24.765,
+   0.0
+  ],
+  "sizeCm": [
+   114.108,
+   48.808,
+   188.125
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/metal_office_desk/metal_office_desk_2k/StaticMeshes/metal_office_desk_2k.metal_office_desk_2k": {
+  "max": [
+   100.0,
+   47.81,
+   78.75
+  ],
+  "min": [
+   -100.0,
+   -46.911,
+   0.0
+  ],
+  "sizeCm": [
+   200.0,
+   94.721,
+   78.75
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/modern_arm_chair_01/modern_arm_chair_01_2k/StaticMeshes/modern_arm_chair_01_2k.modern_arm_chair_01_2k": {
+  "max": [
+   41.354,
+   41.111,
+   102.323
+  ],
+  "min": [
+   -40.681,
+   -57.545,
+   0.038
+  ],
+  "sizeCm": [
+   82.034,
+   98.656,
+   102.285
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/modern_coffee_table_01/modern_coffee_table_01_2k/StaticMeshes/modern_coffee_table_01_2k.modern_coffee_table_01_2k": {
+  "max": [
+   30.0,
+   60.116,
+   38.988
+  ],
+  "min": [
+   -30.0,
+   -60.067,
+   -0.012
+  ],
+  "sizeCm": [
+   60.0,
+   120.183,
+   39.0
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/side_table_01/side_table_01_2k/StaticMeshes/side_table_01_2k.side_table_01_2k": {
+  "max": [
+   27.5,
+   22.5,
+   54.831
+  ],
+  "min": [
+   -27.5,
+   -22.5,
+   -0.236
+  ],
+  "sizeCm": [
+   55.0,
+   45.0,
+   55.066
+  ]
+ },
+ "/Game/RoomPlanner/Furniture/wooden_display_shelves_01/wooden_display_shelves_01_2k/StaticMeshes/wooden_display_shelves_01_2k.wooden_display_shelves_01_2k": {
+  "max": [
+   18.575,
+   53.888,
+   155.662
+  ],
+  "min": [
+   -18.575,
+   -53.888,
+   0.044
+  ],
+  "sizeCm": [
+   37.151,
+   107.776,
+   155.618
+  ]
+ },
+ "/Game/Test/Fantini_Nostromo_Corona/Geometries/Single-hole_high_washbasin_mixer.Single-hole_high_washbasin_mixer": {
+  "max": [
+   2.592,
+   15.499,
+   12.626
+  ],
+  "min": [
+   -2.592,
+   -3.796,
+   -19.5
+  ],
+  "sizeCm": [
+   5.184,
+   19.295,
+   32.126
+  ]
+ }
+}

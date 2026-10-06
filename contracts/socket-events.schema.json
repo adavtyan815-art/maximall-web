@@ -1,0 +1,539 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/socket-events.schema.json",
+  "title": "Socket.io events between player page and maximall-web orchestrator (namespace /ai)",
+  "description": "Connect to `${BACKEND}/ai` with auth {sessionId, instanceUuid, username}. The existing default-namespace back-channel (display-start, join-instance, heartbeat, idle events) is unchanged. All text is Russian.",
+  "x-client-to-server": {
+    "ai.session.start": {
+      "type": "object",
+      "required": [
+        "instanceUuid",
+        "username"
+      ],
+      "properties": {
+        "instanceUuid": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "viewport": {
+          "enum": [
+            "mobile",
+            "desktop"
+          ]
+        }
+      },
+      "description": "CR-WEB-01: may be sent again with the UE-reported username; backend merges the guest session. UE username 'guest_tester' (no login) is treated as a guest, not a lead."
+    },
+    "ai.turn.text": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "ai.audio.start": {
+      "type": "object",
+      "properties": {
+        "mimeType": {
+          "type": "string",
+          "description": "audio/pcm;rate=16000 (s16le mono) preferred; audio/webm;codecs=opus accepted"
+        }
+      }
+    },
+    "ai.audio.chunk": {
+      "description": "Binary ArrayBuffer, <= 32 KB per chunk"
+    },
+    "ai.audio.end": {
+      "type": "object"
+    },
+    "ai.audio.cancel": {
+      "type": "object"
+    },
+    "ai.card.tap": {
+      "type": "object",
+      "required": [
+        "cardId",
+        "requestId"
+      ],
+      "properties": {
+        "cardId": {
+          "type": "string"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "result": {
+          "$ref": "envelope.schema.json#/$defs/result",
+          "description": "CR-AI-02: the UE result of the apply_config sent directly by the page"
+        }
+      }
+    },
+    "ai.command.result": {
+      "$ref": "envelope.schema.json#/$defs/result"
+    },
+    "ai.ue.event": {
+      "$ref": "envelope.schema.json#/$defs/event"
+    },
+    "ai.render.request": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "enum": [
+            "corner",
+            "frontal",
+            "wide"
+          ]
+        }
+      }
+    },
+    "ai.dossier.request": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "type": "string"
+        }
+      }
+    },
+    "ai.reset": {
+      "type": "object"
+    },
+    "ai.command.status": {
+      "type": "object",
+      "required": [
+        "id",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "sent"
+          ]
+        }
+      },
+      "description": "CR-AI-04 (v1.5): page reports when a backend ai.command is queued waiting for the stream and when it is actually emitted to UE; backend execution timeout starts at sent"
+    },
+    "ai.offer.answer": {
+      "type": "object",
+      "required": [
+        "offerId",
+        "optionId"
+      ],
+      "properties": {
+        "offerId": {
+          "type": "string"
+        },
+        "optionId": {
+          "type": "string"
+        }
+      }
+    },
+    "ai.card.show": {
+      "type": "object",
+      "required": [
+        "cardId"
+      ],
+      "properties": {
+        "cardId": {
+          "type": "string"
+        }
+      },
+      "description": "v2.1 CR-WEB-04: salon info card «Показать в комнате» — backend starts the constructor offer for that card's config (never enters directly)"
+    }
+  },
+  "x-server-to-client": {
+    "ai.session.ready": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        },
+        "consultantName": {
+          "type": "string"
+        },
+        "greeting": {
+          "type": "string"
+        },
+        "catalogSyncedAt": {
+          "type": "string"
+        },
+        "mock": {
+          "type": "object",
+          "description": "Which providers are mocked: {llm, stt, tts, render}"
+        }
+      }
+    },
+    "ai.message": {
+      "type": "object",
+      "required": [
+        "role",
+        "text",
+        "turnId"
+      ],
+      "properties": {
+        "turnId": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "consultant",
+            "visitor",
+            "system"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "ai.thinking": {
+      "type": "object",
+      "properties": {
+        "turnId": {
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "step": {
+          "type": "string",
+          "description": "Russian ticked action step, e.g. «Проверяю, что помещается на стене»"
+        }
+      }
+    },
+    "ai.transcript": {
+      "type": "object",
+      "properties": {
+        "final": {
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "ai.cards": {
+      "type": "object",
+      "required": [
+        "turnId",
+        "cards"
+      ],
+      "properties": {
+        "turnId": {
+          "type": "string"
+        },
+        "cards": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "card.schema.json"
+          }
+        }
+      }
+    },
+    "ai.command": {
+      "description": "Page forwards `request` to UE with emitUIInteraction and answers with ai.command.result",
+      "type": "object",
+      "required": [
+        "request"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "envelope.schema.json#/$defs/request"
+        }
+      }
+    },
+    "ai.say": {
+      "type": "object",
+      "properties": {
+        "turnId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "clipUrl": {
+          "type": "string",
+          "description": "deprecated (raw PCM for UE)"
+        },
+        "durationMs": {
+          "type": "integer"
+        },
+        "audioUrl": {
+          "type": "string",
+          "description": "v2.0: browser-playable clip (audio/wav or audio/mpeg); the page plays it and drives the 2D avatar's speaking state from it"
+        },
+        "spokenText": {
+          "type": "string",
+          "description": "v2.2: the short (5-10 s) spoken summary; TTS audio contains only this"
+        }
+      },
+      "description": "Informational for the page (subtitle); the audio itself is played by UE via consultant_say"
+    },
+    "ai.basket": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "setId": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "component": {
+                      "type": "string"
+                    },
+                    "articleCode": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "estimated": {
+                      "type": "boolean",
+                      "description": "CR-WEB-02"
+                    },
+                    "unpriced": {
+                      "type": "boolean",
+                      "description": "CR-WEB-02; excluded from total"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "finishes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "surface": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "total": {
+          "type": "number"
+        },
+        "currency": {
+          "const": "BYN"
+        }
+      }
+    },
+    "ai.render": {
+      "type": "object",
+      "required": [
+        "renderId",
+        "stage"
+      ],
+      "properties": {
+        "renderId": {
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "capturing",
+            "preview",
+            "final",
+            "failed"
+          ]
+        },
+        "url": {
+          "type": "string"
+        },
+        "beautyUrl": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "ai",
+            "capture"
+          ],
+          "description": "v2.2: capture = the clean UE capture is the photo (salon booths)"
+        }
+      }
+    },
+    "ai.dossier": {
+      "type": "object",
+      "properties": {
+        "dossierId": {
+          "type": "string"
+        },
+        "pdfUrl": {
+          "type": "string"
+        },
+        "shortUrl": {
+          "type": "string"
+        },
+        "qrPngUrl": {
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "building",
+            "ready",
+            "failed"
+          ]
+        }
+      }
+    },
+    "ai.error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "ai.command.wait": {
+      "type": "object",
+      "required": [
+        "id",
+        "on"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "cmd": {
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string",
+          "description": "Russian status line, e.g. «Подключаюсь к 3D-комнате…»"
+        },
+        "reason": {
+          "enum": [
+            "sent",
+            "result",
+            "timeout",
+            "closed"
+          ]
+        }
+      },
+      "description": "CR-AI-05 (QA-044): a backend ai.command is held by the page (ai.command.status queued). on:true shows a separate connection status — NOT the thinking indicator; on:false (reason sent | result | timeout | closed) clears it. Emitted only for commands that were reported queued."
+    },
+    "ai.mode": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "showroom",
+            "constructor"
+          ]
+        },
+        "boothId": {
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "consent",
+            "hud",
+            "exit",
+            "start"
+          ]
+        }
+      }
+    },
+    "ai.offer": {
+      "type": "object",
+      "required": [
+        "offerId",
+        "kind",
+        "text",
+        "options"
+      ],
+      "properties": {
+        "offerId": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "constructor",
+            "booth_scope",
+            "collection_pick",
+            "generic"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "description": "Buttons under a consultant message: constructor = «Да, перейти» / «Нет, остаться»; booth_scope = «Эту коллекцию (Milu)» / «Другие коллекции»; collection_pick = one per collection"
+    },
+    "ai.avatar": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "idle",
+            "listening",
+            "thinking",
+            "speaking"
+          ]
+        }
+      },
+      "description": "Optional hint; the page derives states from ai.thinking / PTT / audio playback"
+    }
+  }
+}

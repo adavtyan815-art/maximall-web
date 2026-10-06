@@ -1,0 +1,1311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/commands.schema.json",
+  "title": "AI commands executed by UAiCommandDispatcher (server) or the owning client",
+  "description": "Every command except `capture` runs on the dedicated server inside Server_ExecuteAiCommand and ends with at most one CommitStateAfterMutation. Every mutating command takes a snapshot first (undo). Server-side functions to use: ARoomPlannerManager (walls, openings, finishes, cabinet sets), AShowroomBooth (configuration). Unknown fields in args are rejected with BAD_ARGS.",
+  "$defs": {
+    "commandName": {
+      "enum": [
+        "get_state",
+        "build_room",
+        "add_opening",
+        "apply_config",
+        "configure_set",
+        "swap_set",
+        "remove_set",
+        "finish_surface",
+        "check_fit",
+        "undo",
+        "reset",
+        "save_project",
+        "capture",
+        "consultant_say",
+        "consultant_summon",
+        "enter_constructor",
+        "exit_constructor",
+        "booth_get",
+        "booth_configure",
+        "booth_undo",
+        "move_set",
+        "update_opening",
+        "remove_opening"
+      ]
+    },
+    "reasonCode": {
+      "enum": [
+        "BAD_ARGS",
+        "UNKNOWN_CMD",
+        "NO_ROOM",
+        "NO_WALL",
+        "NO_SET",
+        "NO_FIT",
+        "OPENING_CONFLICT",
+        "CATALOG_OPTION_INVALID",
+        "NOTHING_TO_UNDO",
+        "RATE_LIMITED",
+        "NOT_IN_PLANNER",
+        "BUSY",
+        "UPLOAD_FAILED",
+        "TIMEOUT",
+        "INTERNAL",
+        "PLANNER_BUSY",
+        "NO_BOOTH",
+        "NO_OPENING"
+      ]
+    },
+    "config": {
+      "description": "A complete cabinet-set configuration. Mirrors FShowroomBoothConfigState. The size and colour indices are indices into the product row of DT_FurnitureCatalog (colourIndex = index into CabinetOptions.Colors; a colour is valid for a size only if its SizeIndices contains the size or is empty). Countertop/sink/faucet/mirror indices select within the row's Allowed*IDs as AShowroomBooth does today. closetSizeIndex -1 = no wall cabinet (Closet component hidden). v1.1 (QA-007/CR-AI-01): countertop/sink/faucet/mirror *SizeIndex/*ColourIndex address the booth-RESOLVED option space for the chosen cabinet sizeIndex (AShowroomBooth::GetResolvedComponentOptions), never raw Allowed*IDs positions. Configs resolving to a missing row are rejected with CATALOG_OPTION_INVALID.",
+      "type": "object",
+      "required": [
+        "productId",
+        "sizeIndex",
+        "colourIndex"
+      ],
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "DT_FurnitureCatalog RowName"
+        },
+        "sizeIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "colourIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "countertopSizeIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "countertopColourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "closetSizeIndex": {
+          "type": "integer",
+          "minimum": -1,
+          "default": -1
+        },
+        "closetColourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "sinkSizeIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "sinkColourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "faucetSizeIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "faucetColourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "mirrorSizeIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "mirrorColourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "placement": {
+      "type": "object",
+      "properties": {
+        "segmentId": {
+          "type": "integer",
+          "description": "Wall segment id; omitted = solver picks the wall with the most free length"
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right",
+            "auto"
+          ],
+          "default": "auto",
+          "description": "Wall face; auto = the face towards a room"
+        },
+        "anchor": {
+          "enum": [
+            "centre",
+            "start",
+            "end",
+            "auto"
+          ],
+          "default": "auto"
+        },
+        "offsetCm": {
+          "type": "number",
+          "description": "Explicit centre distance from the wall start along the face; overrides anchor"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resolvedPlacement": {
+      "type": "object",
+      "required": [
+        "segmentId",
+        "side",
+        "offsetCm",
+        "spareCm"
+      ],
+      "properties": {
+        "segmentId": {
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "offsetCm": {
+          "type": "number"
+        },
+        "footprintCm": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "depth": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          }
+        },
+        "spareCm": {
+          "type": "number",
+          "description": "Free length left on that wall face span after placement"
+        }
+      }
+    },
+    "opening": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "door",
+            "window"
+          ]
+        },
+        "wallIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "build_room only: 0 = south (x axis from origin), 1 = east, 2 = north, 3 = west, counter-clockwise"
+        },
+        "segmentId": {
+          "type": "integer",
+          "description": "add_opening only"
+        },
+        "offsetCm": {
+          "type": "number",
+          "description": "Distance from the wall start to the opening's near edge (Server_AddDoor DistFromStartCm). Omitted = centred."
+        },
+        "widthCm": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 400
+        },
+        "heightCm": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 300
+        },
+        "sillCm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Windows only, default 90"
+        },
+        "trimFinish": {
+          "type": "string",
+          "description": "v2.4 (state only): the frame finish, as finish strings in state.finishes"
+        }
+      }
+    },
+    "finish": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "system",
+            "code"
+          ],
+          "properties": {
+            "type": {
+              "const": "paint"
+            },
+            "system": {
+              "enum": [
+                "RAL",
+                "NCS"
+              ]
+            },
+            "code": {
+              "type": "string",
+              "description": "As in Content/Data/Colors JSON, e.g. RAL 9010 or S 0502-Y"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "tileId"
+          ],
+          "properties": {
+            "type": {
+              "const": "tile"
+            },
+            "tileId": {
+              "type": "string",
+              "description": "DT_PlannerTiles RowName"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "none",
+              "description": "v2.4: remove the finish (back to the default material)"
+            }
+          }
+        }
+      ]
+    },
+    "gestureTarget": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "set",
+            "opening",
+            "wall",
+            "camera"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "setId, openingId or segmentId as string"
+        }
+      }
+    },
+    "setSummary": {
+      "type": "object",
+      "properties": {
+        "setId": {
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/config"
+        },
+        "placement": {
+          "$ref": "#/$defs/resolvedPlacement"
+        },
+        "customColours": {
+          "type": "array",
+          "description": "v2.4",
+          "items": {
+            "type": "object",
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "doors": {
+          "type": "object",
+          "description": "v2.4: open | closed | none per door group",
+          "properties": {
+            "cabinet": {
+              "enum": [
+                "open",
+                "closed",
+                "none"
+              ]
+            },
+            "closet": {
+              "enum": [
+                "open",
+                "closed",
+                "none"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "wallSummary": {
+      "type": "object",
+      "properties": {
+        "segmentId": {
+          "type": "integer"
+        },
+        "lengthCm": {
+          "type": "number"
+        },
+        "heightCm": {
+          "type": "number"
+        },
+        "roomSide": {
+          "enum": [
+            "left",
+            "right",
+            "none",
+            "both"
+          ]
+        },
+        "openings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "openingId": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "door",
+                  "window"
+                ]
+              },
+              "offsetCm": {
+                "type": "number"
+              },
+              "widthCm": {
+                "type": "number"
+              },
+              "heightCm": {
+                "type": "number"
+              },
+              "sillCm": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "freeSpansCm": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "side": {
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              "startCm": {
+                "type": "number"
+              },
+              "endCm": {
+                "type": "number"
+              },
+              "underWindow": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "state_rev": {
+          "type": "integer"
+        },
+        "rooms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "roomId": {
+                "type": "integer"
+              },
+              "areaM2": {
+                "type": "number"
+              },
+              "perimeterM": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "walls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wallSummary"
+          }
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setSummary"
+          }
+        },
+        "finishes": {
+          "type": "object"
+        },
+        "undoDepth": {
+          "type": "integer"
+        },
+        "owner": {
+          "type": "object",
+          "properties": {
+            "isYou": {
+              "type": "boolean"
+            },
+            "active": {
+              "type": "boolean",
+              "description": "true = some player currently owns the planner"
+            }
+          }
+        }
+      }
+    },
+    "boothState": {
+      "type": "object",
+      "properties": {
+        "boothId": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "Russian, e.g. «Milu у окна»"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "collection": {
+          "enum": [
+            "Milu",
+            "Urban",
+            "Avenu",
+            "Terra",
+            "Tuma"
+          ]
+        },
+        "config": {
+          "$ref": "#/$defs/config"
+        },
+        "customColours": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "rgb": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "options": {
+          "type": "object",
+          "description": "Per component (cabinet, closet, countertop, sink, faucet, mirror): sizes/models and colours available on THIS booth for its current product and cabinet size (same index space as config)"
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "productIds this booth may switch to"
+        },
+        "undoAvailable": {
+          "type": "boolean"
+        },
+        "doors": {
+          "type": "object",
+          "description": "v2.4: open | closed | none per door group",
+          "properties": {
+            "cabinet": {
+              "enum": [
+                "open",
+                "closed",
+                "none"
+              ]
+            },
+            "closet": {
+              "enum": [
+                "open",
+                "closed",
+                "none"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-commands": {
+    "get_state": {
+      "args": {},
+      "result": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "build_room": {
+      "args": {
+        "type": "object",
+        "required": [
+          "widthCm",
+          "depthCm"
+        ],
+        "properties": {
+          "widthCm": {
+            "type": "number",
+            "minimum": 120,
+            "maximum": 1200
+          },
+          "depthCm": {
+            "type": "number",
+            "minimum": 120,
+            "maximum": 1200
+          },
+          "heightCm": {
+            "type": "number",
+            "default": 260
+          },
+          "openings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/opening"
+            }
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/state"
+      },
+      "notes": "Clears the current planner layout of this planner instance (walls and its cabinet sets) and draws a closed rectangle at the planner origin, then adds openings. Reject with OPENING_CONFLICT if an opening does not fit. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "add_opening": {
+      "args": {
+        "$ref": "#/$defs/opening"
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "openingId": {
+            "type": "string"
+          },
+          "segmentId": {
+            "type": "integer"
+          }
+        }
+      },
+      "notes": "v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "apply_config": {
+      "args": {
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/$defs/config"
+          },
+          "placement": {
+            "$ref": "#/$defs/placement"
+          },
+          "replaceSetId": {
+            "type": "string",
+            "description": "Replace this set (same wall) instead of adding"
+          },
+          "cardId": {
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/setSummary"
+      },
+      "notes": "Fit solver first (never place on NO_FIT). Spawns the set via the existing AddCabinetSetOnWall path and configures the booth so its FShowroomBoothConfigState equals config. CabinetSets[id].ProductID kept in sync. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "configure_set": {
+      "args": {
+        "type": "object",
+        "required": [
+          "setId"
+        ],
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "description": "Partial config; only listed fields change"
+          },
+          "customColour": {
+            "type": "object",
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "system": {
+                "enum": [
+                  "RAL",
+                  "NCS"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "description": "v2.4: RAL/NCS colour of a part (as booth_configure)"
+          },
+          "clearCustomColour": {
+            "type": "string",
+            "description": "v2.4: component back to its catalog colour"
+          },
+          "doors": {
+            "type": "object",
+            "description": "v2.4: the double-click door toggle",
+            "properties": {
+              "cabinet": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              "closet": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/setSummary"
+      },
+      "notes": "If sizeIndex or closetSizeIndex changes, re-run the fit check in place first. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED. v2.4: config optional; customColour / clearCustomColour / doors (at least one of the four). Doors return to closed on undo/reset and on a config change (the save system load path)."
+    },
+    "swap_set": {
+      "args": {
+        "type": "object",
+        "required": [
+          "setId",
+          "config"
+        ],
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/$defs/config"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/setSummary"
+      },
+      "notes": "Different product, same wall and anchor; fit-checked. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "remove_set": {
+      "args": {
+        "type": "object",
+        "required": [
+          "setId"
+        ],
+        "properties": {
+          "setId": {
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "type": "object"
+      },
+      "notes": "v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "finish_surface": {
+      "args": {
+        "type": "object",
+        "required": [
+          "target",
+          "finish"
+        ],
+        "properties": {
+          "target": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "wall_face",
+                  "all_walls",
+                  "floor",
+                  "ceiling",
+                  "baseboard",
+                  "opening_trim"
+                ]
+              },
+              "segmentId": {
+                "type": "integer"
+              },
+              "side": {
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              "roomId": {
+                "type": "integer"
+              },
+              "openingId": {
+                "type": "string",
+                "description": "v2.4: opening_trim only (required there)"
+              }
+            }
+          },
+          "finish": {
+            "$ref": "#/$defs/finish"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "applied": {
+            "type": "integer"
+          }
+        }
+      },
+      "notes": "v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED. v2.4: baseboard (roomId optional = every room), opening_trim (openingId; paint or none only), finish type none."
+    },
+    "check_fit": {
+      "args": {
+        "type": "object",
+        "required": [
+          "candidates"
+        ],
+        "properties": {
+          "candidates": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "required": [
+                "config"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "config": {
+                  "$ref": "#/$defs/config"
+                },
+                "placement": {
+                  "$ref": "#/$defs/placement"
+                },
+                "replaceSetId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "fits": {
+                  "type": "boolean"
+                },
+                "placement": {
+                  "$ref": "#/$defs/resolvedPlacement"
+                },
+                "reasonCode": {
+                  "$ref": "#/$defs/reasonCode"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "fittingSizeIndices": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "obstacle": {
+                  "$ref": "#/$defs/gestureTarget"
+                }
+              }
+            }
+          }
+        }
+      },
+      "notes": "Dry run, no mutation, no snapshot. Rules: footprint from booth bounds (cabinet, closet, mirror, pivot offset); no overlap with door openings on the floor plane plus door swing clearance; tall parts (closet, mirror) must not overlap a window unless underWindow rule allows a cabinet below the sill; no overlap with neighbouring sets; 2 cm minimum clearance to corners."
+    },
+    "undo": {
+      "args": {},
+      "result": {
+        "$ref": "#/$defs/state"
+      },
+      "notes": "Restores the snapshot taken before the last mutating AI command for this planner instance (layout + planner booths with its PlannerInstanceID) through the ImportProjectFromSaveJSON path. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "reset": {
+      "args": {},
+      "result": {
+        "$ref": "#/$defs/state"
+      },
+      "notes": "Restores the snapshot taken before the first AI command of the session. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "save_project": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "projectName": {
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "saveId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "notes": "Runs on the owning client: builds the save record (planner + boothStates filtered by plannerInstanceId + thumbnail) plus the `metrics` block from dossier-api.schema.json and POSTs /api/saves. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "capture": {
+      "args": {
+        "type": "object",
+        "required": [
+          "renderId"
+        ],
+        "properties": {
+          "renderId": {
+            "type": "string"
+          },
+          "preset": {
+            "enum": [
+              "corner",
+              "frontal",
+              "wide",
+              "booth"
+            ],
+            "default": "corner"
+          },
+          "width": {
+            "type": "integer",
+            "default": 1920
+          },
+          "height": {
+            "type": "integer",
+            "default": 1080
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "boothId": {
+            "type": "string",
+            "description": "v2.2: required with preset \"booth\" (salon booth actor name)"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "renderId": {
+            "type": "string"
+          },
+          "uploaded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "notes": "Client-side. Beauty + 16-bit depth + product mask (ShowOnlyActors = planner booths of this instance) uploaded to POST {BackendURL}/api/render per render-api.schema.json. v2.0: room command - UE refuses NOT_IN_PLANNER when the requesting player is not in «Конструктор». The automatic teleport into the planner is REMOVED."
+    },
+    "consultant_say": {
+      "args": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 600
+          },
+          "clipUrl": {
+            "type": "string",
+            "description": "Raw PCM s16le mono 24000 Hz; only the requesting client downloads and plays it"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "gesture": {
+            "$ref": "#/$defs/gestureTarget"
+          }
+        }
+      },
+      "result": {
+        "type": "object"
+      },
+      "notes": "DEPRECATED in v2.0 (3D consultant disabled; speech plays in the page from ai.say.audioUrl). UE keeps the handlers; the backend never sends these."
+    },
+    "consultant_summon": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "planner",
+              "salon"
+            ],
+            "default": "planner"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "consultantId": {
+            "type": "string"
+          }
+        }
+      },
+      "notes": "DEPRECATED in v2.0 (3D consultant disabled; speech plays in the page from ai.say.audioUrl). UE keeps the handlers; the backend never sends these."
+    },
+    "enter_constructor": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "carryConfig": {
+            "$ref": "#/$defs/config",
+            "description": "Optional: place this configuration in the room after entry (e.g. the focused salon booth's)"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/state"
+      },
+      "notes": "v2.0. Brings ONLY the requesting player into «Конструктор» like the HUD entry (Client_EnterPlannerForAi). Sent by the backend ONLY after explicit visitor consent. PLANNER_BUSY if another player owns the planner."
+    },
+    "exit_constructor": {
+      "args": {},
+      "result": {
+        "type": "object"
+      },
+      "notes": "v2.0. Closes «Конструктор» for the requesting player like the planner's close button."
+    },
+    "booth_get": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "boothId": {
+            "type": "string",
+            "description": "Omitted = selection.openBoothId, else selection.boothId; none -> NO_BOOTH"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/boothState"
+      }
+    },
+    "booth_configure": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "boothId": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string",
+            "description": "Switch the booth's collection model (= Server_RequestBoothProductChange)"
+          },
+          "config": {
+            "type": "object",
+            "description": "Partial config (= Server_RequestBoothComponentSelection per component)"
+          },
+          "customColour": {
+            "type": "object",
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "system": {
+                "enum": [
+                  "RAL",
+                  "NCS"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          },
+          "clearCustomColour": {
+            "type": "string",
+            "description": "v2.4: component back to its catalog colour"
+          },
+          "doors": {
+            "type": "object",
+            "description": "v2.4: the double-click door toggle",
+            "properties": {
+              "cabinet": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              "closet": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/boothState"
+      },
+      "notes": "v2.0. Server-side, same functions as the right-click configurator; replicates; persistent like manual changes (Artur 2026-10-01). Per-booth snapshot for booth_undo. Allowed in both modes."
+    },
+    "booth_undo": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "boothId": {
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/$defs/boothState"
+      }
+    },
+    "move_set": {
+      "args": {
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "placement": {
+            "$ref": "#/$defs/placement"
+          },
+          "direction": {
+            "enum": [
+              "left",
+              "right"
+            ],
+            "description": "as seen by a visitor in the room facing the set"
+          },
+          "distanceCm": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "result": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/setSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "movedCm": {
+                "type": "number"
+              },
+              "from": {
+                "type": "object",
+                "properties": {
+                  "segmentId": {
+                    "type": "integer"
+                  },
+                  "side": {
+                    "enum": [
+                      "left",
+                      "right"
+                    ]
+                  },
+                  "offsetCm": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "notes": "v2.4. Room command (NOT_IN_PLANNER / PLANNER_BUSY as configure_set); undoable. Either placement or direction + distanceCm. The same set moves (setId, config, custom colours, doors kept); fit-checked with the set itself ignored. NO_FIT → result.obstacle, result.maxShiftCm (shift only, when it fits partly); nothing changes."
+    },
+    "update_opening": {
+      "args": {
+        "type": "object",
+        "required": [
+          "openingId"
+        ],
+        "properties": {
+          "openingId": {
+            "type": "string"
+          },
+          "segmentId": {
+            "type": "integer"
+          },
+          "offsetCm": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000,
+            "description": "near edge"
+          },
+          "direction": {
+            "enum": [
+              "left",
+              "right"
+            ],
+            "description": "as seen from inside the room facing that wall"
+          },
+          "distanceCm": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "widthCm": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 400
+          },
+          "heightCm": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 300
+          },
+          "sillCm": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200,
+            "description": "windows only"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "openingId": {
+            "type": "string"
+          },
+          "segmentId": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "door",
+              "window"
+            ]
+          },
+          "offsetCm": {
+            "type": "number"
+          },
+          "widthCm": {
+            "type": "number"
+          },
+          "heightCm": {
+            "type": "number"
+          },
+          "sillCm": {
+            "type": "number"
+          }
+        }
+      },
+      "notes": "v2.4. Room command; same wall only. Rules as add_opening (ValidateOpeningFits, door never over a set, window only above one → OPENING_CONFLICT + obstacle). Unknown → NO_OPENING."
+    },
+    "remove_opening": {
+      "args": {
+        "type": "object",
+        "required": [
+          "openingId"
+        ],
+        "properties": {
+          "openingId": {
+            "type": "string"
+          },
+          "segmentId": {
+            "type": "integer"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "removedOpeningId": {
+            "type": "string"
+          },
+          "segmentId": {
+            "type": "integer"
+          }
+        }
+      },
+      "notes": "v2.4. Room command; undoable. Unknown → NO_OPENING."
+    }
+  }
+}

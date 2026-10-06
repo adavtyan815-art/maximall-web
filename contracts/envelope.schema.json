@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/envelope.schema.json",
+  "title": "MaxiMallAI envelope (Web UI <-> UE client)",
+  "$defs": {
+    "request": {
+      "description": "Sent by the page with pixelStreaming.emitUIInteraction(obj). The UE client (owning AAwsTutorial_PlayerController) fills `selection` from the viewer's current planner selection before forwarding it to Server_ExecuteAiCommand. The page may leave selection out.",
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallAI"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^r-[0-9]+-[0-9]+$"
+        },
+        "cmd": {
+          "$ref": "commands.schema.json#/$defs/commandName"
+        },
+        "args": {
+          "type": "object"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "card_tap",
+            "model",
+            "ui",
+            "scripted_fallback",
+            "test"
+          ],
+          "default": "model"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        }
+      },
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "properties": {
+        "segmentId": {
+          "type": "integer",
+          "description": "ARoomPlannerManager SelectedSegmentID, -1 = none"
+        },
+        "wallFaceLeft": {
+          "type": "boolean",
+          "description": "bSelectedWallFaceLeft"
+        },
+        "setId": {
+          "type": "string",
+          "description": "SelectedCabinetSetID, empty = none"
+        },
+        "boothId": {
+          "type": "string",
+          "description": "v2.0: salon booth in focus (stable level actor name, same on server and client): the booth whose configurator is open, else the nearest booth in view within 300 cm; empty = none"
+        },
+        "openBoothId": {
+          "type": "string",
+          "description": "v2.0: booth whose configurator (right-click) is open, if any"
+        },
+        "inPlanner": {
+          "type": "boolean",
+          "description": "v2.0: the requesting player is in «Конструктор»"
+        }
+      }
+    },
+    "result": {
+      "description": "Sent by the UE client with SendPixelStreamingResponse(\"MaxiMallAI:\" + JSON). Exactly one per request.",
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "ok",
+        "state_rev"
+      ],
+      "properties": {
+        "type": {
+          "const": "result"
+        },
+        "id": {
+          "type": "string"
+        },
+        "cmd": {
+          "$ref": "commands.schema.json#/$defs/commandName"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "reasonCode": {
+          "$ref": "commands.schema.json#/$defs/reasonCode"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Russian, human readable; empty when ok"
+        },
+        "result": {
+          "type": "object",
+          "description": "Command-specific, see commands.schema.json#/$defs/results"
+        },
+        "state_rev": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Server layout revision after the command (monotonic per planner instance)"
+        },
+        "elapsedMs": {
+          "type": "integer"
+        }
+      }
+    },
+    "event": {
+      "description": "Unsolicited UE -> page messages, same prefix `MaxiMallAI:`. v1.3: event 'ready' data = {username, plannerInstanceId} (CR-WEB-01). v2.0: 'planner_mode' data={inPlanner:boolean, view:'2D'|'3D'|null} on every planner open/close/view change (HUD or AI). 'booth_focus' data={boothId, productId, collection, label} when the focused salon booth changes (empty boothId = none).",
+      "type": "object",
+      "required": [
+        "type",
+        "event"
+      ],
+      "properties": {
+        "type": {
+          "const": "event"
+        },
+        "event": {
+          "enum": [
+            "ready",
+            "state_changed",
+            "consultant_speaking",
+            "capture_progress",
+            "selection_changed",
+            "planner_mode",
+            "booth_focus"
+          ]
+        },
+        "state_rev": {
+          "type": "integer"
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/result"
+    },
+    {
+      "$ref": "#/$defs/event"
+    }
+  ],
+  "x-rules": [
+    "Response prefix is exactly `MaxiMallAI:` followed by compact JSON; no second copy of the message.",
+    "The page times out a request after 8000 ms (capture: 20000 ms) and reports reasonCode TIMEOUT to the backend.",
+    "UE rejects more than 10 commands per second per controller with RATE_LIMITED."
+  ]
+}

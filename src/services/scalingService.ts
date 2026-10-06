@@ -216,6 +216,10 @@ export class ScalingService {
 
   // ── Public: start the perpetual reconciliation loop ──────────────────────
   startPrewarmLoop(): void {
+    if (process.env.LOCAL_MODE === '1') {
+      console.log('[Scaling] LOCAL_MODE=1: pre-warm/scaling loop disabled (no AWS calls).');
+      return;
+    }
     console.log('[Scaling] Pre-warm loop started.');
     this.reconcilePool();  // Fire immediately on startup
 

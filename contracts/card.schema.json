@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/card.schema.json",
+  "title": "Proposal card (backend -> web UI, inside ai.cards)",
+  "description": "Only fit-checked configurations become cards (check_fit fits=true). Exactly three cards per proposal when three fit (tiers best_fit, best_value, premium); fewer if fewer fit, never a card that failed. Prices come only from the catalog index; items without a mapping are never proposed.",
+  "type": "object",
+  "required": [
+    "cardId",
+    "tier",
+    "title",
+    "image",
+    "price",
+    "currency",
+    "spareCm",
+    "reason",
+    "config",
+    "placement",
+    "items",
+    "collection"
+  ],
+  "properties": {
+    "cardId": {
+      "type": "string"
+    },
+    "tier": {
+      "enum": [
+        "best_fit",
+        "best_value",
+        "premium",
+        "single"
+      ]
+    },
+    "tierLabel": {
+      "type": "string",
+      "description": "Russian: «Лучше всего подходит», «Выгодно», «Премиум»"
+    },
+    "title": {
+      "type": "string",
+      "description": "Russian, e.g. «Milu 80, орех, с пеналом»"
+    },
+    "collection": {
+      "enum": [
+        "Milu",
+        "Urban",
+        "Avenu",
+        "Terra",
+        "Tuma"
+      ]
+    },
+    "image": {
+      "type": "string",
+      "format": "uri"
+    },
+    "price": {
+      "type": "number",
+      "description": "Total of items, BYN"
+    },
+    "currency": {
+      "const": "BYN"
+    },
+    "spareCm": {
+      "type": "number"
+    },
+    "reason": {
+      "type": "string",
+      "description": "One Russian line, e.g. «Орех подходит к дубовому полу; остаётся 18 см»"
+    },
+    "config": {
+      "$ref": "commands.schema.json#/$defs/config"
+    },
+    "placement": {
+      "$ref": "commands.schema.json#/$defs/placement"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "component",
+          "articleCode",
+          "name",
+          "price"
+        ],
+        "properties": {
+          "component": {
+            "enum": [
+              "cabinet",
+              "closet",
+              "countertop",
+              "sink",
+              "faucet",
+              "mirror"
+            ]
+          },
+          "articleCode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "url": {
+            "type": "string"
+          },
+          "dimensionsCm": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "number"
+              },
+              "depth": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              }
+            }
+          },
+          "estimated": {
+            "type": "boolean",
+            "description": "CR-AI-03: price borrowed from a sibling; show «цена уточняется»"
+          },
+          "unpriced": {
+            "type": "boolean",
+            "description": "CR-AI-03: no price source; price 0, excluded from total; show «цена уточняется»"
+          }
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "available",
+        "applying",
+        "in_room",
+        "failed"
+      ],
+      "default": "available",
+      "description": "UI state; the backend always sends available"
+    },
+    "catalogSyncedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "estimated": {
+      "type": "boolean",
+      "description": "CR-AI-03: at least one item is estimated or unpriced"
+    }
+  }
+}

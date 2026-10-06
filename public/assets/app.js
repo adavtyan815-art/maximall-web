@@ -565,6 +565,15 @@
         pixelStreamLink += `&ss=${encodeURIComponent(wsUrl)}`;
       }
 
+      // CR-WEB-01 (v1.3): the site has no visitor login of its own (only the admin login), so the lead identity comes from
+      // UE (its login, sent in the MaxiMallAI "ready" event). If this launcher was opened with ?username= (e.g. a kiosk
+      // or QR link), pass it through as a hint; the page still prefers the UE-reported username.
+      // Same path-safe rule as the server's saves check: Unicode letters/digits, space, . _ @ -, at most 64, no "..".
+      const hintUser = new URLSearchParams(window.location.search).get('username');
+      if (hintUser && [...hintUser].length <= 64 && !hintUser.includes('..') && /^[\p{L}\p{M}\p{N} ._@-]+$/u.test(hintUser)) {
+        pixelStreamLink += `&username=${encodeURIComponent(hintUser)}`;
+      }
+
       // Spec: hold the finished state 0.6 s, then a 250 ms crossfade.
       // Rescued sessions keep the previous 3 s delay.
       const FADE_MS = 250;

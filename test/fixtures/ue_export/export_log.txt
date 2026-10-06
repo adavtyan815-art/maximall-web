@@ -1,0 +1,10 @@
+exported /Game/DT/DT_FurnitureCatalog (40980 chars) struct=/Script/awsTutorial.FurnitureProductRow
+exported /Game/DT/DT_SharedCountertops (22436 chars) struct=/Script/awsTutorial.FurnitureCountertopRow
+exported /Game/DT/DT_SharedSinks (4836 chars) struct=/Script/awsTutorial.FurnitureSinkRow
+exported /Game/DT/AllowedFaucetIDs (9570 chars) struct=/Script/awsTutorial.FurnitureFaucetRow
+exported /Game/DT/AllowedMirrorIDs (4535 chars) struct=/Script/awsTutorial.FurnitureMirrorRow
+exported /Game/DT/DT_CabinetSetLayouts (12409 chars) struct=/Script/awsTutorial.CabinetSetLayoutRow
+exported /Game/DT/DT_PlannerObjects (6075 chars) struct=/Script/awsTutorial.PlannerObjectRow
+exported /Game/DT/DT_PlannerTiles (1855 chars) struct=/Script/awsTutorial.PlannerTileRow
+mesh bounds: 49 static meshes
+character assets inspected: 302

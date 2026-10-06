@@ -4,3 +4,15 @@ dist
 src/data/instances.json
 *.log
 .DS_Store
+# AI runtime data stays out of the image (volumes in docker-compose); only data/catalog is copied
+data/ai_logs
+data/ai_clips
+data/renders
+data/dossiers
+data/ar
+data/runtime
+data/saves
+data/reports-out
+data/**/leads.jsonl
+test
+scripts

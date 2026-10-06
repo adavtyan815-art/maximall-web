@@ -19,6 +19,15 @@ export class EC2Service {
   private lastSubnetFetchTime = 0;
 
   constructor() {
+    if (process.env.LOCAL_MODE === '1') {
+      // LOCAL_MODE: the EC2 pool must never call AWS from a developer machine. Every call fails fast, locally.
+      this.client = {
+        send: async () => {
+          throw new Error('LOCAL_MODE=1: AWS EC2 calls are disabled');
+        },
+      } as unknown as EC2Client;
+      return;
+    }
     this.client = new EC2Client({
       region: config.AWS_REGION || 'eu-central-1',
       credentials: {
@@ -230,6 +239,7 @@ export class EC2Service {
    * Returns an array of InstanceWithSessions ready to be inserted into the DB.
    */
   async discoverInstancesByTag(tagName: string, tagValue: string): Promise<InstanceWithSessions[]> {
+    if (process.env.LOCAL_MODE === '1') return [];
     const filters: Filter[] = [
       { Name: `tag:${tagName}`, Values: [tagValue] },
       // Exclude terminated instances — they are gone for good

@@ -48,6 +48,11 @@ export class WebSocketService {
     this.setupHandlers();
   }
 
+  /** The shared Socket.io server (the AI layer attaches its /ai namespace to it). */
+  getIo(): SocketServer {
+    return this.io;
+  }
+
   // ── Helper: Cancel any pending 15s flicker delay for an instance ────────────
   private cancelFlickerTimer(instanceUuid: string): void {
     const timer = this.flickerTimers.get(instanceUuid);

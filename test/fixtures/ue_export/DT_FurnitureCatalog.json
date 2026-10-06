@@ -1,0 +1,270 @@
+[
+	{
+		"Name": "Urban",
+		"ShowInConstructor": true,
+		"ConstructorPreviewImage": "/Game/RoomPlanner/PlannerObjectsImages/Screenshot_2026-09-14_110242.Screenshot_2026-09-14_110242",
+		"CabinetOptions": "(Sizes=(\"/Game/Models2306/urban/Geometries/0_curve__025.0_curve__025\",\"/Game/Models2306/urban/Geometries/0_curve__023.0_curve__023\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"98EB85E54940DE695CC15581A9F231B8\", \"80\"),NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"8CCF113A4ECB6113A5538C81099A199F\", \"100\")),Colors=((Thumbnail=\"/Game/Models2306/urban/Colors/Images/BaseBlack.BaseBlack\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"970749A1426B17DE842E85B28EA02227\", \"Black_MDF\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/BaseBlack.BaseBlack\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"970749A1426B17DE842E85B28EA02227\", \"Black_MDF\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Bejeviy.Bejeviy\",MaterialOverrides=((SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"DBC352B5427D830B0042B694E4FCEDA4\", \"Бежевый\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Bejeviy.Bejeviy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"DBC352B5427D830B0042B694E4FCEDA4\", \"Бежевый\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beliy.Beliy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"3F118A2C4CA759204D9D0DB6E95C6F02\", \"Белый\"),SKU=\"#FFFFFF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beliy.Beliy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"3F118A2C4CA759204D9D0DB6E95C6F02\", \"Белый\"),SKU=\"#FFFFFF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beton.Beton\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"FEFB2D9441936FC19FFB38A2680930FC\", \"Бетон\"),SKU=\"#B5B5AF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beton.Beton\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"FEFB2D9441936FC19FFB38A2680930FC\", \"Бетон\"),SKU=\"#B5B5AF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Braun.Braun\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"EA4D1D5547FE5F2876CA8E983219EF4E\", \"Браун\"),SKU=\"#686159\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Braun.Braun\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"EA4D1D5547FE5F2876CA8E983219EF4E\", \"Браун\"),SKU=\"#686159\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/CHerniy.CHerniy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"AA4AA05840883023DA3663BD5244E716\", \"Чёрный\"),SKU=\"#0A0A0A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/CHerniy.CHerniy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"AA4AA05840883023DA3663BD5244E716\", \"Чёрный\"),SKU=\"#0A0A0A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Grafit.Grafit\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"B0471BEC4D61072AE2F8F4AFAA2390B8\", \"Графит\"),SKU=\"#686868\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Grafit.Grafit\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"B0471BEC4D61072AE2F8F4AFAA2390B8\", \"Графит\"),SKU=\"#686868\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Orange.Orange\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"D329BEB442F2512E5E7B7BB44006DB3B\", \"Оранжевый\"),SKU=\"#F5823C\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Orange.Orange\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"D329BEB442F2512E5E7B7BB44006DB3B\", \"Оранжевый\"),SKU=\"#F5823C\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Seriy.Seriy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"48E7C1884E1F49EA60541685E0EA06A6\", \"Серый\"),SKU=\"#7B7B7A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Seriy.Seriy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"48E7C1884E1F49EA60541685E0EA06A6\", \"Серый\"),SKU=\"#7B7B7A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Taup.Taup\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"11CE7F364E0CEB07D47423B22F2298FE\", \"Тауп\"),SKU=\"#80786E\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Taup.Taup\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"11CE7F364E0CEB07D47423B22F2298FE\", \"Тауп\"),SKU=\"#80786E\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Xaki.Xaki\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"26F83207407C2A021BD6D8A5165E4278\", \"Хаки\"),SKU=\"#62543D\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Xaki.Xaki\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"26F83207407C2A021BD6D8A5165E4278\", \"Хаки\"),SKU=\"#62543D\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(1))),CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"E03204A2445E859FD3E325892E772052\", \"Тумба под раковину Oliveeka Urban Серый 80\"),SKU=\"URB80M \",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\")),(SizeIndex=1,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"56CB638F47B395E0F025E9B0AC6EE593\", \"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\"),SKU=\"URB100M\",URL=\"https://oliveeka.by/\"))),bAllowColorCatalog=True)",
+		"ClosetOptions": "(Models=((Mesh=\"/Game/Models2306/urban/Geometries/Box2138785101.Box2138785101\",Thumbnail=None,Colors=((Thumbnail=\"/Game/Models2306/urban/Colors/Images/BaseBlack.BaseBlack\",MaterialOverrides=((SlotIndex=1,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"),(SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"970749A1426B17DE842E85B28EA02227\", \"Black_MDF\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Bejeviy.Bejeviy\",MaterialOverrides=((SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"),(SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"DBC352B5427D830B0042B694E4FCEDA4\", \"Бежевый\"),SKU=\"#C8BDAA\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beliy.Beliy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"3F118A2C4CA759204D9D0DB6E95C6F02\", \"Белый\"),SKU=\"#FFFFFF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Beton.Beton\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"FEFB2D9441936FC19FFB38A2680930FC\", \"Бетон\"),SKU=\"#B5B5AF\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Braun.Braun\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"EA4D1D5547FE5F2876CA8E983219EF4E\", \"Браун\"),SKU=\"#686159\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/CHerniy.CHerniy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"AA4AA05840883023DA3663BD5244E716\", \"Чёрный\"),SKU=\"#0A0A0A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Grafit.Grafit\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"B0471BEC4D61072AE2F8F4AFAA2390B8\", \"Графит\"),SKU=\"#686868\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Orange.Orange\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"D329BEB442F2512E5E7B7BB44006DB3B\", \"Оранжевый\"),SKU=\"#F5823C\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Seriy.Seriy\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"48E7C1884E1F49EA60541685E0EA06A6\", \"Серый\"),SKU=\"#7B7B7A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Taup.Taup\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"11CE7F364E0CEB07D47423B22F2298FE\", \"Тауп\"),SKU=\"#80786E\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0)),(Thumbnail=\"/Game/Models2306/urban/Colors/Images/Xaki.Xaki\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\")),ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"26F83207407C2A021BD6D8A5165E4278\", \"Хаки\"),SKU=\"#62543D\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\",SizeIndices=(0))),CountertopType=SurfaceMounted,RelativeOffset=(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000)),MirrorMaterialOverride=None,MirrorMaterialSlotIndex=-1,bAllowColorCatalog=False)),CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"E03204A2445E859FD3E325892E772052\", \"Тумба под раковину Oliveeka Urban Серый 80\"),SKU=\"URB80M \",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\")),(SizeIndex=0,ColorIndex=1,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"E03204A2445E859FD3E325892E772052\", \"Тумба под раковину Oliveeka Urban Серый 80\"),SKU=\"URB80M \",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-urban\"))),bAllowColorCatalog=True)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=(\"/Game/Models2306/urban/Geometries/立方体_080.立方体_080\",\"/Game/Models2306/urban/Geometries/立方体_076.立方体_076\"),Colors=((MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"),(SlotIndex=1,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"))))),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=(\"/Game/Models2306/urban/Geometries/Box2138785102.Box2138785102\"),Colors=((MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Materials/base_Black_MDF_dirtherg.base_Black_MDF_dirtherg\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Bejeviy.Bejeviy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beliy.Beliy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Beton.Beton\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Braun.Braun\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Cherniy.CHerniy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Grafit.Grafit\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Oranjeviy.Oranjeviy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Seriy.Seriy\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Taup.Taup\"))),(MaterialOverrides=((SlotIndex=0,Material=\"/Game/Models2306/urban/Colors/Xaki.Xaki\"))))),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [
+			"ForUrbanStoleshka",
+			"ForUrbanNerkarucvoxRakovinaKlor"
+		],
+		"AllowedSinkIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5"
+		],
+		"AllowedFaucetIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3"
+		],
+		"AllowedMirrorIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_6",
+			"NewRow_7"
+		],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	},
+	{
+		"Name": "Milu",
+		"ShowInConstructor": true,
+		"ConstructorPreviewImage": "/Game/RoomPlanner/PlannerObjectsImages/Screenshot_2026-09-14_110232.Screenshot_2026-09-14_110232",
+		"CabinetOptions": "(Sizes=(\"/Game/ModelsTest/MiluNewGoodModel/Milu80/MiluCabinet80.MiluCabinet80\",\"/Game/ModelsTest/MiluNewGoodModel/Milu100/MiluCabinet100.MiluCabinet100\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"98EB85E54940DE695CC15581A9F231B8\", \"80\"),NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"8CCF113A4ECB6113A5538C81099A199F\", \"100\")),Colors=,CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"C1C868FD49895BB7ED31F5834A80049E\", \"Тумба под раковину Oliveeka Milu Орех 80\"),SKU=\"MIL80A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-milu/tumba-so-stoleshnicey-oliveeka-milu-80-oreh-stoleshnica-oliveeka-milu-belaya/\")),(SizeIndex=1,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"917C13144F81608F8A6E71B80CDD8F80\", \"Тумба под раковину Oliveeka Milu  Орех 100\"),SKU=\"MIL100A\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-milu/tumba-so-stoleshnicey-oliveeka-milu-100-oreh-stoleshnica-oliveeka-milu-belaya/\"))),bAllowColorCatalog=True)",
+		"ClosetOptions": "(Models=((Mesh=\"/Game/ModelsTest/MiluNewGoodModel/MiluCloset/SM_MERGED_StaticMeshActor_212.SM_MERGED_StaticMeshActor_212\",Thumbnail=None,Colors=,CountertopType=SurfaceMounted,RelativeOffset=(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000)),MirrorMaterialOverride=None,MirrorMaterialSlotIndex=-1,bAllowColorCatalog=False)),CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"5ED92C774BD2E3741F3D69A951BBDDD6\", \"Шкаф навесной Oliveeka Milu  Орех\"),SKU=\"MPA110\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-milu/shkaf-navesnoy-oliveeka-milu-mpa110-oreh/\"))),bAllowColorCatalog=False)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=(\"/Game/ModelsTest/MiluNewGoodModel/Milu80/MiluDoor80.MiluDoor80\",\"/Game/ModelsTest/MiluNewGoodModel/Milu100/MiluDoor100.MiluDoor100\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=(\"/Game/ModelsTest/MiluNewGoodModel/MiluCloset/Object6101.Object6101\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [
+			"ForMiluStoleshka",
+			"ForMiluNerkarucvoxRakovinaKlor"
+		],
+		"AllowedSinkIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5"
+		],
+		"AllowedFaucetIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3"
+		],
+		"AllowedMirrorIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_6",
+			"NewRow_7",
+			"NewRow_8",
+			"NewRow_9",
+			"NewRow_10"
+		],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	},
+	{
+		"Name": "Terra",
+		"ShowInConstructor": true,
+		"ConstructorPreviewImage": "/Game/RoomPlanner/PlannerObjectsImages/Screenshot_2026-09-14_110208.Screenshot_2026-09-14_110208",
+		"CabinetOptions": "(Sizes=(\"/Game/ModelsTest/NewGoodModelTerra/Geometries/TerraCabinet70.TerraCabinet70\",\"/Game/ModelsTest/NewGoodModelTerra/Geometries/TerraCabinet80.TerraCabinet80\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"B7E7810448448E8F88BDC3B7CC26D7C2\", \"70\"),NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"4393DEFB42707676CB3C0FBC254CDB90\", \"80\")),Colors=,CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"2235F62C452073CBF316C2A673AC1BD6\", \"Тумба под раковину Oliveeka Terra Орех 70\"),SKU=\"TER70R\",URL=\"https://oliveeka.by/\")),(SizeIndex=1,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"DC5499EA459C06F40EA02E9D00F644A3\", \"Тумба под раковину Oliveeka Terra Орех 80\"),SKU=\"TER80R\",URL=\"https://oliveeka.by/\"))),bAllowColorCatalog=False)",
+		"ClosetOptions": "(Models=,CombinationsMetadata=,bAllowColorCatalog=False)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=(\"/Game/ModelsTest/NewGoodModelTerra/Geometries/TerraDoor70.TerraDoor70\",\"/Game/ModelsTest/NewGoodModelTerra/Geometries/TerraDoor80.TerraDoor80\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=TwoDoors,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [
+			"ForTerraStoleshka",
+			"ForTerraNerkarucvoxRakovina",
+			"ForTerraNerkarucvoxFlow"
+		],
+		"AllowedSinkIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5"
+		],
+		"AllowedFaucetIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3"
+		],
+		"AllowedMirrorIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_6",
+			"NewRow_7",
+			"NewRow_8",
+			"NewRow_9",
+			"NewRow_10"
+		],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	},
+	{
+		"Name": "Tuma",
+		"ShowInConstructor": false,
+		"ConstructorPreviewImage": "None",
+		"CabinetOptions": "(Sizes=(\"/Game/ModelsTest/Tuma/Tuma70/TumaCabinet70.TumaCabinet70\",\"/Game/ModelsTest/Tuma/Tuma80/TumaCabinet80.TumaCabinet80\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"B7E7810448448E8F88BDC3B7CC26D7C2\", \"70\"),NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"4393DEFB42707676CB3C0FBC254CDB90\", \"80\")),Colors=,CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"120C09104716555AEE8301A06362D678\", \"Тумба под раковину Oliveeka Tuma  Палисандр 70\"),SKU=\"TUM70A\",URL=\"https://oliveeka.by/\")),(SizeIndex=1,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"4BDAB10941497DB97A4DD994E6690349\", \"Oliveeka Urban Серый 100\"),SKU=\"URB100M\",URL=\"https://oliveeka.by/\"))),bAllowColorCatalog=False)",
+		"ClosetOptions": "(Models=,CombinationsMetadata=,bAllowColorCatalog=False)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=(\"/Game/ModelsTest/Tuma/Tuma70/gfgfg.gfgfg\",\"/Game/ModelsTest/Tuma/Tuma80/TumaDoor80.TumaDoor80\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=TwoDoors,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [
+			"ForTumaStoleshka",
+			"ForTumaNerkarucvoxFlowWhite",
+			"ForTumaNerkarucvoxRakovina",
+			"ForTumaNerkarucvoxFlowBrown"
+		],
+		"AllowedSinkIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5"
+		],
+		"AllowedFaucetIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3"
+		],
+		"AllowedMirrorIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_6",
+			"NewRow_7",
+			"NewRow_8",
+			"NewRow_9",
+			"NewRow_10"
+		],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	},
+	{
+		"Name": "Avenu",
+		"ShowInConstructor": true,
+		"ConstructorPreviewImage": "/Game/RoomPlanner/PlannerObjectsImages/Screenshot_2026-09-14_110147.Screenshot_2026-09-14_110147",
+		"CabinetOptions": "(Sizes=(\"/Game/Models2306/nora/Nora_80.Nora_80\",\"/Game/Models2306/nora/Nora_100.Nora_100\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"433CFAB54C4B9CB5FE0F169476C2AD32\", \"80\"),NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"8AC1F3714686064029E0AA96E0446776\", \"100\")),Colors=,CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"D277AE0449197EEA1BCC6092EC757DA1\", \"Тумба под раковину Oliveeka Avenu Дуб 80\"),SKU=\"AVE80R\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-avenu/tumba-so-stoleshnicey-oliveeka-avenu-80-dub-stoleshnica-oliveeka-milu-dub/\")),(SizeIndex=1,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"9801848A478308BD074648B3C5808F25\", \"Тумба под раковину Oliveeka Avenu Дуб 100\"),SKU=\"AVE100R\",URL=\"https://oliveeka.by/mebel-dlya-vannoy/kollekcii-mebeli/kollekciya-avenu/tumba-so-stoleshnicey-oliveeka-avenu-100-dub-stoleshnica-oliveeka-milu-dub/\"))),bAllowColorCatalog=False)",
+		"ClosetOptions": "(Models=((Mesh=\"/Game/Models2306/nora/Combined_7749CBBF.Combined_7749CBBF\",Thumbnail=None,Colors=,CountertopType=SurfaceMounted,RelativeOffset=(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000)),MirrorMaterialOverride=None,MirrorMaterialSlotIndex=-1,bAllowColorCatalog=False)),CombinationsMetadata=((SizeIndex=0,ColorIndex=0,Metadata=(ProductName=NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"D6AE679C4CC818147D43E99632867544\", \"Шкаф навесной Oliveeka Avenu Дуб\"),SKU=\"APR110\",URL=\"\"))),bAllowColorCatalog=False)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=(\"/Game/Models2306/nora/Geometries/Object6079.Object6079\",\"/Game/Models2306/nora/Geometries/Object6094.Object6094\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=(\"/Game/Models2306/nora/Geometries/备份001.备份001\"),Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [
+			"ForAvenuStoleshka",
+			"ForAvenuNerkarucvoxRakovinaKlor"
+		],
+		"AllowedSinkIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5"
+		],
+		"AllowedFaucetIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3"
+		],
+		"AllowedMirrorIDs": [
+			"NewRow",
+			"NewRow_0",
+			"NewRow_1",
+			"NewRow_2",
+			"NewRow_3",
+			"NewRow_4",
+			"NewRow_5",
+			"NewRow_6",
+			"NewRow_7",
+			"NewRow_8",
+			"NewRow_9",
+			"NewRow_10"
+		],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	},
+	{
+		"Name": "Divan",
+		"ShowInConstructor": false,
+		"ConstructorPreviewImage": "None",
+		"CabinetOptions": "(Sizes=(\"/Game/MedaFurniturePack/Furniture/Sofas/SM_Sofa-Blazer-283.SM_Sofa-Blazer-283\"),SizeNames=(NSLOCTEXT(\"[1F5476E5793F6097B6C9F3C43EBC147D]\", \"433CFAB54C4B9CB5FE0F169476C2AD32\", \"80\")),Colors=((Thumbnail=\"/Game/MedaFurniturePack/Textures/Metal/T_Metal-Color-BrandyVarnish_BaseColor.T_Metal-Color-BrandyVarnish_BaseColor\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/MedaFurniturePack/Materials/Fabric/Sofa-Blazer/MI_Fabric-PlainWeave-Slubbed_Blazer-283.MI_Fabric-PlainWeave-Slubbed_Blazer-283\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/\",SizeIndices=),(Thumbnail=\"/Engine/ArtTools/RenderToTexture/Textures/127grey.127grey\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/MedaFurniturePack/Materials/Fabric/Sofa-Blazer/MI_Fabric-BasketWeave-SemiSolid_Blazer-283.MI_Fabric-BasketWeave-SemiSolid_Blazer-283\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/\",SizeIndices=),(Thumbnail=\"/Game/NewDesign/scena/Textures/Map__2138389223Color_Correction5731_Tex.Map__2138389223Color_Correction5731_Tex\",MaterialOverrides=((SlotIndex=0,Material=\"/Game/MedaFurniturePack/Materials/Leather/Sofa-Blazer/MI_Leather-TopGrain-FinePebble_Blazer-283.MI_Leather-TopGrain-FinePebble_Blazer-283\")),ProductName=\"\",SKU=\"\",URL=\"https://oliveeka.by/\",SizeIndices=)),CombinationsMetadata=,bAllowColorCatalog=False)",
+		"ClosetOptions": "(Models=,CombinationsMetadata=,bAllowColorCatalog=False)",
+		"DoorsConfig": "(CabinetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=False,OpenTranslationOffset=(X=0.000000,Y=40.000000,Z=0.000000)),Sizes=,Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False),ClosetDoors=(DoorCount=OneDoor,SingleDoor=(SlotConfig=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),DoubleDoors=(Slot0Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Slot1Config=(ClosedPositionOffset=(X=0.000000,Y=0.000000,Z=0.000000),OpenYawDelta=90.000000,bIsRotation=True,OpenTranslationOffset=(X=35.000000,Y=0.000000,Z=0.000000)),Sizes=,Colors=),bAllowColorCatalog=False))",
+		"AllowedCountertopIDs": [],
+		"AllowedSinkIDs": [],
+		"AllowedFaucetIDs": [],
+		"AllowedMirrorIDs": [],
+		"bAllowCabinetColorCatalog": false,
+		"bAllowClosetColorCatalog": false,
+		"bAllowCountertopColorCatalog": false,
+		"bAllowSinkColorCatalog": false,
+		"bAllowFaucetColorCatalog": false,
+		"bAllowMirrorColorCatalog": false
+	}
+]

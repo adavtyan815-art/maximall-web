@@ -1,0 +1,72 @@
+[
+	{
+		"Name": "NewRow",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Cardona.Cardona",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/cardona_box_1.cardona_box_1",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"2C2841C140889D37DAB3C7B86374F25F\", \"Раковина накладная Oliveeka , Solid Surface, белый матовый\"),SKU=\"OL-20A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_0",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/CardonaBox.CardonaBox",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/cardona_box.cardona_box",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"55FFD8E74451D20789E1A59CC327AE08\", \"Раковина накладная Oliveeka, Solid Surface, белый матовый\"),SKU=\" OL-601A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_1",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Nora.Nora",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/nora_box_1.nora_box_1",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"21A6B33B4A50904B401A4CA67BE554CC\", \"Раковина накладная Oliveeka , Solid Surface, белый матовый\"),SKU=\"OL-201A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_2",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/NoraBox.NoraBox",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/nora_box.nora_box",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"D1B11AF246F062C9B983B3A40D7CE267\", \"Раковина накладная Oliveeka, Solid Surface, белый матовый\"),SKU=\"OL-901A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_3",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Terra.Terra",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/terra_box.terra_box",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"11F78682426B3E1BF03379A72BF9856B\", \"Раковина накладная Oliveeka , Solid Surface, белый матовый\"),SKU=\"OL-01A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_4",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/UrbanBox.UrbanBox",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/urban_box.urban_box",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"189AD8A84CCAEA1D7C92FEB7933FCDC1\", \"Раковина накладная Oliveeka , Solid Surface, белый матовый\"),SKU=\"OL-87A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	},
+	{
+		"Name": "NewRow_5",
+		"Mesh": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/WhiteBox.WhiteBox",
+		"Thumbnail": "/Game/FirstPerson/Maps/_GENERATED/User/Rakovini/Images/cardona_box_1-1.cardona_box_1-1",
+		"Colors": [
+			"(Thumbnail=None,MaterialOverrides=,ProductName=NSLOCTEXT(\"[5B4DBF70641BBDB864B9B880879D73DD]\", \"20D5487442FBFD2011EDF3AEDCE672FF\", \"Раковина накладная Oliveeka , Solid Surface, белый матовый\"),SKU=\"OL-10A\",URL=\"\",SizeIndices=)"
+		],
+		"RelativeOffset": "(RelativeLocation=(X=0.000000,Y=0.000000,Z=0.000000),RelativeRotation=(Pitch=0.000000,Yaw=0.000000,Roll=0.000000),RelativeScale=(X=1.000000,Y=1.000000,Z=1.000000))",
+		"bAllowColorCatalog": false
+	}
+]

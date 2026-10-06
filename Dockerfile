@@ -1,5 +1,6 @@
 # ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# Node 22: puppeteer-core 25 requires >= 22.12 (dossier PDF), cheerio >= 20.18
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -20,7 +21,7 @@ COPY src/ ./src/
 RUN npm run build
 
 # ─── Stage 2: Production image ────────────────────────────────────────────────
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
@@ -36,11 +37,21 @@ RUN npm ci --omit=dev && npm cache clean --force
 # Remove build tools after compilation to keep the image lean
 RUN apk del python3 make g++
 
+# AI dossier PDF: headless Chromium + fonts with Cyrillic (the dossier is Russian). Found at /usr/bin/chromium-browser;
+# runs with --no-sandbox automatically because the container runs as root.
+RUN apk add --no-cache chromium nss freetype harfbuzz font-dejavu font-noto
+
 # Copy compiled JS from builder stage
 COPY --from=builder /app/dist ./dist
 
 # Copy static public files
 COPY public/ ./public/
+
+# AI consultant: the catalog index (prices, mappings) the backend loads from /app/data/catalog/index.json.
+# Runtime data (logs, renders, dossiers, leads, AR, clips, spend ledger) lives under /app/data -> a volume (docker-compose).
+COPY data/catalog/ ./data/catalog/
+# QA-059: incoming /ai payloads are validated against the JSON contracts at runtime (/app/contracts)
+COPY contracts/ ./contracts/
 
 # Expose the application port (default 3000, can be overridden via PORT env var)
 EXPOSE 3000
