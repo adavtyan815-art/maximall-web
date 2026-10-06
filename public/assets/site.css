@@ -1,0 +1,291 @@
+/* MaxiMall — desktop landing built on handoff/html/MaxiMall Splash.dc.html.
+ * Every size is the splash spec value at 1080p multiplied by --u ("one design px").
+ * --u follows the spec's Shortest Side rule (base 1080), never drops below 1px on
+ * normal desktops, and shrinks only when the window would not fit the viewport. */
+
+:root {
+  /* Full column = 40 + 620 window + 22 + ~30 footer + 40 ≈ 760 design px tall,
+     1000 + 2×24 = 1048 wide. */
+  --u: min(
+    max(1px, min(calc(100vh / 1080), calc(100vw / 1920))),
+    calc(100vh / 760),
+    calc(100vw / 1048)
+  );
+
+  --ink: #0e0e0e;
+  --paper: #ffffff;
+  --page: #d9d9d9;
+  --caption: #8c8c8c;
+  --stage-text: #e6e6e6;
+  --meta-text: #a8a8a8;
+  --foot-text: #6e6e6e;
+  --page-text: #5c5c5c;
+
+  --font: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  min-height: 100vh;
+  background: var(--page);
+  font-family: var(--font);
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button { font: inherit; }
+
+/* ── Page: centers the splash window (dc: padding 40/24, gap 22) ────────── */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(22 * var(--u));
+  padding: calc(40 * var(--u)) calc(24 * var(--u));
+}
+
+/* ── Window: 1000×620, radius 18, #0E0E0E, 1px white 10%, shadow 0/40/90/−30 ── */
+.window {
+  position: relative;
+  flex: none;
+  width: calc(1000 * var(--u));
+  height: calc(620 * var(--u));
+  border-radius: calc(18 * var(--u));
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 calc(40 * var(--u)) calc(90 * var(--u)) calc(-30 * var(--u)) rgba(0, 0, 0, 0.55);
+  transition: opacity 250ms linear;
+}
+.window.is-leaving { opacity: 0; }
+
+.window :focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+
+/* Door: two 1px hairlines at 16 % + radial glow 5.5 %; width = (240 + p·3.4) design px */
+.door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: calc(var(--door, 240) * var(--u));
+  transform: translateX(-50%);
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0) 70%);
+  transition: width 120ms linear;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ── Center block: path, salon, descriptor ─────────────────────────────── */
+.hero {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(56 * var(--u));
+  text-align: center;
+}
+
+.path {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  margin-bottom: calc(44 * var(--u));
+  font-size: calc(12 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.30em;
+  text-indent: 0.30em;
+}
+.path__mall { color: var(--caption); }
+.path__here { color: var(--paper); }
+.path__chevron {
+  width: calc(5 * var(--u));
+  height: calc(5 * var(--u));
+  border-right: 1px solid var(--foot-text);
+  border-top: 1px solid var(--foot-text);
+  transform: rotate(45deg);
+}
+
+.salon {
+  margin: 0;
+  font-size: calc(64 * var(--u));
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.30em;
+  text-indent: 0.30em;
+  color: var(--paper);
+}
+
+.descriptor-wrap { position: relative; margin-top: calc(22 * var(--u)); }
+
+.descriptor {
+  margin: 0;
+  font-size: calc(13 * var(--u));
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--caption);
+}
+
+/* Usage tips while loading — placed under the descriptor, outside the centering
+   so the title never moves between states. */
+.tip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: calc(560 * var(--u));
+  margin: calc(30 * var(--u)) 0 0 calc(-280 * var(--u));
+  font-size: calc(13 * var(--u));
+  line-height: 1.6;
+  color: var(--caption);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease;
+}
+
+/* ── Progress block: 56 from the sides, 52 from the bottom, gap 12 ─────── */
+.progress {
+  position: absolute;
+  left: calc(56 * var(--u));
+  right: calc(56 * var(--u));
+  bottom: calc(52 * var(--u));
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--u));
+}
+
+.progress__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(16 * var(--u));
+  min-height: calc(17 * var(--u));
+}
+.progress__stage {
+  font-size: calc(13 * var(--u));
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--stage-text);
+}
+.progress__stage.is-alert { color: var(--paper); }
+.progress__meta {
+  flex: none;
+  font-size: calc(12 * var(--u));
+  color: var(--meta-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.progress__track {
+  height: calc(3 * var(--u));
+  border-radius: calc(2 * var(--u));
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.progress__fill {
+  width: 0;
+  height: 100%;
+  border-radius: calc(2 * var(--u));
+  background: var(--paper);
+  transition: width 120ms linear, background-color 200ms linear;
+}
+
+/* Footer row: version left, status / actions right ("Повторить" — right, under the bar) */
+.progress__row--foot {
+  align-items: center;
+  margin-top: calc(2 * var(--u));
+  min-height: calc(38 * var(--u));
+}
+.progress__caption { font-size: calc(11 * var(--u)); color: var(--foot-text); white-space: nowrap; }
+.progress__end { display: flex; align-items: center; gap: calc(8 * var(--u)); }
+.progress__end .btn { display: none; }
+
+/* ── Buttons: light 38 / radius 12 (spec "Повторить") ──────────────────── */
+.btn {
+  align-items: center;
+  justify-content: center;
+  height: calc(38 * var(--u));
+  padding: 0 calc(16 * var(--u));
+  border: 0;
+  border-radius: calc(12 * var(--u));
+  font-size: calc(13 * var(--u));
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease), color 160ms var(--ease), transform 120ms var(--ease);
+}
+.btn:active { transform: scale(0.98); }
+
+.btn--light { background: rgba(255, 255, 255, 0.92); color: var(--ink); font-weight: 600; }
+.btn--light:hover { background: #ffffff; }
+.btn--light:active { background: #f2f0ed; }
+
+.btn--ghost { background: transparent; color: var(--meta-text); }
+.btn--ghost:hover { background: rgba(255, 255, 255, 0.08); color: var(--paper); }
+
+.btn--cta { padding: 0 calc(20 * var(--u)); }
+
+.btn:disabled,
+.btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--caption);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── State machine (data-state on .window) ─────────────────────────────── */
+.window[data-state="idle"] #btn,
+.window[data-state="loading"] #cancel-loading-btn,
+.window[data-state="error"] #back-btn,
+.window[data-state="error"] #retry-btn { display: inline-flex; }
+
+.window[data-state="idle"] #progress-status,
+.window[data-state="error"] #progress-status { display: none; }
+
+.window[data-state="loading"] .tip,
+.window[data-state="ready"] .tip { visibility: visible; opacity: 1; }
+
+.window[data-state="error"] .progress__stage { color: var(--paper); }
+.window[data-state="error"] .progress__fill { background: rgba(255, 255, 255, 0.4); }
+
+/* ── Below the window (dc: info row under the splash) ──────────────────── */
+.page-foot {
+  width: calc(1000 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(16 * var(--u));
+  font-size: calc(12 * var(--u));
+  color: var(--page-text);
+}
+.social { display: flex; gap: calc(4 * var(--u)); margin: 0; padding: 0; list-style: none; }
+.social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(30 * var(--u));
+  height: calc(30 * var(--u));
+  border-radius: calc(9 * var(--u));
+  color: var(--page-text);
+  transition: color 160ms var(--ease), background-color 160ms var(--ease);
+}
+.social a:hover { color: var(--ink); background: rgba(0, 0, 0, 0.06); }
+.social a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.social svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); fill: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; }
+}
