@@ -1,25 +1,22 @@
-/* MaxiMall — desktop landing built on handoff/html/MaxiMall Splash.dc.html.
- * Every size is the splash spec value at 1080p multiplied by --u ("one design px").
- * --u follows the spec's Shortest Side rule (base 1080), never drops below 1px on
- * normal desktops, and shrinks only when the window would not fit the viewport. */
+/* MaxiMall — full-screen desktop landing built on handoff/html/MaxiMall Splash.dc.html.
+ * The splash fills the viewport. Every size is the splash spec value at 1080p
+ * multiplied by --u ("one design px"): Shortest Side rule (base 1080), never below
+ * 1px on normal desktops, shrinking only when the content would not fit. */
 
 :root {
-  /* Full column = 40 + 620 window + 22 + ~30 footer + 40 ≈ 760 design px tall,
-     1000 + 2×24 = 1048 wide. */
+  /* Content needs ≈ 620 design px of height and 1000 of width. */
   --u: min(
     max(1px, min(calc(100vh / 1080), calc(100vw / 1920))),
-    calc(100vh / 760),
-    calc(100vw / 1048)
+    calc(100vh / 620),
+    calc(100vw / 1000)
   );
 
   --ink: #0e0e0e;
   --paper: #ffffff;
-  --page: #d9d9d9;
   --caption: #8c8c8c;
   --stage-text: #e6e6e6;
   --meta-text: #a8a8a8;
   --foot-text: #6e6e6e;
-  --page-text: #5c5c5c;
 
   --font: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -31,7 +28,8 @@ html, body { margin: 0; }
 
 body {
   min-height: 100vh;
-  background: var(--page);
+  overflow: hidden;
+  background: var(--ink);
   font-family: var(--font);
   color: var(--paper);
   -webkit-font-smoothing: antialiased;
@@ -41,29 +39,15 @@ body {
 
 button { font: inherit; }
 
-/* ── Page: centers the splash window (dc: padding 40/24, gap 22) ────────── */
-.page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(22 * var(--u));
-  padding: calc(40 * var(--u)) calc(24 * var(--u));
-}
-
-/* ── Window: 1000×620, radius 18, #0E0E0E, 1px white 10%, shadow 0/40/90/−30 ── */
+/* ── Full-screen splash stage ─────────────────────────────────────────── */
 .window {
   position: relative;
-  flex: none;
-  width: calc(1000 * var(--u));
-  height: calc(620 * var(--u));
-  border-radius: calc(18 * var(--u));
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   isolation: isolate;
   background: var(--ink);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 calc(40 * var(--u)) calc(90 * var(--u)) calc(-30 * var(--u)) rgba(0, 0, 0, 0.55);
   transition: opacity 250ms linear;
 }
 .window.is-leaving { opacity: 0; }
@@ -261,17 +245,17 @@ button { font: inherit; }
 .window[data-state="error"] .progress__stage { color: var(--paper); }
 .window[data-state="error"] .progress__fill { background: rgba(255, 255, 255, 0.4); }
 
-/* ── Below the window (dc: info row under the splash) ──────────────────── */
-.page-foot {
-  width: calc(1000 * var(--u));
+/* ── Social links: top-right, inside the stage ─────────────────────────── */
+.social {
+  position: absolute;
+  top: calc(40 * var(--u));
+  right: calc(52 * var(--u));
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(16 * var(--u));
-  font-size: calc(12 * var(--u));
-  color: var(--page-text);
+  gap: calc(4 * var(--u));
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.social { display: flex; gap: calc(4 * var(--u)); margin: 0; padding: 0; list-style: none; }
 .social a {
   display: flex;
   align-items: center;
@@ -279,11 +263,10 @@ button { font: inherit; }
   width: calc(30 * var(--u));
   height: calc(30 * var(--u));
   border-radius: calc(9 * var(--u));
-  color: var(--page-text);
+  color: var(--foot-text);
   transition: color 160ms var(--ease), background-color 160ms var(--ease);
 }
-.social a:hover { color: var(--ink); background: rgba(0, 0, 0, 0.06); }
-.social a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.social a:hover { color: var(--paper); background: rgba(255, 255, 255, 0.06); }
 .social svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); fill: currentColor; }
 
 @media (prefers-reduced-motion: reduce) {

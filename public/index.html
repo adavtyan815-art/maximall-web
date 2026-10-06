@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MaxiMall — салон OLIVEEKA в 3D</title>
   <meta name="description" content="Войдите в 3D-салон OLIVEEKA в MaxiMall: сантехника и мебель для ванных комнат." />
-  <meta name="theme-color" content="#d9d9d9" />
+  <meta name="theme-color" content="#0e0e0e" />
   <meta property="og:title" content="MaxiMall — салон OLIVEEKA в 3D" />
   <meta property="og:image" content="assets/images/share.jpg" />
   <link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32" type="image/png" />
@@ -18,54 +18,49 @@
 </head>
 
 <body>
-  <div class="page">
-    <!-- Splash window — MaxiMall Splash.dc.html (1000×620 @1080p, scaled by shortest side) -->
-    <main class="window" id="stage" data-state="idle" aria-labelledby="salon-title">
-      <div class="door" id="door" aria-hidden="true"></div>
+  <!-- Full-screen splash — MaxiMall Splash.dc.html (sizes @1080p, scaled by shortest side) -->
+  <main class="window" id="stage" data-state="idle" aria-labelledby="salon-title">
+    <div class="door" id="door" aria-hidden="true"></div>
 
-      <div class="hero">
-        <nav class="path" aria-label="Расположение">
-          <span class="path__mall">MAXIMALL</span>
-          <span class="path__chevron" aria-hidden="true"></span>
-          <span class="path__here" aria-current="page">САЛОН</span>
-        </nav>
-        <h1 class="salon" id="salon-title">OLIVEEKA</h1>
-        <div class="descriptor-wrap">
-          <p class="descriptor">Сантехника и мебель для ванных комнат</p>
-          <p class="tip" id="tip" aria-live="polite"></p>
+    <ul class="social" aria-label="Мы в соцсетях">
+      <li><a href="#" aria-label="Facebook"><svg aria-hidden="true"><use href="assets/icons.svg#facebook"></use></svg></a></li>
+      <li><a href="#" aria-label="Instagram"><svg aria-hidden="true"><use href="assets/icons.svg#instagram"></use></svg></a></li>
+      <li><a href="#" aria-label="Почта"><svg aria-hidden="true"><use href="assets/icons.svg#email"></use></svg></a></li>
+    </ul>
+
+    <div class="hero">
+      <nav class="path" aria-label="Расположение">
+        <span class="path__mall">MAXIMALL</span>
+        <span class="path__chevron" aria-hidden="true"></span>
+        <span class="path__here" aria-current="page">САЛОН</span>
+      </nav>
+      <h1 class="salon" id="salon-title">OLIVEEKA</h1>
+      <div class="descriptor-wrap">
+        <p class="descriptor">Сантехника и мебель для ванных комнат</p>
+        <p class="tip" id="tip" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <section class="progress" aria-label="Загрузка салона">
+      <div class="progress__row">
+        <span class="progress__stage" id="progress-stage" aria-live="polite"></span>
+        <span class="progress__meta" id="progress-meta"></span>
+      </div>
+      <div class="progress__track" id="progress-track" role="progressbar" aria-label="Загрузка салона" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress__fill" id="progress-fill"></div>
+      </div>
+      <div class="progress__row progress__row--foot">
+        <span class="progress__caption">© Maxi Mall · Веб · Обновлено <span id="update-date">18/04/2026</span></span>
+        <div class="progress__end">
+          <span class="progress__caption" id="progress-status"></span>
+          <button type="button" class="btn btn--ghost" id="cancel-loading-btn">Отменить</button>
+          <button type="button" class="btn btn--ghost" id="back-btn">Назад</button>
+          <button type="button" class="btn btn--light" id="retry-btn">Повторить</button>
+          <button type="button" class="btn btn--light btn--cta" id="btn">Войти в 3D-комнату</button>
         </div>
       </div>
-
-      <section class="progress" aria-label="Загрузка салона">
-        <div class="progress__row">
-          <span class="progress__stage" id="progress-stage" aria-live="polite"></span>
-          <span class="progress__meta" id="progress-meta"></span>
-        </div>
-        <div class="progress__track" id="progress-track" role="progressbar" aria-label="Загрузка салона" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div class="progress__fill" id="progress-fill"></div>
-        </div>
-        <div class="progress__row progress__row--foot">
-          <span class="progress__caption">MaxiMall · Веб</span>
-          <div class="progress__end">
-            <span class="progress__caption" id="progress-status"></span>
-            <button type="button" class="btn btn--ghost" id="cancel-loading-btn">Отменить</button>
-            <button type="button" class="btn btn--ghost" id="back-btn">Назад</button>
-            <button type="button" class="btn btn--light" id="retry-btn">Повторить</button>
-            <button type="button" class="btn btn--light btn--cta" id="btn">Войти в 3D-комнату</button>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="page-foot">
-      <span>© Maxi Mall · Обновлено <span id="update-date">18/04/2026</span></span>
-      <ul class="social" aria-label="Мы в соцсетях">
-        <li><a href="#" aria-label="Facebook"><svg aria-hidden="true"><use href="assets/icons.svg#facebook"></use></svg></a></li>
-        <li><a href="#" aria-label="Instagram"><svg aria-hidden="true"><use href="assets/icons.svg#instagram"></use></svg></a></li>
-        <li><a href="#" aria-label="Почта"><svg aria-hidden="true"><use href="assets/icons.svg#email"></use></svg></a></li>
-      </ul>
-    </footer>
-  </div>
+    </section>
+  </main>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="assets/app.js"></script>
