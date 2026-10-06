@@ -13,7 +13,28 @@ import { config } from '../config';
 import { InstanceWithSessions } from '../types/instance.types';
 import { randomUUID } from 'crypto';
 
+/** Last RunInstances outcome, shared by every EC2Service instance (app, scaling, websocket) for the admin dashboard. */
+export interface LaunchReport {
+  at: string;
+  ok: boolean;
+  instanceType?: string;
+  instanceId?: string;
+  message?: string;
+  attempts?: string[];
+}
+
+const LAUNCH_RETRY_DELAY_MS = 20_000;
+
 export class EC2Service {
+  static lastLaunch: LaunchReport | null = null;
+  static lastLaunchError: LaunchReport | null = null;
+
+  /** DEFAULT_INSTANCE_TYPE first, then FALLBACK_INSTANCE_TYPES (comma list), without duplicates. */
+  static instanceTypeCandidates(primary: string): string[] {
+    const extra = (process.env.FALLBACK_INSTANCE_TYPES || '').split(',').map(s => s.trim()).filter(Boolean);
+    return [...new Set([primary, ...extra])];
+  }
+
   private client: EC2Client;
   private cachedSubnets: Array<{ subnetId: string; az: string; vpcId: string }> = [];
   private lastSubnetFetchTime = 0;
@@ -171,9 +192,57 @@ export class EC2Service {
     amiId: string,
     subnetId?: string,
     securityGroupId?: string
+  ): Promise<{ instanceId: string; instanceType: string }> {
+    // Capacity fallback (2026-10-06: g6.xlarge InsufficientInstanceCapacity in all three Frankfurt AZs at once):
+    // every candidate type in every subnet, then once without a subnet (AWS picks the AZ, as its error message suggests);
+    // if everything failed on capacity, one more round after LAUNCH_RETRY_DELAY_MS.
+    const types = EC2Service.instanceTypeCandidates(instanceType);
+    const rounds = Math.max(1, parseInt(process.env.LAUNCH_RETRY_ROUNDS || '2', 10) || 2);
+    const attempts: string[] = [];
+    let lastError: any = null;
+    for (let round = 1; round <= rounds; round++) {
+      let onlyCapacityErrors = true;
+      for (const type of types) {
+        try {
+          const r = await this.createInstanceOfType(type, amiId, subnetId, securityGroupId, attempts);
+          EC2Service.lastLaunch = { at: new Date().toISOString(), ok: true, instanceType: type, instanceId: r.instanceId, attempts };
+          if (type !== instanceType) console.warn(`[EC2] Capacity fallback: launched ${type} instead of ${instanceType}`);
+          return { instanceId: r.instanceId, instanceType: type };
+        } catch (err: any) {
+          lastError = err;
+          if (!EC2Service.isCapacityError(err)) onlyCapacityErrors = false;
+          console.warn(`[EC2] ${type}: no launch (${err.name || 'Error'}) — ${types.indexOf(type) < types.length - 1 ? 'trying the next instance type' : 'no more instance types'}`);
+        }
+      }
+      if (!onlyCapacityErrors || round === rounds) break;
+      console.warn(`[EC2] No GPU capacity for ${types.join(', ')} — retry round ${round + 1}/${rounds} in ${LAUNCH_RETRY_DELAY_MS / 1000} s`);
+      await new Promise(r => setTimeout(r, LAUNCH_RETRY_DELAY_MS));
+    }
+    const message = lastError?.message || 'RunInstances failed';
+    EC2Service.lastLaunch = EC2Service.lastLaunchError = { at: new Date().toISOString(), ok: false, message, attempts };
+    const e = new Error(message) as any;
+    e.name = lastError?.name || 'Error';
+    e.capacity = !!lastError && EC2Service.isCapacityError(lastError);
+    throw e;
+  }
+
+  static isCapacityError(err: any): boolean {
+    const msg = String(err?.message || '');
+    return err?.name === 'InsufficientInstanceCapacity' || err?.Code === 'InsufficientInstanceCapacity' ||
+      msg.includes('InsufficientInstanceCapacity') || msg.includes('sufficient') || msg.includes('capacity') ||
+      err?.name === 'Unsupported' || msg.includes('is not supported in your requested Availability Zone');
+  }
+
+  /** One instance type: each candidate subnet, then once with no subnet (AWS chooses the AZ in the default VPC). */
+  private async createInstanceOfType(
+    instanceType: string,
+    amiId: string,
+    subnetId: string | undefined,
+    securityGroupId: string | undefined,
+    attempts: string[],
   ): Promise<{ instanceId: string }> {
     const finalSecurityGroupId = securityGroupId || config.AWS_SECURITY_GROUP_ID;
-    const candidateSubnets = await this.getAvailableSubnets(subnetId);
+    const candidateSubnets: Array<string | undefined> = [...await this.getAvailableSubnets(subnetId), undefined];
 
     let lastError: any = null;
 
@@ -204,29 +273,23 @@ export class EC2Service {
         runParams.SecurityGroupIds = [finalSecurityGroupId];
       }
 
+      const where = runParams.SubnetId ? `subnet ${targetSubnet}` : 'any AZ (no subnet)';
       try {
-        console.log(`[EC2] Attempting RunInstances in subnet ${targetSubnet} (candidate ${i + 1}/${candidateSubnets.length})...`);
+        console.log(`[EC2] Attempting RunInstances ${instanceType} in ${where} (candidate ${i + 1}/${candidateSubnets.length})...`);
         const command = new RunInstancesCommand(runParams);
         const response = await this.client.send(command);
         const instanceId = response.Instances?.[0]?.InstanceId;
         if (!instanceId) throw new Error('Failed to create instance: no instanceId returned');
-        console.log(`[EC2] Successfully created instance ${instanceId} in subnet ${targetSubnet}`);
+        console.log(`[EC2] Successfully created ${instanceType} instance ${instanceId} in ${where}`);
+        attempts.push(`${instanceType} @ ${where}: OK ${instanceId}`);
         return { instanceId };
       } catch (err: any) {
         lastError = err;
         const msg = err.message || '';
-        const isCapacityError =
-          err.name === 'InsufficientInstanceCapacity' ||
-          msg.includes('InsufficientInstanceCapacity') ||
-          msg.includes('capacity') ||
-          msg.includes('Availability Zone');
-
-        console.warn(`[EC2] RunInstances failed in subnet ${targetSubnet}: ${msg}`);
-        if (!isCapacityError || i === candidateSubnets.length - 1) {
-          if (!isCapacityError) break;
-        } else {
-          console.log(`[EC2] Multi-AZ Fallback: Retrying RunInstances in next available subnet...`);
-        }
+        attempts.push(`${instanceType} @ ${where}: ${err.name || 'Error'}`);
+        console.warn(`[EC2] RunInstances ${instanceType} failed in ${where}: ${msg}`);
+        if (!EC2Service.isCapacityError(err)) break;
+        if (i < candidateSubnets.length - 1) console.log(`[EC2] Multi-AZ Fallback: Retrying RunInstances in next candidate...`);
       }
     }
 

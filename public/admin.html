@@ -581,6 +581,9 @@
         </div>
       </div>
 
+      <!-- EC2 launch error (capacity etc.), filled by loadDashboard() -->
+      <div id="launch-alert" role="alert" style="display:none;margin:0 0 16px;padding:12px 16px;border-radius:12px;background:rgba(255,69,58,0.14);border:1px solid rgba(255,69,58,0.45);color:#ff6b61;font-size:13px;line-height:1.45"></div>
+
       <!-- ── 5 Stat Cards ── -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -807,6 +810,7 @@
         const data = await res.json();
 
         const { activeSessions, bufferReady, prewarm, stats } = data;
+        renderLaunchAlert(data.launch);
 
         // ── Update stat cards ──
         document.getElementById('stat-active').textContent    = stats.activeSessions;
@@ -977,6 +981,21 @@
     }
 
     // ── Apply & Re-align Pool ─────────────────────────────────────────────────
+    // EC2 launch status: show the last RunInstances error until a later launch succeeds.
+    function renderLaunchAlert(launch) {
+      const el = document.getElementById('launch-alert');
+      if (!el) return;
+      const err = launch && launch.lastError;
+      const last = launch && launch.last;
+      if (!err || (last && last.ok && last.at > err.at)) { el.style.display = 'none'; return; }
+      const when = new Date(err.at).toLocaleTimeString('ru-RU');
+      const capacity = /capacity|sufficient/i.test(err.message || '');
+      el.innerHTML = `<strong>Не удалось запустить EC2-инстанс (${escHtml(when)})${capacity ? ' — у AWS нет свободных GPU этого типа' : ''}.</strong><br>` +
+        `${escHtml(err.message || '')}<br><span style="opacity:.8">Типы по порядку: ${escHtml((launch.instanceTypes || []).join(' → '))}. ` +
+        `Попытки: ${escHtml((err.attempts || []).join('; '))}</span>`;
+      el.style.display = 'block';
+    }
+
     async function applyRealign() {
       const baseInput  = document.getElementById('realign-base');
       const extraInput = document.getElementById('realign-extra');
@@ -1005,11 +1024,16 @@
         if (data.success) {
           const { launched, terminated, skippedPrewarms, combinedTarget } = data;
           let msg = `Цель ${combinedTarget} (Base ${baseTarget} + Extra ${extraBoost}). `;
-          if (launched > 0 && terminated === 0)      msg += `Запущено ${launched} инст.`;
+          if (data.failed > 0)                         msg += `Запущено ${launched}, не удалось ${data.failed}.`;
+          else if (launched > 0 && terminated === 0) msg += `Запущено ${launched} инст.`;
           else if (terminated > 0 && launched === 0) msg += `Завершено ${terminated} инст.`;
           else if (launched === 0 && terminated === 0) msg += `Пул уже выровнен.`;
           else msg += `Запущено ${launched}, завершено ${terminated}.`;
-          showToast(msg, 'success');
+          showToast(msg, data.failed > 0 ? 'error' : 'success');
+          if (data.failed > 0) {
+            const e = data.launchError;
+            setTimeout(() => showToast(`Не запущено: ${data.failed}. ${e && e.message ? e.message.slice(0, 160) : 'Ошибка EC2'}`, 'error'), 400);
+          }
           if (skippedPrewarms > 0) {
             setTimeout(() => showToast(
               `⚠ ${skippedPrewarms} Prewarm инст. пропущено — завершатся сами и осядут в буфер.`, 'error'

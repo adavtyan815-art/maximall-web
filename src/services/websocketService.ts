@@ -386,8 +386,8 @@ export class WebSocketService {
       }
 
       console.log(`[WS On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
-      const { instanceId } = await this.ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
-      console.log(`[WS On-Demand] EC2 instance created: ${instanceId}`);
+      const { instanceId, instanceType: launchedType } = await this.ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
+      console.log(`[WS On-Demand] EC2 instance created: ${instanceId} (${launchedType})`);
 
       const targetInstance = {
         uuid: instanceId,
@@ -401,7 +401,7 @@ export class WebSocketService {
         lastActiveAt: new Date().toISOString(),
         assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
         ec2Config: {
-          instanceType: config.DEFAULT_INSTANCE_TYPE,
+          instanceType: launchedType,
           region: config.AWS_REGION || 'eu-central-1',
           amiId,
           securityGroupId,
@@ -434,8 +434,10 @@ export class WebSocketService {
     } catch (err: any) {
       const errMsg = err.message || 'AWS Spawn Failed';
       console.error('[WS On-Demand] Spawn failed:', errMsg);
-      socket.emit('instance-error', { 
-        message: 'Сервер временно недоступен. Пожалуйста, попробуйте снова через несколько секунд.' 
+      socket.emit('instance-error', {
+        message: err.capacity
+          ? 'Сейчас у облака нет свободных 3D-серверов. Пожалуйста, попробуйте снова через минуту.'
+          : 'Сервер временно недоступен. Пожалуйста, попробуйте снова через несколько секунд.'
       });
     }
 

@@ -381,7 +381,7 @@ export class ScalingService {
   }
 
   // ── Launch a single pre-warm EC2 instance ─────────────────────────────────
-  private async launchPrewarmInstance(): Promise<void> {
+  private async launchPrewarmInstance(): Promise<boolean> {
     let instanceId: string | undefined;
     this.launchingCount++;
     try {
@@ -402,7 +402,8 @@ export class ScalingService {
         config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId
       );
       instanceId = result.instanceId;
-      console.log(`[Scaling] Prewarm EC2 launched: ${instanceId}`);
+      const launchedType = result.instanceType;
+      console.log(`[Scaling] Prewarm EC2 launched: ${instanceId} (${launchedType})`);
 
       // Register in DB so the admin dashboard can see it immediately
       await this.db.saveInstance(instanceId, {
@@ -418,7 +419,7 @@ export class ScalingService {
         assignedTo: PREWARM_LABEL,
         managedByBackend: true,
         ec2Config: {
-          instanceType: config.DEFAULT_INSTANCE_TYPE,
+          instanceType: launchedType,
           region: donor?.ec2Config?.region || 'eu-central-1',
           amiId,
           securityGroupId: securityGroupId || '',
@@ -439,6 +440,7 @@ export class ScalingService {
       }).finally(() => {
         this.activePrewarmAbortControllers.delete(prewarmId);
       });
+      return true;
 
     } catch (err: any) {
       console.error('[Scaling] Failed to launch prewarm instance:', err.message);
@@ -451,6 +453,7 @@ export class ScalingService {
         try { await this.ec2Service.terminateInstance(instanceId); } catch {}
         await this.db.deleteInstance(instanceId);
       }
+      return false;
     } finally {
       this.launchingCount--;
     }
@@ -910,9 +913,11 @@ export class ScalingService {
   // ── Re-align pool on-demand (admin "Apply & Re-align" button) ────────────
   async realignPool(baseTarget: number, extraBoost: number): Promise<{
     launched:        number;
+    failed:          number;
     terminated:      number;
     skippedPrewarms: number;
     combinedTarget:  number;
+    launchError:     import('./ec2Service').LaunchReport | null;
   }> {
     return this.withPoolLock('realignPool', async () => {
       await SettingsService.getInstance().save({ minBufferTarget: baseTarget, lastExtraBoost: extraBoost });
@@ -940,14 +945,16 @@ export class ScalingService {
       );
 
       let launched        = 0;
+      let failed          = 0;
       let terminated      = 0;
       let skippedPrewarms = 0;
 
       if (delta > 0) {
         const launches = Array.from({ length: delta }, () => this.launchPrewarmInstance());
-        await Promise.allSettled(launches);
-        launched = delta;
-        console.log(`[Scaling] realignPool: launched ${launched} prewarm instance(s).`);
+        const results = await Promise.allSettled(launches);
+        launched = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+        failed = delta - launched;
+        console.log(`[Scaling] realignPool: launched ${launched} of ${delta} prewarm instance(s)${failed ? ` — ${failed} failed (see [EC2] lines)` : ''}.`);
       } else if (delta < 0) {
         const surplus = Math.abs(delta);
         // First cancel any active prewarms
@@ -967,7 +974,7 @@ export class ScalingService {
         console.log(`[Scaling] realignPool: cancelled ${cancelledPrewarms} prewarms, terminated ${terminated} Buffer instance(s).`);
       }
 
-      return { launched, terminated, skippedPrewarms, combinedTarget };
+      return { launched, failed, terminated, skippedPrewarms, combinedTarget, launchError: failed ? EC2Service.lastLaunchError : null };
     });
   }
 

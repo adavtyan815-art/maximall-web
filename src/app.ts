@@ -286,6 +286,12 @@ app.get('/api/admin/dashboard', async (req, res) => {
       serverHourlyRate: hourlyRate,
       minBufferTarget,
     },
+    // EC2 launch status for the admin banner (2026-10-06: g6.xlarge capacity errors were invisible in the UI)
+    launch: {
+      instanceTypes: EC2Service.instanceTypeCandidates(config.DEFAULT_INSTANCE_TYPE),
+      last: EC2Service.lastLaunch,
+      lastError: EC2Service.lastLaunchError,
+    },
   });
 });
 
@@ -741,7 +747,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
     }
 
     console.log(`[On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
-    const { instanceId } = await ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
+    const { instanceId, instanceType: launchedType } = await ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
     console.log(`[On-Demand] EC2 instance created: ${instanceId}`);
 
     const newInst = {
@@ -756,7 +762,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
       lastActiveAt: new Date().toISOString(),
       assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
       ec2Config: {
-        instanceType: config.DEFAULT_INSTANCE_TYPE,
+        instanceType: launchedType,
         region: config.AWS_REGION || 'eu-central-1',
         amiId,
         securityGroupId,
