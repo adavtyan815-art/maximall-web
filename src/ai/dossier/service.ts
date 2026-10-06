@@ -12,7 +12,7 @@ import { consultantNotes, dossierHtml, expiredPageHtml, shortPageHtml } from './
 
 /** Deploy: CHROME_PATH, else the Windows install, else the usual Linux / Alpine (apk chromium) locations. */
 export const CHROME_PATH =
-  process.env.CHROME_PATH ??
+  process.env.CHROME_PATH ||
   (process.platform === 'win32'
     ? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
     : ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome'].find((x) => fs.existsSync(x)) ?? '/usr/bin/chromium-browser');
