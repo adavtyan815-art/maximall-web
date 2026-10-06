@@ -258,7 +258,7 @@ app.post('/api/admin/instances', async (req, res) => {
     lastActiveAt: new Date().toISOString(),
     assignedTo: req.body.assignedTo || 'Unassigned',
     ec2Config: {
-      instanceType: req.body.instanceType || 'g4dn.2xlarge',
+      instanceType: req.body.instanceType || config.DEFAULT_INSTANCE_TYPE,
       region: 'us-east-2',
       amiId: 'ami-123',
       securityGroupId: 'sg-123',
@@ -664,7 +664,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
     }
 
     console.log(`[On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
-    const { instanceId } = await ec2Service.createInstance('g4dn.2xlarge', amiId, subnetId, securityGroupId);
+    const { instanceId } = await ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
     console.log(`[On-Demand] EC2 instance created: ${instanceId}`);
 
     const newInst = {
@@ -679,7 +679,7 @@ app.post('/api/instances/connect-available', async (req, res) => {
       lastActiveAt: new Date().toISOString(),
       assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
       ec2Config: {
-        instanceType: 'g4dn.2xlarge',
+        instanceType: config.DEFAULT_INSTANCE_TYPE,
         region: config.AWS_REGION || 'eu-central-1',
         amiId,
         securityGroupId,
@@ -870,6 +870,72 @@ app.delete('/api/saves/:username/:saveId', (req, res) => {
     res.status(500).json({ error: 'Failed to delete save' });
   }
 });
+
+// ─── AR GLB UPLOAD & HOSTING ───
+const AR_MODELS_DIR = path.join(__dirname, '../public/ar/models');
+if (!fs.existsSync(AR_MODELS_DIR)) {
+  fs.mkdirSync(AR_MODELS_DIR, { recursive: true });
+}
+
+// Background cleanup: remove .glb files older than 2 hours every 30 minutes
+setInterval(() => {
+  try {
+    const now = Date.now();
+    const maxAgeMs = 2 * 60 * 60 * 1000;
+    if (fs.existsSync(AR_MODELS_DIR)) {
+      const files = fs.readdirSync(AR_MODELS_DIR);
+      for (const file of files) {
+        if (file.endsWith('.glb')) {
+          const filePath = path.join(AR_MODELS_DIR, file);
+          const stat = fs.statSync(filePath);
+          if (now - stat.mtimeMs > maxAgeMs) {
+            fs.unlinkSync(filePath);
+            console.log(`[AR Cleanup] Deleted expired AR model: ${file}`);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[AR Cleanup] Error cleaning old AR models:', err.message);
+  }
+}, 30 * 60 * 1000);
+
+// Endpoint accepting raw binary GLB uploads (up to 50MB)
+app.post(
+  '/api/ar/upload',
+  express.raw({ type: ['application/octet-stream', 'model/gltf-binary', '*/*'], limit: '50mb' }),
+  (req, res) => {
+    try {
+      const buffer = req.body as Buffer;
+      if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+        return res.status(400).json({ success: false, error: 'Empty file payload' });
+      }
+
+      const rawFileName = (req.headers['x-file-name'] as string) || (req.query.filename as string) || `export_${Date.now()}.glb`;
+      const sanitizedFileName = path.basename(rawFileName).replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+      const finalFileName = sanitizedFileName.endsWith('.glb') ? sanitizedFileName : `${sanitizedFileName}.glb`;
+
+      const targetPath = path.join(AR_MODELS_DIR, finalFileName);
+      fs.writeFileSync(targetPath, buffer);
+
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+      const proto = (req.headers['x-forwarded-proto'] as string) || (req.secure ? 'https' : 'http');
+      const publicUrl = `${proto}://${host}/ar/viewer.html?model=${encodeURIComponent(finalFileName)}`;
+
+      console.log(`[AR Upload] Received model '${finalFileName}' (${(buffer.length / 1024 / 1024).toFixed(2)} MB) -> ${publicUrl}`);
+
+      return res.json({
+        success: true,
+        fileName: finalFileName,
+        url: publicUrl,
+        sizeBytes: buffer.length,
+      });
+    } catch (err: any) {
+      console.error('[AR Upload] Upload processing failed:', err.message);
+      return res.status(500).json({ success: false, error: err.message || 'Failed to save AR model' });
+    }
+  }
+);
 
 // Fallback to index.html
 app.get('*', (req, res) => {

@@ -175,6 +175,7 @@ export class EC2Service {
         InstanceType: instanceType as any,
         MinCount: 1,
         MaxCount: 1,
+        KeyName: 'Frankfurt',
         TagSpecifications: [
           {
             ResourceType: 'instance',

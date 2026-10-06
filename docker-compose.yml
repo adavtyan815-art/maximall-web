@@ -20,7 +20,7 @@ services:
       start_period: 15s
       retries: 3
     volumes:
-      - ./public:/app/public:ro
+      - ./public:/app/public
 
   nginx:
     image: nginx:alpine

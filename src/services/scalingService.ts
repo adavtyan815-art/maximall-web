@@ -5,6 +5,7 @@ import { SettingsService } from './settingsService';
 import * as http  from 'http';
 import * as https from 'https';
 import WebSocket from 'ws';
+import { config } from '../config';
 
 // ── Labels ─────────────────────────────────────────────────────────────────
 // These are stored in instance.assignedTo to distinguish pool roles from
@@ -392,9 +393,9 @@ export class ScalingService {
       const subnetId          = donor?.ec2Config?.subnetId;
       const securityGroupId   = donor?.ec2Config?.securityGroupId;
 
-      console.log(`[Scaling] Launching prewarm EC2 (g4dn.2xlarge, ami=${amiId})...`);
+      console.log(`[Scaling] Launching prewarm EC2 (${config.DEFAULT_INSTANCE_TYPE}, ami=${amiId})...`);
       const result = await this.ec2Service.createInstance(
-        'g4dn.2xlarge', amiId, subnetId, securityGroupId
+        config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId
       );
       instanceId = result.instanceId;
       console.log(`[Scaling] Prewarm EC2 launched: ${instanceId}`);
@@ -413,7 +414,7 @@ export class ScalingService {
         assignedTo: PREWARM_LABEL,
         managedByBackend: true,
         ec2Config: {
-          instanceType: 'g4dn.2xlarge',
+          instanceType: config.DEFAULT_INSTANCE_TYPE,
           region: donor?.ec2Config?.region || 'eu-central-1',
           amiId,
           securityGroupId: securityGroupId || '',

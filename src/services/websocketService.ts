@@ -381,7 +381,7 @@ export class WebSocketService {
       }
 
       console.log(`[WS On-Demand] Spawning EC2 instance with AMI ${amiId}...`);
-      const { instanceId } = await this.ec2Service.createInstance('g4dn.2xlarge', amiId, subnetId, securityGroupId);
+      const { instanceId } = await this.ec2Service.createInstance(config.DEFAULT_INSTANCE_TYPE, amiId, subnetId, securityGroupId);
       console.log(`[WS On-Demand] EC2 instance created: ${instanceId}`);
 
       const targetInstance = {
@@ -396,7 +396,7 @@ export class WebSocketService {
         lastActiveAt: new Date().toISOString(),
         assignedTo: `OnDemand-${instanceId.substring(2, 8)}`,
         ec2Config: {
-          instanceType: 'g4dn.2xlarge',
+          instanceType: config.DEFAULT_INSTANCE_TYPE,
           region: config.AWS_REGION || 'eu-central-1',
           amiId,
           securityGroupId,
