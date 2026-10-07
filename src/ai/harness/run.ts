@@ -58,7 +58,8 @@ export interface PhraseResult {
   ms: number;
 }
 
-export async function runHarness(catalog: CatalogIndex, llm: LlmProvider = new MockLlm(), phrases: Phrase[] = PHRASES) {
+/** v2.5: `lang` = the session language of every phrase (the English set is PHRASES_EN). */
+export async function runHarness(catalog: CatalogIndex, llm: LlmProvider = new MockLlm(), phrases: Phrase[] = PHRASES, lang: 'ru' | 'en' = 'ru') {
   const meter: CallMeter = { calls: 0, scoredCalls: 0, prefixTokens: [], messageTokens: [], scoring: false };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-'));
   const orch = new Orchestrator({ catalog, llm: new MeteredLlm(llm, meter), fallbackLlm: new MockLlm(), stt: new MockStt(), tts: new MockTts(), clips: new ClipStore(path.join(dir, 'clips')), logDir: path.join(dir, 'logs'), llmTimeoutMs: 30000 });
@@ -79,6 +80,7 @@ export async function runHarness(catalog: CatalogIndex, llm: LlmProvider = new M
       },
     }, mode);
     meter.scoring = false;
+    s.lang = lang;
     s.greeted = true;
     if (p.focus) await orch.onUeEvent(s, ue.focusEvent(`Booth_${p.focus}_1`));
     const step = async (x: string | { answer: string }) => {

@@ -1,6 +1,7 @@
 /**
  * X4 Day-1 phrase harness.
  *   npx tsx scripts/phrase-harness.ts                      -> mock policy run + report + cost estimate (no network)
+ *   npx tsx scripts/phrase-harness.ts --lang en            -> the English set (v2.5, PHRASES_EN) in an English session
  *   npx tsx scripts/phrase-harness.ts --live claude-sonnet-5-5  -> live run (REFUSED unless ANTHROPIC_API_KEY and
  *        AI_PAID_CALLS_APPROVED=1 are set; every call goes through the spend ledger with its budget cap)
  * Report: docs/AI_Consultant_Expo/phrase_harness_<model>.md (+ .json)
@@ -9,6 +10,8 @@ import fs from 'fs';
 import path from 'path';
 import { CatalogIndex } from '../src/ai/catalog/index';
 import { runHarness, estimateRunCost } from '../src/ai/harness/run';
+import { PHRASES } from '../src/ai/harness/phrases';
+import { PHRASES_EN } from '../src/ai/harness/phrasesEn';
 import { MockLlm } from '../src/ai/providers/mockLlm';
 import { AnthropicLlm, LlmProvider } from '../src/ai/providers/llm';
 import { CostLedger } from '../src/ai/util/costLedger';
@@ -18,6 +21,8 @@ import { speechLength, estimateSpokenSeconds, SPOKEN_MAX_CHARS } from '../src/ai
 const args = process.argv.slice(2);
 const li = args.indexOf('--live');
 const live = li >= 0 ? args[li + 1] : null;
+const lgi = args.indexOf('--lang');
+const lang: 'ru' | 'en' = lgi >= 0 && args[lgi + 1] === 'en' ? 'en' : 'ru';
 const outDir = process.env.HARNESS_OUT ?? 'D:/awsTemplate_GameLift/docs/AI_Consultant_Expo';
 
 (async () => {
@@ -32,9 +37,9 @@ const outDir = process.env.HARNESS_OUT ?? 'D:/awsTemplate_GameLift/docs/AI_Consu
     llm = new AnthropicLlm(live, new CostLedger());
   }
   const t0 = Date.now();
-  const r = await runHarness(catalog, llm);
+  const r = await runHarness(catalog, llm, lang === 'en' ? PHRASES_EN : PHRASES, lang);
   const cost = estimateRunCost(r.meter);
-  const name = live ?? 'mock';
+  const name = (live ?? 'mock') + (lang === 'en' ? '_en' : '');
   const byGroup: Record<string, { pass: number; total: number }> = {};
   for (const x of r.results) {
     byGroup[x.group] ??= { pass: 0, total: 0 };
