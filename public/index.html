@@ -22,40 +22,47 @@
   <main class="window" id="stage" data-state="idle" aria-labelledby="salon-title">
     <div class="door" id="door" aria-hidden="true"></div>
 
-    <ul class="social" aria-label="Мы в соцсетях">
+    <ul class="social" aria-label="Мы в соцсетях" data-i18n-aria="social">
       <li><a href="#" aria-label="Facebook"><svg aria-hidden="true"><use href="assets/icons.svg#facebook"></use></svg></a></li>
       <li><a href="#" aria-label="Instagram"><svg aria-hidden="true"><use href="assets/icons.svg#instagram"></use></svg></a></li>
-      <li><a href="#" aria-label="Почта"><svg aria-hidden="true"><use href="assets/icons.svg#email"></use></svg></a></li>
+      <li><a href="#" aria-label="Почта" data-i18n-aria="email"><svg aria-hidden="true"><use href="assets/icons.svg#email"></use></svg></a></li>
     </ul>
 
+    <!-- Visitor language (contract v2.5): RU | EN, passed to the player as &lang= -->
+    <div class="lang" id="lang" role="group" aria-label="Язык · Language">
+      <button type="button" class="lang__opt" data-lang="ru" lang="ru" aria-label="Русский" aria-pressed="true">RU</button>
+      <span class="lang__sep" aria-hidden="true">|</span>
+      <button type="button" class="lang__opt" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+    </div>
+
     <div class="hero">
-      <nav class="path" aria-label="Расположение">
+      <nav class="path" aria-label="Расположение" data-i18n-aria="pathLabel">
         <span class="path__mall">MAXIMALL</span>
         <span class="path__chevron" aria-hidden="true"></span>
-        <span class="path__here" aria-current="page">САЛОН</span>
+        <span class="path__here" aria-current="page" data-i18n="pathHere">САЛОН</span>
       </nav>
       <h1 class="salon" id="salon-title">OLIVEEKA</h1>
       <div class="descriptor-wrap">
-        <p class="descriptor">Сантехника и мебель для ванных комнат</p>
+        <p class="descriptor" data-i18n="descriptor">Сантехника и мебель для ванных комнат</p>
         <p class="tip" id="tip" aria-live="polite"></p>
       </div>
     </div>
 
-    <section class="progress" aria-label="Загрузка салона">
+    <section class="progress" aria-label="Загрузка салона" data-i18n-aria="loadingLabel">
       <div class="progress__row">
         <span class="progress__stage" id="progress-stage" aria-live="polite"></span>
         <span class="progress__meta" id="progress-meta"></span>
       </div>
-      <div class="progress__track" id="progress-track" role="progressbar" aria-label="Загрузка салона" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="progress__track" id="progress-track" role="progressbar" aria-label="Загрузка салона" data-i18n-aria="loadingLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="progress__fill" id="progress-fill"></div>
       </div>
       <div class="progress__row progress__row--foot">
-        <span class="progress__caption">© Maxi Mall · Веб · Обновлено <span id="update-date">18/04/2026</span></span>
+        <span class="progress__caption"><span data-i18n="footer">© Maxi Mall · Веб · Обновлено </span><span id="update-date">18/04/2026</span></span>
         <div class="progress__end">
           <span class="progress__caption" id="progress-status"></span>
-          <button type="button" class="btn btn--ghost" id="cancel-loading-btn">Отменить</button>
-          <button type="button" class="btn btn--ghost" id="back-btn">Назад</button>
-          <button type="button" class="btn btn--light" id="retry-btn">Повторить</button>
+          <button type="button" class="btn btn--ghost" id="cancel-loading-btn" data-i18n="cancel">Отменить</button>
+          <button type="button" class="btn btn--ghost" id="back-btn" data-i18n="back">Назад</button>
+          <button type="button" class="btn btn--light" id="retry-btn" data-i18n="retry">Повторить</button>
           <button type="button" class="btn btn--light btn--cta" id="btn">Войти в 3D-комнату</button>
         </div>
       </div>

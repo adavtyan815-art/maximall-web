@@ -34,8 +34,125 @@
   const backBtn = $('back-btn');
   const retryBtn = $('retry-btn');
 
-  const CTA_LABEL = 'Войти в 3D-комнату';
-  const IDLE_LEAD = 'Откройте 3D-салон за считанные секунды — мы запустим сервер для вас.';
+  // ── Visitor language (contract v2.5): «RU | EN» toggle, top-right ──────
+  // Default: localStorage['maximall.lang'] (the visitor's last choice, shared with the consultant panel), else the browser
+  // language (en* → en, else ru). The choice goes to the player as &lang=. The page's own texts switch live; messages that
+  // come from the server are shown as sent.
+  const LANG_KEY = 'maximall.lang';
+  const TEXT = {
+    ru: {
+      title: 'MaxiMall — салон OLIVEEKA в 3D',
+      social: 'Мы в соцсетях',
+      email: 'Почта',
+      pathLabel: 'Расположение',
+      pathHere: 'САЛОН',
+      descriptor: 'Сантехника и мебель для ванных комнат',
+      loadingLabel: 'Загрузка салона',
+      footer: '© Maxi Mall · Веб · Обновлено ',
+      cancel: 'Отменить',
+      back: 'Назад',
+      retry: 'Повторить',
+      cta: 'Войти в 3D-комнату',
+      idleLead: 'Откройте 3D-салон за считанные секунды — мы запустим сервер для вас.',
+      tips: [
+        'Подсказка: для перемещения на компьютере используйте клавиши WASD и мышь.',
+        'Для управления на телефоне используйте виртуальные кнопки на экране.',
+        'В 3D-модели вы можете менять цвета и материалы мебели одним касанием.',
+        'Для наилучшего качества рекомендуется использовать стабильное интернет-соединение.',
+        'Окружение загружается на облачном сервере, чтобы не перегружать ваше устройство.',
+        'Чёткость изображения зависит от скорости соединения: при слабом соединении качество может временно снизиться.'
+      ],
+      stages: ['Подключение к MaxiMall', 'Открываем салон OLIVEEKA', 'Загружаем сцену и материалы', 'Подключаем 3D-трансляцию'],
+      ready: 'Салон OLIVEEKA готов',
+      slow: 'Ещё немного — грузим тяжёлые материалы',
+      etaS: 'осталось {s} с',
+      etaM: 'осталось {m} мин',
+      etaMS: 'осталось {m} мин {s} с',
+      openFailed: 'Не удалось открыть салон.',
+      metaReady: '100% · готово',
+      statusError: 'Ошибка',
+      statusEnter: 'Вход',
+      statusLoading: 'Загрузка',
+      noInstance: 'Все 3D-серверы сейчас заняты. Попробуйте снова через несколько минут. Если проблема не решится, свяжитесь с Maxi Mall.',
+      connError: 'Ошибка подключения к серверу.',
+      connFailed: 'Не удалось подключиться к серверу. Пожалуйста, попробуйте снова.',
+      lost: 'Связь потеряна. Ожидание восстановления…',
+      dropped: 'Связь с сервером прервана. Пожалуйста, попробуйте снова.',
+      reconnecting: 'Переподключение (попытка {n})…',
+      inUse: '3D-комната уже открыта в другой вкладке.',
+      waitStop: 'Ожидайте завершения…',
+      connected: 'Соединение установлено.',
+      offline: 'Пожалуйста, проверьте подключение к интернету.',
+      noSocket: 'Нет соединения с сервером. Повторное подключение…'
+    },
+    en: {
+      title: 'MaxiMall — the OLIVEEKA showroom in 3D',
+      social: 'Follow us',
+      email: 'Email',
+      pathLabel: 'Location',
+      pathHere: 'SHOWROOM',
+      descriptor: 'Bathroom fixtures and furniture',
+      loadingLabel: 'Loading the showroom',
+      footer: '© Maxi Mall · Web · Updated ',
+      cancel: 'Cancel',
+      back: 'Back',
+      retry: 'Retry',
+      cta: 'Enter the 3D room',
+      idleLead: "Open the 3D showroom in seconds — we'll start a server for you.",
+      tips: [
+        'Tip: on a computer, move around with the WASD keys and the mouse.',
+        'On a phone, use the on-screen virtual buttons.',
+        'In the 3D model you can change furniture colours and materials with a single tap.',
+        'For the best quality, use a stable internet connection.',
+        'The scene runs on a cloud server, so your device is not overloaded.',
+        'Image sharpness depends on your connection speed: on a weak connection the quality may drop for a while.'
+      ],
+      stages: ['Connecting to MaxiMall', 'Opening the OLIVEEKA showroom', 'Loading the scene and materials', 'Starting the 3D stream'],
+      ready: 'The OLIVEEKA showroom is ready',
+      slow: 'Almost there — loading heavy materials',
+      etaS: '{s} s left',
+      etaM: '{m} min left',
+      etaMS: '{m} min {s} s left',
+      openFailed: 'Could not open the showroom.',
+      metaReady: '100% · ready',
+      statusError: 'Error',
+      statusEnter: 'Entering',
+      statusLoading: 'Loading',
+      noInstance: 'All 3D servers are busy right now. Please try again in a few minutes. If the problem persists, contact Maxi Mall.',
+      connError: 'Error connecting to the server.',
+      connFailed: 'Could not connect to the server. Please try again.',
+      lost: 'Connection lost. Waiting for it to come back…',
+      dropped: 'The connection to the server was interrupted. Please try again.',
+      reconnecting: 'Reconnecting (attempt {n})…',
+      inUse: 'The 3D room is already open in another tab.',
+      waitStop: 'Please wait until it finishes…',
+      connected: 'Connected.',
+      offline: 'Please check your internet connection.',
+      noSocket: 'No connection to the server. Reconnecting…'
+    }
+  };
+
+  // Kiosk: after an inactivity redirect (?reason=idle) the next visitor starts from the default, not the previous choice.
+  if (new URLSearchParams(window.location.search).get('reason') === 'idle') {
+    try { localStorage.removeItem(LANG_KEY); } catch (e) { /* storage blocked */ }
+  }
+
+  function initialLang() {
+    try {
+      const saved = localStorage.getItem(LANG_KEY);
+      if (saved === 'ru' || saved === 'en') return saved;
+    } catch (e) { /* storage blocked */ }
+    return /^en/i.test(navigator.language || '') ? 'en' : 'ru';
+  }
+  let lang = initialLang();
+
+  // T('key', { n: 2 }) → text in the current language; M(...) → the same, resolved when shown (follows a later switch).
+  function T(key, params) {
+    const v = TEXT[lang][key];
+    return params ? v.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)) : v;
+  }
+  function M(key, params) { return () => T(key, params); }
+  function txt(v) { return typeof v === 'function' ? v() : v; }
 
   // Device Identification (Persistent)
   let deviceId = localStorage.getItem('deviceId');
@@ -52,16 +169,9 @@
   let globalHostToken = sessionStorage.getItem('global_hostToken');
   let isRescuedRedirect = false;
 
-  const tips = [
-    'Подсказка: для перемещения на компьютере используйте клавиши WASD и мышь.',
-    'Для управления на телефоне используйте виртуальные кнопки на экране.',
-    'В 3D-модели вы можете менять цвета и материалы мебели одним касанием.',
-    'Для наилучшего качества рекомендуется использовать стабильное интернет-соединение.',
-    'Окружение загружается на облачном сервере, чтобы не перегружать ваше устройство.',
-    'Чёткость изображения зависит от скорости соединения: при слабом соединении качество может временно снизиться.'
-  ];
   let tipInterval = null;
   let tipIndex = 0;
+  let tipFinal = false; // «Соединение установлено.» is shown in place of the tips
 
   // ── View state ────────────────────────────────────────────────────────
   // idle | loading | ready | error   (see docs/REDESIGN_PLAN.md §3)
@@ -79,9 +189,11 @@
     return s === 'loading' || s === 'ready';
   }
 
-  function setCta(enabled, label) {
+  let ctaKey = 'cta';
+  function setCta(enabled, labelKey) {
     btn.disabled = !enabled;
-    btn.textContent = label || CTA_LABEL;
+    ctaKey = labelKey || 'cta';
+    btn.textContent = T(ctaKey);
   }
 
   // Idle notices (session in another tab, offline, …) take the stage-label slot,
@@ -109,14 +221,7 @@
   const BASE_EST_S = 40;             // measured buffer wake ≈ 36–39 s
   const STALL_MS = 10000;            // spec: stage longer than 10 s → "ещё немного"
   const CREEP_PER_TICK = 0.1 * TICK_MS / 1000; // 0.1 %/s while waiting at a cap
-  const STAGES = [
-    [0, 'Подключение к MaxiMall'],
-    [16, 'Открываем салон OLIVEEKA'],
-    [42, 'Загружаем сцену и материалы'],
-    [74, 'Подключаем 3D-трансляцию']
-  ];
-  const READY_LABEL = 'Салон OLIVEEKA готов';
-  const SLOW_LABEL = 'Ещё немного — грузим тяжёлые материалы';
+  const STAGES = [0, 16, 42, 74]; // thresholds of TEXT.stages
   // Backend events raise the ceiling; progress never runs past `limit` on its own.
   const CAPS = {
     request: { cap: 15, limit: 15.9 },
@@ -134,8 +239,9 @@
   };
 
   function stageLabelFor(pct) {
-    let label = STAGES[0][1];
-    for (const [threshold, text] of STAGES) if (pct >= threshold) label = text;
+    const labels = T('stages');
+    let label = labels[0];
+    STAGES.forEach((threshold, i) => { if (pct >= threshold) label = labels[i]; });
     return label;
   }
 
@@ -149,10 +255,10 @@
     const elapsed = elapsedSeconds();
     const est = Math.max(BASE_EST_S, pct > 5 ? (elapsed * 100) / pct : BASE_EST_S);
     const left = Math.max(1, Math.ceil(((100 - pct) / 100) * est));
-    if (left < 60) return 'осталось ' + left + ' с';
+    if (left < 60) return T('etaS', { s: left });
     const m = Math.floor(left / 60);
     const s = left % 60;
-    return 'осталось ' + m + ' мин' + (s ? ' ' + s + ' с' : '');
+    return s ? T('etaMS', { m, s }) : T('etaM', { m });
   }
 
   function renderProgress() {
@@ -170,23 +276,23 @@
     let status;
     let alert = !!progress.override;
     if (state === 'idle') {
-      label = idleNotice || IDLE_LEAD;
+      label = txt(idleNotice) || T('idleLead');
       meta = '';
       status = '';
       alert = !!idleNotice;
     } else if (state === 'error') {
-      label = progress.error || 'Не удалось открыть салон.';
+      label = txt(progress.error) || T('openFailed');
       meta = shown + '%';
-      status = 'Ошибка';
+      status = T('statusError');
     } else if (state === 'ready') {
-      label = READY_LABEL;
-      meta = '100% · готово';
-      status = 'Вход';
+      label = T('ready');
+      meta = T('metaReady');
+      status = T('statusEnter');
     } else {
       const stalled = progress.capReachedAt && pct >= progress.cap && Date.now() - progress.capReachedAt > STALL_MS;
-      label = progress.override || (stalled ? SLOW_LABEL : stageLabelFor(pct));
+      label = txt(progress.override) || (stalled ? T('slow') : stageLabelFor(pct));
       meta = shown + '% · ' + etaLabel(pct);
-      status = 'Загрузка';
+      status = T('statusLoading');
     }
     if (progressStage.textContent !== label) progressStage.textContent = label;
     progressStage.classList.toggle('is-alert', alert);
@@ -274,13 +380,14 @@
   // ── Tips ──────────────────────────────────────────────────────────────
   function startTips() {
     if (tipInterval) return;
-    tipsText.textContent = tips[tipIndex];
+    tipFinal = false;
+    tipsText.textContent = T('tips')[tipIndex];
     tipsText.style.opacity = 1;
     tipInterval = setInterval(() => {
-      tipIndex = (tipIndex + 1) % tips.length;
+      tipIndex = (tipIndex + 1) % T('tips').length;
       tipsText.style.opacity = 0;
       setTimeout(() => {
-        tipsText.textContent = tips[tipIndex];
+        tipsText.textContent = T('tips')[tipIndex];
         tipsText.style.opacity = 1;
       }, 600);
     }, 8000);
@@ -318,7 +425,7 @@
   }
 
   function showNoInstanceUI() {
-    showFailure('Все 3D-серверы сейчас заняты. Попробуйте снова через несколько минут. Если проблема не решится, свяжитесь с Maxi Mall.');
+    showFailure(M('noInstance'));
   }
 
   function showError(msg) {
@@ -370,12 +477,12 @@
   socket.on('connect_error', (err) => {
     console.error('Connection Error:', err);
     if (isLoaderVisible()) {
-      setTransient('Ошибка подключения к серверу.');
+      setTransient(M('connError'));
       if (!connectErrorTimeout) {
         connectErrorTimeout = setTimeout(() => {
           connectErrorTimeout = null;
           if (isLoaderVisible()) {
-            showError('Не удалось подключиться к серверу. Пожалуйста, попробуйте снова.');
+            showError(M('connFailed'));
           }
         }, 8000);
       }
@@ -432,12 +539,12 @@
     console.warn('Disconnected:', reason);
     if (isLoaderVisible()) {
       progressPause();
-      setTransient('Связь потеряна. Ожидание восстановления…');
+      setTransient(M('lost'));
       if (!connectErrorTimeout) {
         connectErrorTimeout = setTimeout(() => {
           connectErrorTimeout = null;
           if (isLoaderVisible()) {
-            showError('Связь с сервером прервана. Пожалуйста, попробуйте снова.');
+            showError(M('dropped'));
           }
         }, 10000);
       }
@@ -449,7 +556,7 @@
   socket.io.on('reconnect_attempt', (attempt) => {
     console.log('Attempting to reconnect:', attempt);
     if (isLoaderVisible()) {
-      setTransient(`Переподключение (попытка ${attempt})…`);
+      setTransient(M('reconnecting', { n: attempt }));
     }
   });
 
@@ -471,7 +578,7 @@
   socket.on('session-in-use', (data) => {
     console.log('Active stream detected in another tab:', data);
     showLauncherUI(true);
-    showNotice(data.message || '3D-комната уже открыта в другой вкладке.');
+    showNotice(data.message || M('inUse'));
     setCta(true);
     resetSessionTokens();
   });
@@ -506,7 +613,7 @@
   });
 
   socket.on('instance-error', (data) => {
-    showError(data.message || 'Ошибка подключения к серверу.');
+    showError(data.message || M('connError'));
   });
 
   socket.on('instance-status', (data) => {
@@ -522,7 +629,7 @@
     }
     else if (status === 'stopping') {
       showLauncherUI();
-      setCta(false, 'Ожидайте завершения…');
+      setCta(false, 'waitStop');
     }
     else if (status === 'pending') {
       showLoadingUI();
@@ -537,7 +644,8 @@
   socket.on('server-ready', (data) => {
     completeProgress(() => {
       stopTips();
-      tipsText.textContent = 'Соединение установлено.';
+      tipFinal = true;
+      tipsText.textContent = T('connected');
       setState('ready');
 
       let targetUrl = data.pinggyUrl || data.ip || 'http://localhost:8000';
@@ -559,7 +667,8 @@
         `?backendUrl=${encodeURIComponent(window.location.origin)}` +
         `&instanceUuid=${assignedUuid}` +
         `&hostToken=${encodeURIComponent(globalHostToken)}` +
-        `&deviceId=${encodeURIComponent(deviceId)}`;
+        `&deviceId=${encodeURIComponent(deviceId)}` +
+        `&lang=${lang}`; // v2.5: the visitor language (player overlays + consultant)
 
       if (wsUrl) {
         pixelStreamLink += `&ss=${encodeURIComponent(wsUrl)}`;
@@ -586,12 +695,12 @@
   // ── Button click: request server via WebSocket ──────────────────────────
   function requestInstance() {
     if (!navigator.onLine) {
-      showError('Пожалуйста, проверьте подключение к интернету.');
+      showError(M('offline'));
       return;
     }
 
     if (!socket.connected) {
-      showError('Нет соединения с сервером. Повторное подключение…');
+      showError(M('noSocket'));
       socket.connect();
       return;
     }
@@ -612,6 +721,36 @@
     if (btn.disabled) return;
     requestInstance();
   };
+
+  // ── Language toggle ────────────────────────────────────────────────────
+  const langButtons = Array.prototype.slice.call(document.querySelectorAll('#lang .lang__opt'));
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.title = T('title');
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = T(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', T(el.dataset.i18nAria)); });
+    langButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+    btn.textContent = T(ctaKey);
+    if (tipFinal) tipsText.textContent = T('connected');
+    else if (tipInterval) tipsText.textContent = T('tips')[tipIndex];
+    renderProgress();
+  }
+
+  langButtons.forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      const next = b.dataset.lang === 'en' ? 'en' : 'ru';
+      try { localStorage.setItem(LANG_KEY, next); } catch (err) { /* storage blocked */ }
+      if (next === lang) return;
+      lang = next;
+      applyLang();
+    });
+  });
+
+  // A Russian page is already in the markup: rewrite only for English (the toggle state is set either way).
+  if (lang !== 'ru') applyLang();
+  else langButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
 
   renderProgress();
 })();

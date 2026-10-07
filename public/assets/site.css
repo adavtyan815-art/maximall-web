@@ -269,6 +269,58 @@ button { font: inherit; }
 .social a:hover { color: var(--paper); background: rgba(255, 255, 255, 0.06); }
 .social svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); fill: currentColor; }
 
+/* ── Language toggle «RU | EN»: top-right, left of the social links (contract v2.5) ─ */
+.lang {
+  position: absolute;
+  top: calc(40 * var(--u));
+  right: calc((52 + 98 + 18) * var(--u)); /* social block: 3 × 30 + 2 × 4 = 98 design px */
+  z-index: 1; /* above the full-stage .hero block, which would otherwise take the clicks */
+  display: flex;
+  align-items: center;
+  gap: calc(2 * var(--u));
+  height: calc(30 * var(--u));
+}
+/* each option: the same 30-design-px look, a hit area at least 44 px tall (negative margins keep the row height) */
+.lang__opt {
+  --hit: max(44px, calc(30 * var(--u)));
+  --pad: calc((var(--hit) - 30 * var(--u)) / 2);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--hit);
+  margin: calc(-1 * var(--pad)) 0;
+  padding: 0 calc(8 * var(--u));
+  border: 0;
+  background: transparent;
+  color: var(--foot-text);
+  font-size: calc(12 * var(--u));
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  cursor: pointer;
+  transition: color 160ms var(--ease);
+}
+.lang__opt::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--pad);
+  bottom: var(--pad);
+  z-index: -1;
+  border-radius: calc(9 * var(--u));
+  transition: background-color 160ms var(--ease);
+}
+.lang__opt:hover { color: var(--paper); }
+.lang__opt:hover::before { background: rgba(255, 255, 255, 0.06); }
+.lang__opt[aria-pressed="true"] { color: var(--paper); cursor: default; }
+.lang__opt[aria-pressed="true"]:hover::before { background: transparent; }
+.window .lang__opt:focus-visible { outline: none; }
+.window .lang__opt:focus-visible::before { outline: 2px solid var(--paper); outline-offset: 3px; }
+.lang__sep { font-size: calc(12 * var(--u)); color: var(--foot-text); opacity: 0.6; user-select: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; }
 }
