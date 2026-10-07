@@ -198,7 +198,17 @@ export class AiSocketNamespace {
       // of that instance; and a session once bound to a hostToken is never taken over by a socket with another one.
       if (process.env.AI_REQUIRE_HOST_TOKEN === '1' && (!hostToken || !this.opts.verifyHostToken?.(instanceUuid, hostToken))) return refuse('BAD_SESSION', t(L(), 'err.unconfirmed'));
       const bound = this.sessions.get(sessionId)?.hostToken;
-      if (bound && hostToken !== bound) return refuse('SESSION_TAKEN', t(L(), 'err.taken'));
+      if (bound && hostToken !== bound) {
+        // 2026-10-07 live test: a pool instance is recycled to the buffer and claimed again by the same login with a NEW pool
+        // token; the session (instance:username) still held the old one → every revisit was refused as «another device».
+        // Rebind when the old token is no longer a live session of that instance and the new one is; a token that is still
+        // live means a second device at the same time → refuse as before. Without a verifier (tests/local) nothing changes.
+        const verify = this.opts.verifyHostToken;
+        const rebind = !!verify && !!hostToken && verify(instanceUuid, hostToken) && !verify(instanceUuid, bound);
+        if (!rebind) return refuse('SESSION_TAKEN', t(L(), 'err.taken'));
+        this.sessions.get(sessionId)!.hostToken = hostToken;
+        this.orch.log(this.sessions.get(sessionId)!, 'session_rebind', { reason: 'stale_host_token' });
+      }
       if (session && session.sessionId === sessionId) {
         // repeated start with the same identity (auth + explicit start): just confirm
         if (askedLang) this.orch.setLang(session, askedLang);

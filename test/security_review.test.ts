@@ -173,6 +173,24 @@ describe('Socket.io /ai', () => {
     for (const x of [a, b, c, d]) x.sock.close();
   });
 
+  it('2026-10-07: a recycled pool instance claimed again by the same login with a new token rebinds (no false SESSION_TAKEN)', async () => {
+    tokens['inst-r'] = 'tok-old';
+    const a = connect({ instanceUuid: 'inst-r', username: 'artur', hostToken: 'tok-old' });
+    await a.until(([e]) => e === 'ai.session.ready');
+    // while the old visit is still a live pool session, another token is a second device → refused as before
+    const b = connect({ instanceUuid: 'inst-r', username: 'artur', hostToken: 'tok-intruder' });
+    expect((await b.until(([e]) => e === 'ai.error'))[1].code).toBe('SESSION_TAKEN');
+    a.sock.close();
+    // the visit ended, the instance went back to the buffer and was claimed again: only the new token is live now
+    tokens['inst-r'] = 'tok-new';
+    const c = connect({ instanceUuid: 'inst-r', username: 'artur', hostToken: 'tok-new' });
+    await c.until(([e]) => e === 'ai.session.ready');
+    // the old (no longer live) token can not take the session back
+    const d = connect({ instanceUuid: 'inst-r', username: 'artur', hostToken: 'tok-old' });
+    expect((await d.until(([e]) => e === 'ai.error'))[1].code).toBe('SESSION_TAKEN');
+    for (const x of [b, c, d]) x.sock.close();
+  });
+
   it('QA-054: a refused tab loses only its /ai socket; its shared back-channel stays; the first tab keeps working', async () => {
     const a = connect({ instanceUuid: 'inst-m', username: 'mila', hostToken: 'tok-m' });
     await a.until(([e]) => e === 'ai.session.ready');
