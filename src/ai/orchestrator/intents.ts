@@ -38,7 +38,11 @@ function num(s: string) {
 }
 
 /** "2 на 3", "2,5 x 1,8 м", "250 на 180 см", "два на три метра" */
-export function parseRoomSize(t: string): { widthCm: number; depthCm: number } | null {
+export function parseRoomSize(t: string, lang: 'ru' | 'en' = 'ru'): { widthCm: number; depthCm: number } | null {
+  if (lang === 'en') {
+    const en = parseRoomSizeEn(t);
+    if (en) return en;
+  }
   const words: Record<string, number> = { 'полтора': 1.5, 'два': 2, 'две': 2, 'три': 3, 'четыре': 4, 'пять': 5, 'шесть': 6 };
   let s = lc(t);
   for (const [w, v] of Object.entries(words)) s = s.replace(new RegExp(`(^|\\s)${w}(?=\\s|$)`, 'g'), `$1${v}`);
@@ -47,6 +51,24 @@ export function parseRoomSize(t: string): { widthCm: number; depthCm: number } |
   let a = num(m[1]);
   let b = num(m[2]);
   const unitCm = /см|сантим/.test(m[3] ?? '') || (a > 30 && b > 30);
+  if (!unitCm) {
+    a *= 100;
+    b *= 100;
+  }
+  if (a < 120 || b < 120 || a > 1200 || b > 1200) return null;
+  return { widthCm: Math.round(a), depthCm: Math.round(b) };
+}
+
+/** v2.5: «2 by 2.5 metres», «2 x 2.5 m», «200 by 250 cm», «two by three meters», «2.5m x 1.8m». */
+export function parseRoomSizeEn(t: string): { widthCm: number; depthCm: number } | null {
+  const words: Record<string, number> = { 'one and a half': 1.5, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6 };
+  let s = t.toLowerCase();
+  for (const [w, v] of Object.entries(words)) s = s.replace(new RegExp(`(^|\\s)${w}(?=\\s|$)`, 'g'), `$1${v}`);
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(?:m\b|metres?|meters?|cm\b|centimet(?:re|er)s?)?\s*(?:by|x|×|\*)\s*(\d+(?:\.\d+)?)\s*(m\b|metres?|meters?|cm\b|centimet(?:re|er)s?)?/);
+  if (!m) return null;
+  let a = Number(m[1]);
+  let b = Number(m[2]);
+  const unitCm = /cm|centi/.test(m[3] ?? '') || (a > 30 && b > 30);
   if (!unitCm) {
     a *= 100;
     b *= 100;

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Ajv2020, { ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
+import { t } from './i18n';
 
 /**
  * QA-059: incoming /ai payloads are validated against contracts/socket-events.schema.json (x-client-to-server).
@@ -9,7 +10,8 @@ import addFormats from 'ajv-formats';
  */
 export const CONTRACTS_DIR = process.env.AI_CONTRACTS_DIR ?? path.join(__dirname, '..', '..', 'contracts');
 
-export const BAD_PAYLOAD_RU = 'Некорректный запрос — обновите страницу, пожалуйста.';
+/** v2.5: the visitor text lives in the locale tables (err.badPayload); this is the Russian one. */
+export const BAD_PAYLOAD_RU = t('ru', 'err.badPayload');
 
 let validators: Map<string, ValidateFunction> | null = null;
 

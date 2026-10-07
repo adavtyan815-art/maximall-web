@@ -1,9 +1,10 @@
 import type { Server as SocketServer, Socket } from 'socket.io';
-import { AiSession, CONSULTANT_NAME, GREETING_SHOWROOM_RU, Orchestrator } from './orchestrator/orchestrator';
+import { AiSession, consultantName, greetingFor, Orchestrator, type UiAction } from './orchestrator/orchestrator';
+import { normalizeLang, t, type Lang } from './i18n';
 import { RateLimiter, envInt } from './util/rateLimit';
 import { SocketChannel } from './orchestrator/channel';
 import { isGuest } from './util/identity';
-import { BAD_PAYLOAD_RU, checkClientPayload, knownClientEvents } from './contractValidation';
+import { checkClientPayload, knownClientEvents } from './contractValidation';
 
 /** Client events whose contract has no required field: a missing payload counts as {}. */
 const OPTIONAL_PAYLOAD = new Set(['ai.audio.start', 'ai.audio.end', 'ai.audio.cancel', 'ai.reset', 'ai.render.request', 'ai.dossier.request']);
@@ -29,13 +30,15 @@ export interface AiNamespaceOptions {
   sweepMs?: number;
 }
 
-const RATE_LIMITED = { code: 'RATE_LIMITED', message: 'Слишком много запросов подряд — подождите немного, пожалуйста.' };
+const rateLimited = (lang: Lang) => ({ code: 'RATE_LIMITED', message: t(lang, 'err.rateLimited') });
 
 /**
  * Socket.io namespace /ai (socket-events.schema.json). One AiSession per sessionId = instanceUuid:username.
  * A reconnecting page rebinds its session (history, cards and basket survive a reload).
  */
 let uiSeq = 0;
+/** The implicit start from the socket auth (only there does auth.lang count as asked). */
+const START_FROM_AUTH: { lang?: string } = {};
 
 export class AiSocketNamespace {
   readonly sessions = new Map<string, AiSession>();
@@ -133,14 +136,18 @@ export class AiSocketNamespace {
     let audio: { chunks: Buffer[]; bytes: number; mimeType: string; stream: SttStream | null; t0: number; firstAt: number; lastAt: number; n: number; maxGapMs: number } | null = null;
     /** chunks that arrive after ai.audio.end of the last utterance (dropped; counted for the log) */
     let ended: { at: number; late: number; maxMs: number; loggedLate: number | null } | null = null;
-    const auth = (socket.handshake.auth ?? {}) as { sessionId?: string; instanceUuid?: string; username?: string; hostToken?: string };
+    const auth = (socket.handshake.auth ?? {}) as { sessionId?: string; instanceUuid?: string; username?: string; hostToken?: string; lang?: string };
+    /** v2.5: the language of this socket's messages before a session exists (auth / ai.session.start), then the session's. */
+    let socketLang: Lang = normalizeLang(auth.lang);
+    const L = (): Lang => session?.lang ?? socketLang;
+    const RATE_LIMITED_ = () => rateLimited(L());
 
     // QA-059: every incoming packet is checked against socket-events.schema.json (x-client-to-server) before any handler
     // runs. Unknown events, wrong types, missing fields and oversize values get ai.error BAD_PAYLOAD and are dropped.
     const known = knownClientEvents();
     const badPayload = (event: string, why: string) => {
       if (session) this.orch.log(session, 'bad_payload', { event: String(event).slice(0, 80), why });
-      socket.emit('ai.error', { code: 'BAD_PAYLOAD', message: BAD_PAYLOAD_RU });
+      socket.emit('ai.error', { code: 'BAD_PAYLOAD', message: t(L(), 'err.badPayload') });
     };
     socket.use((packet, next) => {
       if (session) this.touch(session.sessionId);
@@ -159,7 +166,7 @@ export class AiSocketNamespace {
           id: p.id,
           cmd: typeof p.cmd === 'string' ? p.cmd : '',
           ok: p.ok === true,
-          ...(p.ok === true ? {} : { reasonCode: typeof p.reasonCode === 'string' ? p.reasonCode : 'INTERNAL', reason: typeof p.reason === 'string' ? p.reason : 'Некорректный ответ комнаты' }),
+          ...(p.ok === true ? {} : { reasonCode: typeof p.reasonCode === 'string' ? p.reasonCode : 'INTERNAL', reason: typeof p.reason === 'string' ? p.reason : t(L(), 'err.badResult'), ...(p.reasonParams && typeof p.reasonParams === 'object' && !Array.isArray(p.reasonParams) ? { reasonParams: p.reasonParams } : {}) }),
           result: p.result && typeof p.result === 'object' ? p.result : {},
           state_rev: Number.isInteger(p.state_rev) && p.state_rev >= 0 ? p.state_rev : 0,
         };
@@ -174,30 +181,34 @@ export class AiSocketNamespace {
       setTimeout(() => socket.disconnect(), 50); // QA-054: this /ai namespace only — the shared connection (default-namespace back-channel) stays up
     };
 
-    const start = (p: { instanceUuid?: string; username?: string; viewport?: string; hostToken?: string }) => {
+    const start = (p: { instanceUuid?: string; username?: string; viewport?: string; hostToken?: string; lang?: string }) => {
+      // v2.5: an explicit lang (start payload, or the socket auth for the implicit start) sets the language; absent -> the session's
+      const askedLang = typeof p.lang === 'string' ? normalizeLang(p.lang) : p === START_FROM_AUTH && typeof auth.lang === 'string' ? normalizeLang(auth.lang) : undefined;
+      if (askedLang) socketLang = askedLang;
       const instanceUuid = String(p.instanceUuid ?? auth.instanceUuid ?? '').slice(0, 100);
       const username = String(p.username ?? auth.username ?? '').slice(0, 100);
       const hostToken = String(p.hostToken ?? auth.hostToken ?? '').slice(0, 200);
       if (!instanceUuid || !username) {
-        socket.emit('ai.error', { code: 'BAD_SESSION', message: 'Нужны instanceUuid и username' });
+        socket.emit('ai.error', { code: 'BAD_SESSION', message: t(L(), 'err.badSession') });
         return;
       }
       const sessionId = `${instanceUuid}:${username}`;
       // Security review (session takeover): with AI_REQUIRE_HOST_TOKEN=1 the page must prove it holds a live pool session
       // of that instance; and a session once bound to a hostToken is never taken over by a socket with another one.
-      if (process.env.AI_REQUIRE_HOST_TOKEN === '1' && (!hostToken || !this.opts.verifyHostToken?.(instanceUuid, hostToken))) return refuse('BAD_SESSION', 'Сессия не подтверждена — обновите страницу.');
+      if (process.env.AI_REQUIRE_HOST_TOKEN === '1' && (!hostToken || !this.opts.verifyHostToken?.(instanceUuid, hostToken))) return refuse('BAD_SESSION', t(L(), 'err.unconfirmed'));
       const bound = this.sessions.get(sessionId)?.hostToken;
-      if (bound && hostToken !== bound) return refuse('SESSION_TAKEN', 'Эта сессия открыта на другом устройстве.');
+      if (bound && hostToken !== bound) return refuse('SESSION_TAKEN', t(L(), 'err.taken'));
       if (session && session.sessionId === sessionId) {
         // repeated start with the same identity (auth + explicit start): just confirm
-        socket.emit('ai.session.ready', { sessionId, consultantName: CONSULTANT_NAME, greeting: GREETING_SHOWROOM_RU, catalogSyncedAt: this.orch.catalog?.syncedAt ?? '', mock: this.opts.mockFlags() });
+        if (askedLang) this.orch.setLang(session, askedLang);
+        socket.emit('ai.session.ready', this.readyPayload(session, sessionId));
         this.orch.emitMode(session, 'start');
         return this.orch.emitBasket(session);
       }
       // CR-WEB-01 (v1.3): a guest session (guest-<deviceId>) that learns the real login merges into the named session (the lead).
       const guest = session && session.instanceUuid === instanceUuid && isGuest(session.username) && !isGuest(username) ? session : this.soleGuestOn(instanceUuid, username);
       const guestChannel = guest && guest === session ? this.channels.get(guest.sessionId) : undefined;
-      const channel = guestChannel ?? new SocketChannel((ev, payload) => socket.emit(ev, payload));
+      const channel = guestChannel ?? new SocketChannel((ev, payload) => socket.emit(ev, payload), () => L());
       if (!guestChannel) this.channels.get(sessionId)?.cancelAll();
       this.channels.set(sessionId, channel);
       const io = { emit: (ev: string, payload: any) => socket.emit(ev, payload) };
@@ -220,40 +231,50 @@ export class AiSocketNamespace {
         isNew = false; // the visitor was already greeted as a guest
       }
       if (hostToken && !s.hostToken) s.hostToken = hostToken;
+      // v2.5: a new session starts in the asked language; a resumed one keeps its own unless the page asks for another
+      if (isNew) s.lang = askedLang ?? 'ru';
+      else if (askedLang) this.orch.setLang(s, askedLang);
       this.bindSocket(sessionId, socket.id, session?.sessionId);
       session = s;
-      socket.emit('ai.session.ready', {
-        sessionId,
-        consultantName: CONSULTANT_NAME,
-        greeting: GREETING_SHOWROOM_RU,
-        catalogSyncedAt: this.orch.catalog?.syncedAt ?? '',
-        mock: this.opts.mockFlags(),
-      });
+      socket.emit('ai.session.ready', this.readyPayload(s, sessionId));
       this.orch.emitMode(s, 'start'); // v2.0
-      this.orch.log(s, 'session_start', { viewport: p.viewport, resumed: !isNew });
+      this.orch.log(s, 'session_start', { viewport: p.viewport, resumed: !isNew, lang: s.lang });
       if (isNew && this.opts.greetOnStart !== false) void this.orch.greet(s);
       else this.orch.emitBasket(s);
     };
 
     socket.on('ai.session.start', (p) => start(p ?? {}));
+    // v2.5: the consultant panel's language switch — applies from the next turn; the session keeps it (reconnect / F5)
+    socket.on('ai.lang', (p) => {
+      const lang = normalizeLang(p?.lang);
+      socketLang = lang;
+      if (session) this.orch.setLang(session, lang);
+      socket.emit('ai.lang.changed', { lang });
+    });
+    // v2.5: page buttons as actions (undo / reset_room / other_collections / offer_answer)
+    socket.on('ai.action', (p) => {
+      if (!session) return socket.emit('ai.error', { code: 'NO_SESSION', message: t(L(), 'err.noSession') });
+      if (!this.turnLimit.take(session.sessionId)) return socket.emit('ai.error', RATE_LIMITED_());
+      void this.orch.handleAction(session, String(p.action) as UiAction, typeof p.optionId === 'string' ? p.optionId : undefined, typeof p.offerId === 'string' ? p.offerId : undefined);
+    });
     socket.on('ai.turn.text', (p) => {
-      if (!session) return socket.emit('ai.error', { code: 'NO_SESSION', message: 'Сначала ai.session.start' });
+      if (!session) return socket.emit('ai.error', { code: 'NO_SESSION', message: t(L(), 'err.noSession') });
       const text = String(p?.text ?? '').slice(0, 1000).trim();
       if (!text) return;
-      if (!this.turnLimit.take(session.sessionId)) return socket.emit('ai.error', RATE_LIMITED);
+      if (!this.turnLimit.take(session.sessionId)) return socket.emit('ai.error', RATE_LIMITED_());
       void this.orch.handleTurn(session, text, 'text');
     });
     socket.on('ai.audio.start', (p) => {
       audio?.stream?.cancel();
       if (session && !this.audioStartLimit.take(session.sessionId)) {
         audio = null;
-        return socket.emit('ai.error', RATE_LIMITED);
+        return socket.emit('ai.error', RATE_LIMITED_());
       }
       const mimeType = String(p?.mimeType ?? 'audio/pcm;rate=16000');
       let stream: SttStream | null = null;
       try {
         // Streaming STT (partials as ai.transcript final:false) for PCM 16 kHz; other formats use batch STT on release.
-        stream = session && this.opts.sttStream ? this.opts.sttStream.start({ sessionId: session.sessionId, mimeType, onPartial: (text) => socket.emit('ai.transcript', { final: false, text }) }) : null;
+        stream = session && this.opts.sttStream ? this.opts.sttStream.start({ sessionId: session.sessionId, mimeType, lang: session.lang, onPartial: (text) => socket.emit('ai.transcript', { final: false, text }) }) : null;
       } catch (e: any) {
         if (session) this.orch.log(session, 'stt_stream_error', { message: e.message });
       }
@@ -272,7 +293,7 @@ export class AiSocketNamespace {
       }
       const b = Buffer.isBuffer(chunk) ? chunk : chunk instanceof ArrayBuffer ? Buffer.from(chunk) : ArrayBuffer.isView(chunk) ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength) : null;
       if (!b || b.length > MAX_CHUNK || audio.bytes + b.length > MAX_AUDIO_BYTES) {
-        socket.emit('ai.error', { code: 'AUDIO_TOO_LARGE', message: 'Слишком длинная запись' });
+        socket.emit('ai.error', { code: 'AUDIO_TOO_LARGE', message: t(L(), 'err.audioTooLarge') });
         audio = null;
         return;
       }
@@ -290,7 +311,7 @@ export class AiSocketNamespace {
       if (!this.turnLimit.take(session.sessionId)) {
         audio.stream?.cancel();
         audio = null;
-        return socket.emit('ai.error', RATE_LIMITED);
+        return socket.emit('ai.error', RATE_LIMITED_());
       }
       const buf = Buffer.concat(audio.chunks);
       const a = audio;
@@ -334,7 +355,7 @@ export class AiSocketNamespace {
           });
           socket.emit('ai.transcript', { final: true, text });
           if (text.trim()) await this.orch.handleTurn(s, text, 'voice');
-          else socket.emit('ai.error', { code: 'STT_EMPTY', message: 'Не расслышала, повторите, пожалуйста.' });
+          else socket.emit('ai.error', { code: 'STT_EMPTY', message: t(s.lang, 'stt.failed') });
         });
       } else void this.orch.handleAudio(session, buf, mime);
     });
@@ -401,7 +422,12 @@ export class AiSocketNamespace {
       }
     });
 
-    if (auth.instanceUuid && auth.username) start({});
+    if (auth.instanceUuid && auth.username) start(START_FROM_AUTH);
+  }
+
+  /** v2.5 ai.session.ready: the session's language and the greeting in it (contract v2.5 §2). */
+  private readyPayload(s: AiSession, sessionId: string) {
+    return { sessionId, lang: s.lang, consultantName: consultantName(s.lang), greeting: greetingFor(s.lang, 'showroom'), catalogSyncedAt: this.orch.catalog?.syncedAt ?? '', mock: this.opts.mockFlags() };
   }
 
   /** Page buttons (photo / dossier): QA-050 — a PLANNER_BUSY hold is answered by the consultant, never by a failed card. */

@@ -9,6 +9,7 @@ import { buildSpec, SaveRecord, Spec } from './spec';
 import { floorPlanSvg, SetFootprint } from './floorplan';
 import { isGuest } from '../util/identity';
 import { consultantNotes, dossierHtml, expiredPageHtml, shortPageHtml } from './template';
+import { normalizeLang, t, type Lang } from '../i18n';
 
 /** Deploy: CHROME_PATH, else the Windows install, else the usual Linux / Alpine (apk chromium) locations. */
 export const CHROME_PATH =
@@ -35,10 +36,14 @@ export interface DossierRecord {
   lead: boolean;
   /** QA-060: the visitor asked on /d/:shortId for a salon visit (consent given), ISO time. */
   visitRequestedAt?: string;
+  /** v2.5: the visitor's language (PDF, QR page, visit messages); absent on older records = ru. */
+  lang?: Lang;
 }
 
 /** QA-060: the consent text shown next to the checkbox; stored verbatim with the request. */
-export const VISIT_CONSENT_RU = 'Согласен(на), чтобы салон связался со мной по этому проекту';
+export const VISIT_CONSENT_RU = t('ru', 'visit.consent');
+/** v2.5: the consent text in the record's language (English: TODO(owner) legal review, see the en table). */
+export const visitConsent = (lang: Lang = 'ru') => t(lang, 'visit.consent');
 
 export type VisitResult = { ok: true; already: boolean; requestedAt: string } | { ok: false; status: number; code: string; message: string };
 export interface DossierResponse {
@@ -123,7 +128,12 @@ export class DossierService {
     return s;
   }
 
-  private images(renderIds: string[], save: SaveRecord) {
+  /** v2.5: the language of a dossier record (by dossierId or shortId); ru when unknown. */
+  langOf(idOrShort: string): Lang {
+    return normalizeLang(this.find(idOrShort)?.lang);
+  }
+
+  private images(renderIds: string[], save: SaveRecord, lang: Lang = 'ru') {
     const out: { src: string; caption: string }[] = [];
     for (const id of renderIds) {
       if (!/^[A-Za-z0-9_.-]{3,80}$/.test(id)) continue;
@@ -135,29 +145,30 @@ export class DossierService {
         /* no meta: a constructor render */
       }
       for (const [name, caption] of [
-        ['final', 'Фото проекта (ИИ-визуализация, мебель — исходные пиксели из 3D)'],
-        ['preview', 'Фото проекта (предпросмотр)'],
-        ['beauty', 'Кадр из 3D-комнаты'],
+        ['final', t(lang, 'dossier.cap.final')],
+        ['preview', t(lang, 'dossier.cap.preview')],
+        ['beauty', t(lang, 'dossier.cap.beauty')],
       ] as const) {
         const f = path.join(this.renderDir, id, `${name}.png`);
         if (fs.existsSync(f)) {
-          out.push({ src: `data:image/png;base64,${fs.readFileSync(f).toString('base64')}`, caption: booth ? 'Фото стенда в салоне (кадр из 3D)' : caption });
+          out.push({ src: `data:image/png;base64,${fs.readFileSync(f).toString('base64')}`, caption: booth ? t(lang, 'dossier.cap.booth') : caption });
           break;
         }
       }
     }
     if (!out.length && typeof save.thumbnail === 'string' && save.thumbnail.length > 100) {
       const src = save.thumbnail.startsWith('data:') ? save.thumbnail : `data:image/png;base64,${save.thumbnail}`;
-      out.push({ src, caption: 'Кадр из 3D-комнаты' });
+      out.push({ src, caption: t(lang, 'dossier.cap.beauty') });
     }
     return out;
   }
 
-  async build(req: { sessionId: string; username: string; saveId?: string; renderIds?: string[]; conversationNotes?: string[]; placements?: Record<string, any> }): Promise<{ response: DossierResponse; record: DossierRecord; spec: Spec }> {
+  async build(req: { sessionId: string; username: string; saveId?: string; renderIds?: string[]; conversationNotes?: string[]; placements?: Record<string, any>; lang?: Lang }): Promise<{ response: DossierResponse; record: DossierRecord; spec: Spec }> {
     const catalog = this.catalog();
     if (!catalog) throw new DossierError(503, 'catalog index not built');
+    const lang = normalizeLang(req.lang);
     const save = this.loadSave(req.username, req.saveId);
-    const spec = buildSpec(save, catalog);
+    const spec = buildSpec(save, catalog, lang);
     // Security review: both ids are capabilities (the PDF / mobile page of a visitor's project) -> unguessable.
     const dossierId = `d-${crypto.randomBytes(16).toString('hex')}`; // 128 bits
     const shortId = randomId62(70); // 12 base62 chars, ~71 bits
@@ -181,12 +192,13 @@ export class DossierService {
       createdAt: new Date(),
       catalogSyncedAt: catalog.syncedAt,
       spec,
-      floorPlanSvg: floorPlanSvg(spec.layout, { widthPx: 620, setSizes }),
-      images: this.images(req.renderIds ?? [], save),
+      floorPlanSvg: floorPlanSvg(spec.layout, { widthPx: 620, setSizes, lang }),
+      images: this.images(req.renderIds ?? [], save, lang),
       qrDataUri: `data:image/png;base64,${qr.toString('base64')}`,
       shortUrl,
-      notes: [...(req.conversationNotes ?? []), ...consultantNotes(spec, catalog.data.products)],
-      consultantName: 'Ольга',
+      notes: [...(req.conversationNotes ?? []), ...consultantNotes(spec, catalog.data.products, lang)],
+      consultantName: t(lang, 'consultant.name'),
+      lang,
     });
     fs.writeFileSync(path.join(this.dir, `${dossierId}.html`), html, 'utf8');
     const b = await browser();
@@ -208,13 +220,14 @@ export class DossierService {
       renderIds: req.renderIds ?? [],
       createdAt: new Date().toISOString(),
       total: spec.total,
-      sets: spec.sets.map((s) => `${s.title} — ${s.quote.total} BYN`),
+      sets: spec.sets.map((s) => t(lang, 'dossier.setLine', { title: s.title, total: s.quote.total })),
       hasFlags: spec.hasEstimated || spec.hasUnpriced,
       lead: !isGuest(req.username),
+      lang,
     };
     fs.writeFileSync(this.indexFile(), JSON.stringify([...this.records(), record], null, 1), 'utf8');
     // Lead record (decision 6): username + saveId + dossierId + timestamp. Guests (guest-*, UE guest_tester) are never leads.
-    if (!isGuest(record.username)) fs.appendFileSync(path.join(this.dir, 'leads.jsonl'), JSON.stringify({ ts: record.createdAt, username: record.username, saveId: record.saveId, dossierId, sessionId: req.sessionId, total: spec.total }) + '\n', 'utf8');
+    if (!isGuest(record.username)) fs.appendFileSync(path.join(this.dir, 'leads.jsonl'), JSON.stringify({ ts: record.createdAt, username: record.username, saveId: record.saveId, dossierId, sessionId: req.sessionId, total: spec.total, lang }) + '\n', 'utf8');
     return { response: { dossierId, pdfUrl: `${base}/api/dossier/${dossierId}.pdf`, shortUrl, qrPngUrl: `${base}/api/dossier/${dossierId}/qr.png` }, record, spec };
   }
 
@@ -223,8 +236,8 @@ export class DossierService {
     const r = this.find(idOrShort);
     return !!r && !fs.existsSync(path.join(this.dir, `${r.dossierId}.pdf`));
   }
-  expiredPage(): string {
-    return expiredPageHtml();
+  expiredPage(lang: Lang = 'ru'): string {
+    return expiredPageHtml(lang);
   }
 
   shortPage(shortId: string): string | null {
@@ -241,7 +254,8 @@ export class DossierService {
       shortId: r.shortId,
       canRequestVisit: r.lead !== false && !isGuest(r.username),
       visitRequestedAt: r.visitRequestedAt,
-      consentText: VISIT_CONSENT_RU,
+      consentText: visitConsent(normalizeLang(r.lang)),
+      lang: normalizeLang(r.lang),
     });
   }
 
@@ -252,17 +266,17 @@ export class DossierService {
   requestVisit(shortId: string, consent: unknown): VisitResult {
     const all = this.records();
     const r = all.find((x) => x.shortId === shortId);
-    if (!r) return { ok: false, status: 404, code: 'NOT_FOUND', message: 'Проект не найден.' };
-    if (this.isExpired(shortId)) return { ok: false, status: 410, code: 'EXPIRED', message: 'Ссылка устарела — позвоните в салон, мы поможем.' };
-    if (r.lead === false || isGuest(r.username))
-      return { ok: false, status: 403, code: 'LOGIN_REQUIRED', message: 'Чтобы записаться на визит, войдите в приложение MaxiMall под своим логином и сохраните проект — так салон узнает, о каком проекте речь.' };
-    if (consent !== true) return { ok: false, status: 400, code: 'CONSENT_REQUIRED', message: 'Отметьте согласие, чтобы салон мог связаться с вами.' };
+    if (!r) return { ok: false, status: 404, code: 'NOT_FOUND', message: t('ru', 'visit.notFound') };
+    const lang = normalizeLang(r.lang);
+    if (this.isExpired(shortId)) return { ok: false, status: 410, code: 'EXPIRED', message: t(lang, 'visit.expired') };
+    if (r.lead === false || isGuest(r.username)) return { ok: false, status: 403, code: 'LOGIN_REQUIRED', message: t(lang, 'page.visitLogin') };
+    if (consent !== true) return { ok: false, status: 400, code: 'CONSENT_REQUIRED', message: t(lang, 'visit.consentRequired') };
     if (r.visitRequestedAt) return { ok: true, already: true, requestedAt: r.visitRequestedAt };
     r.visitRequestedAt = new Date().toISOString();
     fs.writeFileSync(this.indexFile(), JSON.stringify(all, null, 1), 'utf8');
     fs.appendFileSync(
       path.join(this.dir, 'leads.jsonl'),
-      JSON.stringify({ ts: r.visitRequestedAt, type: 'visit_request', username: r.username, saveId: r.saveId, dossierId: r.dossierId, consent: true, consentText: VISIT_CONSENT_RU }) + '\n',
+      JSON.stringify({ ts: r.visitRequestedAt, type: 'visit_request', username: r.username, saveId: r.saveId, dossierId: r.dossierId, consent: true, consentText: visitConsent(lang), ...(lang !== 'ru' ? { lang } : {}) }) + '\n',
       'utf8',
     );
     return { ok: true, already: false, requestedAt: r.visitRequestedAt };

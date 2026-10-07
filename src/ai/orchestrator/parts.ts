@@ -1,6 +1,8 @@
 import type { CatalogIndex } from '../catalog/index';
 import { fullConfig, lcColour } from '../catalog/index';
 import type { ResolvedModel, SetConfig, UeColour } from '../catalog/types';
+import { t, type Lang } from '../i18n';
+import { articleName, colourLabel, colourMatches } from '../i18n/names';
 
 /**
  * Contracts v2.4 (Phase 4): the parts of a cabinet set addressed by DataTable identifiers instead of raw indices.
@@ -16,13 +18,17 @@ import type { ResolvedModel, SetConfig, UeColour } from '../catalog/types';
 export type PartName = 'cabinet' | 'closet' | 'countertop' | 'sink' | 'faucet' | 'mirror';
 export const PART_NAMES: PartName[] = ['cabinet', 'closet', 'countertop', 'sink', 'faucet', 'mirror'];
 
+/** v2.5: a part's name in the session language (locale tables; Russian unchanged). */
+export function partLabel(part: PartName, lang: Lang = 'ru'): string {
+  return t(lang, `part.${part}` as 'part.cabinet');
+}
 export const PART_RU: Record<PartName, string> = {
-  cabinet: 'тумба',
-  closet: 'навесной шкаф',
-  countertop: 'столешница',
-  sink: 'раковина',
-  faucet: 'смеситель',
-  mirror: 'зеркало',
+  cabinet: partLabel('cabinet'),
+  closet: partLabel('closet'),
+  countertop: partLabel('countertop'),
+  sink: partLabel('sink'),
+  faucet: partLabel('faucet'),
+  mirror: partLabel('mirror'),
 };
 
 export interface PartColour {
@@ -51,20 +57,22 @@ const norm = (s?: string) => String(s ?? '').toLowerCase().replace(/ё/g, 'е').
 const stem = (s?: string) => norm(s).slice(0, 4);
 
 /** Visitor-facing label of a shared model: the shop article name without the trailing code, plus its width. */
-function modelLabel(c: CatalogIndex, productId: string, part: PartName, m: ResolvedModel, ctx: { cabinetSizeIndex: number; topKind?: string }): string {
+function modelLabel(c: CatalogIndex, productId: string, part: PartName, m: ResolvedModel, ctx: { cabinetSizeIndex: number; topKind?: string }, lang: Lang = 'ru'): string {
   const mp = c.mapping(productId, part, m.index, m.colours[0]?.index ?? 0, ctx);
   let name = (mp?.name ?? m.name ?? '').replace(/\s+/g, ' ').trim();
   if (mp?.articleCode) name = name.replace(mp.articleCode, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
-  if (part === 'mirror') name = `Зеркало ${m.widthCm ? `${m.widthCm} см` : ''}${m.name && !/^combined|^sm_/i.test(m.name) ? ` (${m.name})` : ''}`.trim();
-  if (part === 'countertop' && m.kind === 'BuiltIn' && !/раковин/i.test(name)) name += ' (со встроенной раковиной)';
-  if (part === 'faucet' && m.kind === 'Integrated' && !/скрыт/i.test(name)) name += ' (скрытого монтажа)';
+  if (part === 'mirror') name = t(lang, 'model.mirror', { w: m.widthCm, name: m.name && !/^combined|^sm_/i.test(m.name) ? m.name : undefined }).trim();
+  const ruName = name;
+  if (lang === 'en' && part !== 'mirror') name = articleName(lang, name, '');
+  if (part === 'countertop' && m.kind === 'BuiltIn' && !/раковин/i.test(ruName)) name += t(lang, 'model.builtIn');
+  if (part === 'faucet' && m.kind === 'Integrated' && !/скрыт/i.test(ruName)) name += t(lang, 'model.concealed');
   // a faucet's mesh width (≈ 5 cm) means nothing to a visitor
-  const width = m.widthCm && part !== 'mirror' && part !== 'faucet' && !new RegExp(`${m.widthCm}`).test(name) ? `, ${m.widthCm} см` : '';
-  return (name || `${PART_RU[part]} ${m.index + 1}`) + width;
+  const width = m.widthCm && part !== 'mirror' && part !== 'faucet' && !new RegExp(`${m.widthCm}`).test(name) ? t(lang, 'model.width', { w: m.widthCm }) : '';
+  return (name || t(lang, 'model.numbered', { part: partLabel(part, lang), n: m.index + 1 })) + width;
 }
 
 /** Several models with the same shop name (sinks, faucets): add the article / SKU, then a number, so each label is unique. */
-function uniqueLabels(c: CatalogIndex, productId: string, part: PartName, models: ResolvedModel[], options: PartOption[], ctx: { cabinetSizeIndex: number; topKind?: string }) {
+function uniqueLabels(c: CatalogIndex, productId: string, part: PartName, models: ResolvedModel[], options: PartOption[], ctx: { cabinetSizeIndex: number; topKind?: string }, lang: Lang = 'ru') {
   const count = (l: string) => options.filter((o) => o.label === l).length;
   options.forEach((o, i) => {
     if (count(o.label) < 2) return;
@@ -77,7 +85,7 @@ function uniqueLabels(c: CatalogIndex, productId: string, part: PartName, models
     if (count(o.label) < 2) continue;
     const n = (seen.get(o.label) ?? 0) + 1;
     seen.set(o.label, n);
-    o.label = `${o.label} — вариант ${n}`;
+    o.label = `${o.label}${t(lang, 'model.variant', { n })}`;
   }
   return options;
 }
@@ -93,7 +101,7 @@ function priced(c: CatalogIndex, productId: string, part: PartName, sizeIndex: n
 }
 
 /** Every allowed option of one part (or all parts) for this configuration, with ids for the tools. */
-export function listParts(c: CatalogIndex, cfg: SetConfig, only?: PartName): PartListing[] {
+export function listParts(c: CatalogIndex, cfg: SetConfig, only?: PartName, lang: Lang = 'ru'): PartListing[] {
   const f = fullConfig(cfg);
   const p = c.getProduct(f.productId);
   if (!p) return [];
@@ -105,63 +113,63 @@ export function listParts(c: CatalogIndex, cfg: SetConfig, only?: PartName): Par
       const cols = c.colourIndicesForSize(p, sz.index).map((i) => p.cabinet.colours.find((x) => x.index === i)!).filter(Boolean);
       return {
         id: sz.name,
-        label: `Тумба ${sz.name} см${sz.widthCm && sz.depthCm ? ` (${sz.widthCm}×${sz.depthCm}${sz.heightCm ? `×${sz.heightCm}` : ''} см)` : ''}`,
+        label: t(lang, 'parts.cabinetLabel', { size: sz.name, w: sz.widthCm, d: sz.depthCm, h: sz.heightCm }),
         widthCm: sz.widthCm,
         current: sz.index === f.sizeIndex,
-        colours: cols.map((col) => ({ id: colourId(col), name: lcColour(col.name), current: sz.index === f.sizeIndex && col.index === f.colourIndex, ...priced(c, p.productId, 'cabinet', sz.index, col.index, {}) })),
+        colours: cols.map((col) => ({ id: colourId(col), name: colourLabel(lang, col.name), current: sz.index === f.sizeIndex && col.index === f.colourIndex, ...priced(c, p.productId, 'cabinet', sz.index, col.index, {}) })),
       };
     });
-    out.push({ part: 'cabinet', label: PART_RU.cabinet, options });
+    out.push({ part: 'cabinet', label: partLabel('cabinet', lang), options });
   }
   if (want('closet')) {
     out.push({
       part: 'closet',
-      label: PART_RU.closet,
+      label: partLabel('closet', lang),
       options: p.closetModels.map((m) => ({
         id: m.name ?? String(m.index),
-        label: `Навесной шкаф${m.widthCm ? ` ${m.widthCm}${m.heightCm ? `×${m.heightCm}` : ''} см` : ''}`,
+        label: t(lang, 'parts.closetLabel', { w: m.widthCm, h: m.heightCm }),
         widthCm: m.widthCm,
         current: f.closetSizeIndex === m.index,
-        colours: m.colours.map((col) => ({ id: colourId(col), name: lcColour(col.name), current: f.closetSizeIndex === m.index && f.closetColourIndex === col.index, ...priced(c, p.productId, 'closet', m.index, col.index, {}) })),
+        colours: m.colours.map((col) => ({ id: colourId(col), name: colourLabel(lang, col.name), current: f.closetSizeIndex === m.index && f.closetColourIndex === col.index, ...priced(c, p.productId, 'closet', m.index, col.index, {}) })),
       })),
-      note: p.closetModels.length ? (f.closetSizeIndex < 0 ? 'Сейчас без навесного шкафа — его можно добавить.' : 'Навесной шкаф можно убрать.') : 'В этой коллекции навесного шкафа нет.',
+      note: p.closetModels.length ? (f.closetSizeIndex < 0 ? t(lang, 'parts.closetCanAdd') : t(lang, 'parts.closetCanRemove')) : t(lang, 'parts.closetNone'),
     });
   }
   const sp = c.space(p.productId, f.sizeIndex);
   if (!sp) return out;
   const kind = c.topKind(f);
   const shared = (part: 'countertop' | 'sink' | 'mirror' | 'faucet', models: ResolvedModel[], extra: { topKind?: string } = {}) =>
-    uniqueLabels(c, p.productId, part, models, sharedOptions(part, models, extra), { ...ctx, ...extra });
+    uniqueLabels(c, p.productId, part, models, sharedOptions(part, models, extra), { ...ctx, ...extra }, lang);
   const sharedOptions = (part: 'countertop' | 'sink' | 'mirror' | 'faucet', models: ResolvedModel[], extra: { topKind?: string } = {}): PartOption[] =>
     models.map((m) => ({
       id: m.rowId,
-      label: modelLabel(c, p.productId, part, m, { ...ctx, ...extra }),
+      label: modelLabel(c, p.productId, part, m, { ...ctx, ...extra }, lang),
       widthCm: m.widthCm,
       current: (f as any)[`${part}SizeIndex`] === m.index,
-      colours: m.colours.map((col) => ({ id: colourId(col), name: lcColour(col.name), current: (f as any)[`${part}SizeIndex`] === m.index && (f as any)[`${part}ColourIndex`] === col.index, ...priced(c, p.productId, part, m.index, col.index, { ...ctx, ...extra }) })),
+      colours: m.colours.map((col) => ({ id: colourId(col), name: colourLabel(lang, col.name), current: (f as any)[`${part}SizeIndex`] === m.index && (f as any)[`${part}ColourIndex`] === col.index, ...priced(c, p.productId, part, m.index, col.index, { ...ctx, ...extra }) })),
     }));
-  if (want('countertop') && sp.countertop.length) out.push({ part: 'countertop', label: PART_RU.countertop, options: shared('countertop', sp.countertop) });
+  if (want('countertop') && sp.countertop.length) out.push({ part: 'countertop', label: partLabel('countertop', lang), options: shared('countertop', sp.countertop) });
   if (want('sink') && sp.sink.length) {
     out.push(
       kind === 'BuiltIn'
-        ? { part: 'sink', label: PART_RU.sink, options: [], note: 'Раковина встроена в столешницу — отдельную раковину можно выбрать только с обычной столешницей.' }
-        : { part: 'sink', label: PART_RU.sink, options: shared('sink', sp.sink) },
+        ? { part: 'sink', label: partLabel('sink', lang), options: [], note: t(lang, 'parts.sinkBuiltIn') }
+        : { part: 'sink', label: partLabel('sink', lang), options: shared('sink', sp.sink) },
     );
   }
-  if (want('faucet') && sp.faucet[kind].length) out.push({ part: 'faucet', label: PART_RU.faucet, options: shared('faucet', sp.faucet[kind], { topKind: kind }) });
-  if (want('mirror') && sp.mirror.length) out.push({ part: 'mirror', label: PART_RU.mirror, options: shared('mirror', sp.mirror) });
+  if (want('faucet') && sp.faucet[kind].length) out.push({ part: 'faucet', label: partLabel('faucet', lang), options: shared('faucet', sp.faucet[kind], { topKind: kind }) });
+  if (want('mirror') && sp.mirror.length) out.push({ part: 'mirror', label: partLabel('mirror', lang), options: shared('mirror', sp.mirror) });
   return out;
 }
 
-/** One short Russian line per part: current choice and how many alternatives (for speech / chat). */
-export function describeListing(listing: PartListing[]): string {
+/** One short line per part in the session language: current choice and how many alternatives (for speech / chat). */
+export function describeListing(listing: PartListing[], lang: Lang = 'ru'): string {
   return listing
     .map((l) => {
-      if (!l.options.length) return `${l.label[0].toUpperCase()}${l.label.slice(1)}: ${l.note ?? 'выбора нет'}`;
+      if (!l.options.length) return t(lang, 'listing.noOptions', { label: l.label, note: l.note });
       const cur = l.options.find((o) => o.current);
       const curCol = cur?.colours.find((x) => x.current)?.name;
-      const names = l.options.map((o) => o.label + (o.colours.length > 1 ? ` (цвета: ${o.colours.map((x) => x.name).join(', ')})` : ''));
-      return `${l.label[0].toUpperCase()}${l.label.slice(1)}: сейчас ${cur ? `${cur.label}${curCol ? `, ${curCol}` : ''}` : 'не выбрана'}; варианты — ${names.join('; ')}`;
+      const names = l.options.map((o) => o.label + (o.colours.length > 1 ? t(lang, 'listing.colours', { list: o.colours.map((x) => x.name) }) : ''));
+      return t(lang, 'listing.line', { label: l.label, cur: cur ? `${cur.label}${curCol ? `, ${curCol}` : ''}` : undefined, names });
     })
     .join('. ');
 }
@@ -177,30 +185,42 @@ export interface PartChoice {
 }
 
 /** Visitor choice → partial config (booth-resolved indices) + a Russian "what I did", or a truthful refusal. */
-export function resolvePartChoice(c: CatalogIndex, cfg: SetConfig, ch: PartChoice): { change: Partial<SetConfig>; what: string } | { error: string } {
+export function resolvePartChoice(c: CatalogIndex, cfg: SetConfig, ch: PartChoice, lang: Lang = 'ru'): { change: Partial<SetConfig>; what: string } | { error: string } {
   const f = fullConfig(cfg);
   const p = c.getProduct(f.productId);
-  if (!p) return { error: 'Этой модели нет в каталоге.' };
+  if (!p) return { error: t(lang, 'parts.modelNotInCatalog') };
+  // matching runs on the catalogue (Russian) listing; v2.5: English sessions read the labels of the same listing in English
   const listing = listParts(c, f, ch.part)[0];
-  const ru = PART_RU[ch.part];
+  const shown = lang === 'en' ? listParts(c, f, ch.part, 'en')[0] : listing;
+  const labelOf = (o: PartOption) => (shown?.options[listing.options.indexOf(o)] ?? o).label;
+  const colourOf = (o: PartOption, x: PartColour) => (lang === 'en' ? shown?.options[listing.options.indexOf(o)]?.colours[o.colours.indexOf(x)]?.name ?? x.name : x.name);
+  const ru = partLabel(ch.part, lang);
   if (ch.part === 'closet' && ch.present === false) {
-    if (f.closetSizeIndex < 0) return { error: 'Навесного шкафа и так нет.' };
-    return { change: { closetSizeIndex: -1 }, what: 'Убрала навесной шкаф' };
+    if (f.closetSizeIndex < 0) return { error: t(lang, 'parts.closetNoneAlready') };
+    return { change: { closetSizeIndex: -1 }, what: t(lang, 'closet.removed') };
   }
-  if (!listing || !listing.options.length) return { error: listing?.note ?? `Для этой коллекции ${ru} не выбирается.` };
+  if (!listing || !listing.options.length) return { error: shown?.note ?? t(lang, 'parts.notSelectable', { part: ru }) };
   // the model: by id (exact, case-insensitive), else by a number in it («зеркало 80»), else the current one
   const q = norm(ch.option);
   let opt = ch.option ? listing.options.find((o) => norm(o.id) === q) : undefined;
   if (!opt && ch.option) {
     const n = q.match(/\d{2,3}/)?.[0];
-    opt = listing.options.find((o) => norm(o.label).includes(q)) ?? (n ? listing.options.find((o) => String(o.widthCm) === n || o.id === n) : undefined);
+    opt =
+      listing.options.find((o) => norm(o.label).includes(q)) ??
+      (lang === 'en' ? listing.options.find((o) => norm(labelOf(o)).includes(q)) : undefined) ??
+      (n ? listing.options.find((o) => String(o.widthCm) === n || o.id === n) : undefined);
   }
-  if (ch.option && !opt) return { error: `Такого варианта (${ru}) нет. Есть: ${listing.options.map((o) => o.label).join('; ')}.` };
+  if (ch.option && !opt) return { error: t(lang, 'parts.noOption', { part: ru, list: listing.options.map(labelOf) }) };
   if (!opt) opt = listing.options.find((o) => o.current) ?? (ch.part === 'closet' || ch.present ? listing.options[0] : undefined);
-  if (!opt) return { error: `Уточните, какой вариант (${ru}) поставить.` };
+  if (!opt) return { error: t(lang, 'parts.whichOption', { part: ru }) };
   // the colour: by SKU or name stem, else keep the current colour name if the model has it, else the first
-  let col = ch.colour ? opt.colours.find((x) => norm(x.id) === norm(ch.colour)) ?? opt.colours.find((x) => stem(x.name) === stem(ch.colour)) : undefined;
-  if (ch.colour && !col && opt.colours.length) return { error: `У варианта «${opt.label}» есть цвета: ${opt.colours.map((x) => x.name).join(', ')}.` };
+  // (v2.5: a Latin word also matches the English colour name / id — a Russian word never reaches that branch)
+  let col = ch.colour
+    ? opt.colours.find((x) => norm(x.id) === norm(ch.colour)) ??
+      opt.colours.find((x) => stem(x.name) === stem(ch.colour)) ??
+      (/[А-Яа-яЁё]/.test(ch.colour) ? undefined : opt.colours.find((x) => colourMatches(ch.colour, x.name)))
+    : undefined;
+  if (ch.colour && !col && opt.colours.length) return { error: t(lang, 'parts.optionColours', { label: labelOf(opt), list: opt.colours.map((x) => colourOf(opt!, x)) }) };
   if (!col) col = opt.colours.find((x) => x.current) ?? opt.colours.find((x) => stem(x.name) === stem(c.colourName(f))) ?? opt.colours[0];
   const colIndex = (models: { index: number; colours: UeColour[] }[], modelIdx: number) => {
     const m = models.find((x) => x.index === modelIdx);
@@ -250,14 +270,14 @@ export function resolvePartChoice(c: CatalogIndex, cfg: SetConfig, ch: PartChoic
   const next = fullConfig({ ...f, ...change });
   const same = Object.keys(change).every((k) => (next as any)[k] === (f as any)[k]);
   if (same) return { change: {}, what: '' };
-  const invalid = c.validate(next);
+  const invalid = c.validate(next, lang);
   if (invalid) return { error: invalid };
-  const colTxt = col && opt.colours.length > 1 ? `, ${col.name}` : '';
+  const colTxt = col && opt.colours.length > 1 ? `, ${colourOf(opt, col)}` : '';
   const what =
     ch.part === 'cabinet'
-      ? `Поставила ${opt.label.toLowerCase()}${colTxt}`
+      ? t(lang, 'parts.placedCabinet', { label: labelOf(opt), col: colTxt })
       : ch.part === 'closet' && f.closetSizeIndex < 0
-        ? `Добавила навесной шкаф${colTxt}`
-        : `Поменяла ${ru === 'зеркало' ? 'зеркало' : ru} на «${opt.label}»${colTxt}`;
+        ? t(lang, 'parts.addedCloset', { col: colTxt })
+        : t(lang, 'parts.changed', { part: ru, label: labelOf(opt), col: colTxt });
   return { change, what };
 }

@@ -1,19 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import type { CatalogIndexData, Component, Mapping, Quote, QuoteLine, ResolvedModel, ResolvedSpace, SetConfig, SharedComponent, UeProduct } from './types';
+import { t, type Lang } from '../i18n';
+import { colourLabel } from '../i18n/names';
 
 export const DEFAULT_INDEX_FILE = path.join(__dirname, '..', '..', '..', 'data', 'catalog', 'index.json');
 
-const COMPONENT_LABEL_RU: Record<Component, string> = {
-  cabinet: 'тумба',
-  closet: 'шкаф навесной',
-  countertop: 'столешница',
-  sink: 'раковина',
-  faucet: 'смеситель',
-  mirror: 'зеркало',
-};
+/** Component label in the session language (v2.5 locale tables; Russian unchanged). */
+export function componentLabel(c: Component, lang: Lang = 'ru'): string {
+  return t(lang, `component.${c}` as 'component.cabinet');
+}
 export function componentLabelRu(c: Component) {
-  return COMPONENT_LABEL_RU[c];
+  return componentLabel(c, 'ru');
 }
 
 /** Colour words → tone classes, used for style filtering and reasons. */
@@ -133,29 +131,29 @@ export class CatalogIndex {
     return collection === 'Tuma' ? 'Terra' : undefined;
   }
 
-  /** Validates a config in the booth-resolved index space. Returns a Russian reason or null. */
-  validate(cfg: SetConfig): string | null {
+  /** Validates a config in the booth-resolved index space. Returns a reason in the session language (default Russian) or null. */
+  validate(cfg: SetConfig, lang: Lang = 'ru'): string | null {
     const c = fullConfig(cfg);
     const p = this.getProduct(c.productId);
-    if (!p) return `Нет такого товара в каталоге: ${c.productId}`;
-    if (!this.isCollectionEnabled(p.collection)) return `Коллекцию ${p.collection} мы ещё готовим для 3D-комнаты`;
-    if (!p.cabinet.sizes.some((s) => s.index === c.sizeIndex)) return 'Такого размера нет в каталоге';
-    if (!this.colourIndicesForSize(p, c.sizeIndex).includes(c.colourIndex)) return 'Этот цвет недоступен для выбранного размера';
+    if (!p) return t(lang, 'validate.noProduct', { id: c.productId });
+    if (!this.isCollectionEnabled(p.collection)) return t(lang, 'validate.notReady', { col: p.collection });
+    if (!p.cabinet.sizes.some((s) => s.index === c.sizeIndex)) return t(lang, 'validate.noSize');
+    if (!this.colourIndicesForSize(p, c.sizeIndex).includes(c.colourIndex)) return t(lang, 'validate.colourSize');
     if (c.closetSizeIndex >= 0) {
-      if (p.closetModels.length === 0) return 'К этой коллекции навесного шкафа нет';
+      if (p.closetModels.length === 0) return t(lang, 'validate.noClosetCollection');
       const m = p.closetModels.find((x) => x.index === c.closetSizeIndex);
-      if (!m) return 'Такого навесного шкафа нет в каталоге';
-      if (!m.colours.some((x) => x.index === c.closetColourIndex)) return 'Такого цвета шкафа нет в каталоге';
+      if (!m) return t(lang, 'validate.noCloset');
+      if (!m.colours.some((x) => x.index === c.closetColourIndex)) return t(lang, 'validate.noClosetColour');
     }
     const sp = this.space(c.productId, c.sizeIndex);
     if (!sp) return null;
     const check = (comp: SharedComponent, list: ResolvedModel[]) => {
       if (list.length === 0) return null;
       const m = list[(c as any)[`${comp}SizeIndex`]];
-      if (!m) return `Недопустимый вариант: ${componentLabelRu(comp)}`;
+      if (!m) return t(lang, 'validate.badOption', { comp: componentLabel(comp, lang) });
       const ci = (c as any)[`${comp}ColourIndex`] as number;
       const n = Math.max(1, m.colours.length);
-      if (ci < 0 || ci >= n) return comp === 'countertop' ? 'Эта столешница не подходит к выбранному размеру тумбы' : `Недопустимый цвет: ${componentLabelRu(comp)}`;
+      if (ci < 0 || ci >= n) return comp === 'countertop' ? t(lang, 'validate.topSize') : t(lang, 'validate.badColour', { comp: componentLabel(comp, lang) });
       return null;
     };
     return check('countertop', sp.countertop) ?? check('sink', sp.sink) ?? check('faucet', sp.faucet[this.topKind(c)]) ?? check('mirror', sp.mirror);
@@ -294,16 +292,16 @@ export class CatalogIndex {
       .map((p) => p.collection ?? p.productId);
   }
 
-  /** Short Russian catalogue summary for the LLM system prompt (cached context). Prices from the index only. */
-  summaryForPrompt(): string {
-    const lines: string[] = [`Каталог (синхронизирован ${this.syncedAt}, цены в BYN):`];
+  /** Short catalogue summary for the LLM system prompt (cached context), in the session language. Prices from the index only. */
+  summaryForPrompt(lang: Lang = 'ru'): string {
+    const lines: string[] = [t(lang, 'summary.head', { syncedAt: this.syncedAt })];
     for (const p of this.listProducts()) {
-      const sizes = p.cabinet.sizes.map((s) => s.name || `${s.widthCm ?? '?'} см`).join(', ');
-      const colours = [...new Set(p.cabinet.colours.map((c) => c.name))].join(', ');
+      const sizes = p.cabinet.sizes.map((s) => s.name || t(lang, 'summary.sizeCm', { w: s.widthCm })).join(', ');
+      const colours = [...new Set(p.cabinet.colours.map((c) => (lang === 'en' ? colourLabel(lang, c.name) : c.name)))].join(', ');
       const s0 = p.cabinet.sizes[0]?.index ?? 0;
       const q = this.quote({ productId: p.productId, sizeIndex: s0, colourIndex: this.colourIndicesForSize(p, s0)[0] ?? 0, ...(this.defaultsFor(p.productId, s0) ?? {}) });
       lines.push(
-        `- ${p.collection ?? ''} [${p.productId}]${p.showInConstructor === false ? ' (скрыта в конструкторе)' : ''}: размеры ${sizes}; цвета ${colours}; навесной шкаф: ${p.closetModels.length ? 'есть' : 'нет'}; от ${q.total} BYN${q.estimated ? ' (цена уточняется)' : ''}`,
+        t(lang, 'summary.line', { collection: p.collection ?? '', productId: p.productId, hidden: p.showInConstructor === false, sizes, colours, closet: p.closetModels.length > 0, from: q.total, estimated: q.estimated }),
       );
     }
     return lines.join('\n');

@@ -2,6 +2,8 @@
  * SVG floor plan from the planner layout JSON (ARoomPlannerManager::ExportLayoutToJSON, version 3):
  * nodes[{id,x,y}] (cm), walls[{id,start,end,thickness,openings[{type,dist,width}]}], cabinetSets[{id,product,x,y,yaw}].
  */
+import { t as tr, type Lang } from '../i18n';
+
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** Set size along the wall (w) and depth (d) in cm; with a UE placement the rectangle is the real footprint on the wall. */
@@ -13,10 +15,11 @@ export interface SetFootprint {
   placement?: { segmentId: number; offsetCm: number; side?: string };
 }
 
-export function floorPlanSvg(layout: any, opts: { widthPx?: number; setSizes?: Record<string, SetFootprint> } = {}): string {
+export function floorPlanSvg(layout: any, opts: { widthPx?: number; setSizes?: Record<string, SetFootprint>; lang?: Lang } = {}): string {
+  const lang = opts.lang ?? 'ru';
   const nodes = new Map<number, { x: number; y: number }>((layout?.nodes ?? []).map((n: any) => [Number(n.id), { x: Number(n.x), y: Number(n.y) }]));
   const walls: any[] = layout?.walls ?? [];
-  if (!nodes.size || !walls.length) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80"><text x="10" y="45" font-size="14">План помещения недоступен</text></svg>';
+  if (!nodes.size || !walls.length) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80"><text x="10" y="45" font-size="14">' + tr(lang, 'plan.unavailable') + '</text></svg>';
   const xs = [...nodes.values()].map((n) => n.x);
   const ys = [...nodes.values()].map((n) => n.y);
   const pad = 60;
@@ -55,7 +58,7 @@ export function floorPlanSvg(layout: any, opts: { widthPx?: number; setSizes?: R
     // dimension label
     const mx = (a.x + b.x) / 2 + uy * 34; // outside the room (walls run clockwise in screen space)
     const my = (a.y + b.y) / 2 - ux * 34;
-    out.push(`<text x="${mx}" y="${my}" font-size="${Math.max(12, w / 45)}" text-anchor="middle" fill="#555">${Math.round(Math.max(0, len - t))} см</text>`); // clear inner-face length (QA-023)
+    out.push(`<text x="${mx}" y="${my}" font-size="${Math.max(12, w / 45)}" text-anchor="middle" fill="#555">${tr(lang, 'plan.cm', { n: Math.round(Math.max(0, len - t)) })}</text>`); // clear inner-face length (QA-023)
   }
   const fontSet = Math.max(11, w / 55);
   const drawn = new Set<string>();

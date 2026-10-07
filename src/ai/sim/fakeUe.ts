@@ -48,6 +48,8 @@ export interface EnvelopeResult {
   ok: boolean;
   reasonCode?: string;
   reason?: string;
+  /** v2.5 §7: refusal detail + numbers / ids (UE renders no text in other languages). */
+  reasonParams?: Record<string, any>;
   result?: any;
   state_rev: number;
   elapsedMs?: number;

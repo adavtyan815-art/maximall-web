@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { compositeProduct, decodeCapture, modelInputs, productMask } from './composite';
 import { renderPrompt, RenderProvider } from './providers';
+import { t } from '../i18n';
 
 export interface RenderMeta {
   renderId: string;
@@ -51,7 +52,9 @@ export function checkMeta(m: any): string | null {
  */
 /** TC-AI-06.2: the whole pipeline (preview + final, incl. fallback) gives up after this long. */
 export const RENDER_GIVEUP_MS = Number(process.env.AI_RENDER_GIVEUP_MS ?? 60_000);
-export const RENDER_GIVEUP_RU = 'Фото не успело подготовиться — попробуйте ещё раз чуть позже. В досье останется кадр из 3D-комнаты.';
+export const RENDER_GIVEUP_RU = t('ru', 'render.giveUp');
+/** The other visitor-facing failure line (v2.5: index.ts renders both in the session language). */
+export const RENDER_FAILED_RU = t('ru', 'render.failed');
 
 export class RenderService {
   giveUpMs = RENDER_GIVEUP_MS;
@@ -156,7 +159,7 @@ export class RenderService {
       this.emit(meta.sessionId, { renderId: meta.renderId, stage: 'final', url: this.fileUrl(meta.renderId, 'final'), beautyUrl: this.fileUrl(meta.renderId, 'beauty'), source: 'ai' });
     } catch (e: any) {
       log.error = e.message;
-      if (!gaveUp()) this.emit(meta.sessionId, { renderId: meta.renderId, stage: 'failed', reason: 'Фото не получилось, попробуйте ещё раз.' });
+      if (!gaveUp()) this.emit(meta.sessionId, { renderId: meta.renderId, stage: 'failed', reason: RENDER_FAILED_RU });
     } finally {
       if (!gaveUp()) fs.writeFileSync(path.join(d, 'log.json'), JSON.stringify(log, null, 1));
     }

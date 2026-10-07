@@ -1,8 +1,14 @@
 import type { Spec } from './spec';
-import { componentRu } from './spec';
+import { componentName } from './spec';
+import { t, type Lang } from '../i18n';
+import { articleName } from '../i18n/names';
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-export const byn = (v: number) => `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(v).replace(/[  ]/g, ' ')} BYN`;
+/** «2 773 BYN» (Russian, unchanged) / «2,773 BYN» (English, v2.5). */
+export const byn = (v: number, lang: Lang = 'ru') =>
+  lang === 'en'
+    ? `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v)} BYN`
+    : `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(v).replace(/[  ]/g, ' ')} BYN`;
 
 export interface DossierView {
   dossierId: string;
@@ -16,60 +22,68 @@ export interface DossierView {
   shortUrl: string;
   notes: string[];
   consultantName: string;
+  /** v2.5: the visitor's language (default ru). */
+  lang?: Lang;
 }
 
 /**
  * Consultant's notes without an LLM call. QA-016: facts only from the scraped product page of the exact article
  * (material and warranty features as printed on oliveeka.by); nothing for estimated items; the "light walls" remark only
- * for light finishes.
+ * for light finishes. v2.5: in the spec's language (the scraped material is Russian text, so English notes keep only
+ * the warranty years — TODO(owner): English material names).
  */
-export function consultantNotes(spec: Spec, products: { articleCode: string; features?: Record<string, string> }[] = []): string[] {
+export function consultantNotes(spec: Spec, products: { articleCode: string; features?: Record<string, string> }[] = [], lang: Lang = spec.lang ?? 'ru'): string[] {
   const n: string[] = [];
   const byCode = new Map(products.map((p) => [p.articleCode, p]));
   for (const s of spec.sets) {
     const line = s.quote.lines.find((l) => l.component === 'cabinet');
     const w = line?.dimensionsCm?.width;
-    const head = `${s.title}${w ? ` — ширина около ${Math.round(w)} см` : ''}`;
+    const head = `${s.title}${w ? t(lang, 'dossier.note.width', { cm: Math.round(w) }) : ''}`;
     const p = line && !line.estimated && line.articleCode ? byCode.get(line.articleCode) ?? byCode.get(line.articleCode.split('+')[0]) : undefined;
     const facts: string[] = [];
     const mat = p?.features?.['Материал каркаса'] ?? p?.features?.['Материал фасада'];
-    if (mat) facts.push(`материал каркаса — ${mat.toLowerCase()}`);
+    if (mat && (lang === 'ru' || !/[А-Яа-яЁё]/.test(mat))) facts.push(t(lang, 'dossier.note.material', { v: mat.toLowerCase() }));
     const war = p?.features?.['Гарантия, лет'];
-    if (war) facts.push(`гарантия производителя ${war} лет`);
-    if (facts.length) n.push(`${head}: ${facts.join(', ')} (по данным oliveeka.by).`);
-    else n.push(`${head}: характеристики и цену этой позиции уточнит менеджер салона.`);
-    if (s.config.closetSizeIndex >= 0) n.push('Навесной шкаф даёт место для хранения полотенец и косметики над тумбой.');
+    if (war) facts.push(t(lang, 'dossier.note.warranty', { v: war }));
+    if (facts.length) n.push(t(lang, 'dossier.note.facts', { head, facts }));
+    else n.push(t(lang, 'dossier.note.ask', { head }));
+    if (s.config.closetSizeIndex >= 0) n.push(t(lang, 'dossier.note.closet'));
   }
-  const walls = spec.finishes.find((f) => f.surface.startsWith('стен'));
+  const wallsWord = t(lang, 'surface.walls');
+  const walls = spec.finishes.find((f) => f.surface.startsWith(lang === 'ru' ? 'стен' : wallsWord) || f.surface.startsWith(lang === 'ru' ? 'стен' : 'wall'));
   if (walls) {
-    const light = /RAL (9010|9016|9001|9003|1013|1015)|Tile_White|Tile_Beige|Tile_Sand|бел|беж|песоч/i.test(walls.label);
-    n.push(`Отделка стен: ${walls.label}.${light ? ' Светлые стены визуально расширяют небольшую ванную.' : ''}`);
+    const light = /RAL (9010|9016|9001|9003|1013|1015)|Tile_White|Tile_Beige|Tile_Sand|бел|беж|песоч/i.test(walls.label) || (lang === 'en' && /\b(white|beige|sand)\b/i.test(walls.label));
+    n.push(t(lang, 'dossier.note.walls', { label: walls.label, light }));
   }
-  if (spec.hasEstimated || spec.hasUnpriced) n.push('Позиции с пометкой «цена уточняется» подтвердит менеджер салона.');
-  n.push('Сроки изготовления, доставку и монтаж уточнит менеджер салона.');
+  if (spec.hasEstimated || spec.hasUnpriced) n.push(t(lang, 'dossier.note.flags'));
+  n.push(t(lang, 'dossier.note.terms'));
   return n;
 }
 
 export function dossierHtml(v: DossierView): string {
-  const date = v.createdAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const synced = new Date(v.catalogSyncedAt).toLocaleDateString('ru-RU');
+  const lang = v.lang ?? 'ru';
+  const L = (k: Parameters<typeof t>[1], p?: Record<string, any>) => t(lang, k, p);
+  const locale = lang === 'en' ? 'en-GB' : 'ru-RU';
+  const date = v.createdAt.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const synced = new Date(v.catalogSyncedAt).toLocaleDateString(locale);
   const hero = v.images[0];
+  const priceTbc = esc(L('dossier.priceTbc'));
   const specRows = v.spec.sets
     .map((s) => {
       const rows = s.quote.lines
         .map(
-          (l) => `<tr><td>${esc(componentRu(l.component))}${l.includes?.length === 2 ? ' + столешница' : ''}</td><td>${esc(l.name)}</td><td class="mono">${l.articleCode && !l.articleCode.includes(':') ? esc(l.articleCode) : '<span class="flag">артикул уточняется</span>'}</td><td class="num">${
-            l.unpriced ? '<span class="flag">цена уточняется</span>' : `${byn(l.price)}${l.estimated ? '<br><span class="flag">цена уточняется</span>' : ''}`
+          (l) => `<tr><td>${esc(componentName(l.component, lang))}${l.includes?.length === 2 ? esc(L('dossier.withTop')) : ''}</td><td>${esc(lang === 'ru' ? l.name : articleName(lang, l.name, s.title))}</td><td class="mono">${l.articleCode && !l.articleCode.includes(':') ? esc(l.articleCode) : `<span class="flag">${esc(L('dossier.articleTbc'))}</span>`}</td><td class="num">${
+            l.unpriced ? `<span class="flag">${priceTbc}</span>` : `${byn(l.price, lang)}${l.estimated ? `<br><span class="flag">${priceTbc}</span>` : ''}`
           }</td></tr>`,
         )
         .join('');
-      const colours = s.customColours.length ? `<tr><td colspan="4" class="muted">Свой цвет: ${s.customColours.map((c) => esc(c.code ?? c.rgb ?? '')).join(', ')}</td></tr>` : '';
-      return `<tr class="set"><td colspan="3">${esc(s.title)}</td><td class="num">${byn(s.quote.total)}</td></tr>${rows}${colours}`;
+      const colours = s.customColours.length ? `<tr><td colspan="4" class="muted">${esc(L('dossier.ownColour', { list: s.customColours.map((c) => c.code ?? c.rgb ?? '').join(', ') }))}</td></tr>` : '';
+      return `<tr class="set"><td colspan="3">${esc(s.title)}</td><td class="num">${byn(s.quote.total, lang)}</td></tr>${rows}${colours}`;
     })
     .join('');
-  const finishes = v.spec.finishes.map((f) => `<li>${esc(f.surface)}: ${esc(f.label)}${f.areaM2 ? ` — ${f.areaM2.toFixed(1)} м²` : ''}</li>`).join('');
+  const finishes = v.spec.finishes.map((f) => `<li>${esc(f.surface)}: ${esc(f.label)}${f.areaM2 ? esc(L('dossier.m2', { v: f.areaM2.toFixed(1) })) : ''}</li>`).join('');
   return `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><title>Проект ванной — Oliveeka</title>
+<html lang="${L('dossier.htmlLang')}"><head><meta charset="utf-8"><title>${esc(L('dossier.title'))}</title>
 <style>
   @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
   * { box-sizing: border-box; }
@@ -99,39 +113,39 @@ export function dossierHtml(v: DossierView): string {
   ul { padding-left: 5mm; }
 </style></head><body>
 <section class="page">
-  <div class="brand">Oliveeka · мебель для ванной</div>
-  <h1>Проект вашей ванной</h1>
-  <div class="meta"><span>Для: ${esc(v.username)}</span><span>${esc(date)}</span><span>Консультант: ${esc(v.consultantName)}</span></div>
+  <div class="brand">${esc(L('dossier.brand'))}</div>
+  <h1>${esc(L('dossier.h1'))}</h1>
+  <div class="meta"><span>${esc(L('dossier.for', { username: v.username }))}</span><span>${esc(date)}</span><span>${esc(L('dossier.consultant', { name: v.consultantName }))}</span></div>
   ${hero ? `<img class="hero" src="${hero.src}" alt=""><div class="cap">${esc(hero.caption)}</div>` : ''}
-  <div class="total">Итого: ${byn(v.spec.total)}</div>
-  ${v.spec.hasEstimated || v.spec.hasUnpriced ? '<div class="note">Сумма без позиций с пометкой «цена уточняется».</div>' : ''}
+  <div class="total">${esc(L('dossier.total', { total: byn(v.spec.total, lang) }))}</div>
+  ${v.spec.hasEstimated || v.spec.hasUnpriced ? `<div class="note">${esc(L('dossier.totalNote'))}</div>` : ''}
 </section>
 <section class="page">
-  <h2>План помещения</h2>
+  <h2>${esc(L('dossier.plan'))}</h2>
   <div class="plan">${v.floorPlanSvg}</div>
-  <div class="meta">${v.spec.floorAreaM2 ? `<span>Площадь пола: ${v.spec.floorAreaM2.toFixed(1)} м²</span>` : ''}${v.spec.perimeterM ? `<span>Периметр: ${v.spec.perimeterM.toFixed(1)} м</span>` : ''}</div>
-  ${finishes ? `<h2 style="margin-top:8mm">Отделка</h2><ul>${finishes}</ul>` : ''}
-  ${v.images.length > 1 ? `<h2 style="margin-top:8mm">Фото</h2><div class="gallery">${v.images.slice(1, 5).map((i) => `<div><img src="${i.src}" alt=""><div class="cap">${esc(i.caption)}</div></div>`).join('')}</div>` : ''}
+  <div class="meta">${v.spec.floorAreaM2 ? `<span>${esc(L('dossier.floorArea', { v: v.spec.floorAreaM2.toFixed(1) }))}</span>` : ''}${v.spec.perimeterM ? `<span>${esc(L('dossier.perimeter', { v: v.spec.perimeterM.toFixed(1) }))}</span>` : ''}</div>
+  ${finishes ? `<h2 style="margin-top:8mm">${esc(L('dossier.finishes'))}</h2><ul>${finishes}</ul>` : ''}
+  ${v.images.length > 1 ? `<h2 style="margin-top:8mm">${esc(L('dossier.photos'))}</h2><div class="gallery">${v.images.slice(1, 5).map((i) => `<div><img src="${i.src}" alt=""><div class="cap">${esc(i.caption)}</div></div>`).join('')}</div>` : ''}
 </section>
 <section class="page">
-  <h2>Спецификация</h2>
-  <table><tbody>${specRows || '<tr><td>В комнате нет комплектов</td></tr>'}</tbody></table>
-  <div class="total">Итого: ${byn(v.spec.total)}</div>
-  <div class="note">Цены в BYN с сайта oliveeka.by на ${esc(synced)}. Не является публичной офертой. Позиции «цена уточняется» подтвердит менеджер салона.</div>
+  <h2>${esc(L('dossier.spec'))}</h2>
+  <table><tbody>${specRows || `<tr><td>${esc(L('dossier.noSets'))}</td></tr>`}</tbody></table>
+  <div class="total">${esc(L('dossier.total', { total: byn(v.spec.total, lang) }))}</div>
+  <div class="note">${esc(L('dossier.priceNote', { synced }))}</div>
 </section>
 <section class="page">
-  <h2>Заметки консультанта</h2>
+  <h2>${esc(L('dossier.notes'))}</h2>
   <ul>${v.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>
-  <div class="qr"><img src="${v.qrDataUri}" alt="QR"><div><b>Ваш проект онлайн</b><br><span class="mono">${esc(v.shortUrl)}</span><br><span class="muted">PDF, повторное открытие проекта, запись в салон</span></div></div>
-  <div class="note">Документ № ${esc(v.dossierId)}. Проект сохранён под вашим логином «${esc(v.username)}».</div>
+  <div class="qr"><img src="${v.qrDataUri}" alt="QR"><div><b>${esc(L('dossier.online'))}</b><br><span class="mono">${esc(v.shortUrl)}</span><br><span class="muted">${esc(L('dossier.onlineSub'))}</span></div></div>
+  <div class="note">${esc(L('dossier.docNo', { id: v.dossierId, username: v.username }))}</div>
 </section>
 </body></html>`;
 }
 
 /** QA-058: a dossier whose files expired under the retention policy (the link was shared, so no bare 404). */
-export function expiredPageHtml(): string {
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ссылка устарела — Oliveeka</title>
+export function expiredPageHtml(lang: Lang = 'ru'): string {
+  return `<!doctype html><html lang="${t(lang, 'dossier.htmlLang')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(t(lang, 'expired.title'))}</title>
 <style>
   :root { --bg:#fbfaf7; --fg:#222; --muted:#666; --accent:#8a6d45; --card:#fff; }
   @media (prefers-color-scheme: dark) { :root { --bg:#161513; --fg:#eee; --muted:#aaa; --accent:#d2b48c; --card:#221f1b; } }
@@ -140,9 +154,9 @@ export function expiredPageHtml(): string {
   h1 { font-size:22px; margin:0 0 6px; } .muted { color:var(--muted); font-size:15px; }
   .btn { display:block; text-align:center; text-decoration:none; padding:14px; border-radius:10px; margin-top:16px; font-weight:600; background:var(--accent); color:#fff; }
 </style></head><body><div class="card">
-<h1>Ссылка устарела</h1>
-<p class="muted">Файлы этого проекта больше не хранятся. Сам проект сохранён в приложении MaxiMall: войдите под своим логином и откройте его в «Сохранениях» — или позвоните в салон, мы поможем.</p>
-<a class="btn" href="tel:+375291099619">Позвонить в салон</a>
+<h1>${esc(t(lang, 'expired.h1'))}</h1>
+<p class="muted">${esc(t(lang, 'expired.text'))}</p>
+<a class="btn" href="tel:+375291099619">${esc(t(lang, 'page.call'))}</a>
 </div></body></html>`;
 }
 
@@ -158,30 +172,36 @@ export function shortPageHtml(v: {
   canRequestVisit?: boolean;
   visitRequestedAt?: string;
   consentText?: string;
+  /** v2.5: the visitor's language (the dossier record's). */
+  lang?: Lang;
 }): string {
-  const visitDone = '<div class="ok">Заявка на визит отправлена — салон свяжется с вами по этому проекту.</div>';
+  const lang = v.lang ?? 'ru';
+  const L = (k: Parameters<typeof t>[1], p?: Record<string, any>) => t(lang, k, p);
+  // JS string literal inside the inline script (single quotes)
+  const js = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const visitDone = `<div class="ok">${esc(L('page.visitDone'))}</div>`;
   const visit = !v.shortId
     ? ''
     : !v.canRequestVisit
-      ? `<div class="visit"><button class="btn alt" style="width:100%;font-size:16px" disabled>Записаться на визит в салон</button>
-<p class="muted">Чтобы записаться на визит, войдите в приложение MaxiMall под своим логином и сохраните проект — так салон узнает, о каком проекте речь.</p></div>`
+      ? `<div class="visit"><button class="btn alt" style="width:100%;font-size:16px" disabled>${esc(L('page.visitBtn'))}</button>
+<p class="muted">${esc(L('page.visitLogin'))}</p></div>`
       : v.visitRequestedAt
         ? `<div class="visit">${visitDone}</div>`
         : `<div class="visit" id="visit">
 <label class="consent"><input type="checkbox" id="consent"> ${esc(v.consentText ?? '')}</label>
-<button class="btn" id="visitBtn" style="width:100%;font-size:16px;border:0" disabled>Записаться на визит в салон</button>
+<button class="btn" id="visitBtn" style="width:100%;font-size:16px;border:0" disabled>${esc(L('page.visitBtn'))}</button>
 <div class="muted" id="visitMsg" role="status"></div>
 <script>
 (function(){var c=document.getElementById('consent'),b=document.getElementById('visitBtn'),m=document.getElementById('visitMsg');
 c.addEventListener('change',function(){b.disabled=!c.checked;});
-b.addEventListener('click',function(){if(!c.checked)return;b.disabled=true;m.textContent='Отправляю…';
+b.addEventListener('click',function(){if(!c.checked)return;b.disabled=true;m.textContent='${js(L('page.sending'))}';
 fetch(location.pathname.replace(/\\/$/,'')+'/visit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({consent:true})})
 .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
-.then(function(x){if(x.ok){document.getElementById('visit').innerHTML='${visitDone.replace(/'/g, "\\'")}';}else{m.textContent=(x.j&&x.j.message)||'Не получилось отправить, попробуйте позже.';b.disabled=!c.checked;}})
-.catch(function(){m.textContent='Нет связи, попробуйте позже.';b.disabled=!c.checked;});});})();
+.then(function(x){if(x.ok){document.getElementById('visit').innerHTML='${visitDone.replace(/'/g, "\\'")}';}else{m.textContent=(x.j&&x.j.message)||'${js(L('page.sendFailed'))}';b.disabled=!c.checked;}})
+.catch(function(){m.textContent='${js(L('page.offline'))}';b.disabled=!c.checked;});});})();
 </script></div>`;
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ваш проект ванной — Oliveeka</title>
+  return `<!doctype html><html lang="${L('dossier.htmlLang')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(L('page.title'))}</title>
 <style>
   :root { --bg:#fbfaf7; --fg:#222; --muted:#666; --accent:#8a6d45; --card:#fff; }
   @media (prefers-color-scheme: dark) { :root { --bg:#161513; --fg:#eee; --muted:#aaa; --accent:#d2b48c; --card:#221f1b; } }
@@ -194,15 +214,15 @@ fetch(location.pathname.replace(/\\/$/,'')+'/visit',{method:'POST',headers:{'Con
   .btn[disabled] { opacity:.5; } .consent { display:flex; gap:10px; align-items:flex-start; margin-top:16px; font-size:15px; }
   .consent input { width:22px; height:22px; flex:none; } .ok { margin-top:14px; padding:12px; border-radius:10px; background:rgba(60,140,80,.12); }
 </style></head><body><div class="card">
-<h1>Ваш проект ванной</h1>
-<div class="muted">Сохранён под логином «${esc(v.username)}»${v.saveName ? ` — «${esc(v.saveName)}»` : ''}</div>
+<h1>${esc(L('page.h1'))}</h1>
+<div class="muted">${esc(L('page.savedAs', { username: v.username, saveName: v.saveName }))}</div>
 <ul>${v.sets.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
-<div class="total">Итого: ${byn(v.total)}</div>
-${v.hasFlags ? '<div class="muted">Часть позиций — «цена уточняется».</div>' : ''}
-<a class="btn" href="${esc(v.pdfUrl)}">Скачать PDF</a>
+<div class="total">${esc(L('dossier.total', { total: byn(v.total, lang) }))}</div>
+${v.hasFlags ? `<div class="muted">${esc(L('page.flags'))}</div>` : ''}
+<a class="btn" href="${esc(v.pdfUrl)}">${esc(L('page.pdf'))}</a>
 ${visit}
-<a class="btn alt" href="tel:+375291099619">Позвонить в салон</a>
-<button class="btn alt" style="width:100%;font-size:16px" onclick="navigator.share ? navigator.share({title:'Проект ванной', url: location.href}) : navigator.clipboard.writeText(location.href)">Отправить близким</button>
-<p class="muted">Чтобы снова открыть комнату, войдите в приложение MaxiMall под этим логином и выберите проект в «Сохранениях».</p>
+<a class="btn alt" href="tel:+375291099619">${esc(L('page.call'))}</a>
+<button class="btn alt" style="width:100%;font-size:16px" onclick="navigator.share ? navigator.share({title:'${esc(js(L('page.shareTitle')))}', url: location.href}) : navigator.clipboard.writeText(location.href)">${esc(L('page.share'))}</button>
+<p class="muted">${esc(L('page.reopen'))}</p>
 </div></body></html>`;
 }

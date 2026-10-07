@@ -24,7 +24,8 @@ export interface StreamingSttProvider {
   readonly name: string;
   readonly mock: boolean;
   /** Returns null when the audio format is not supported (the caller then uses batch STT). */
-  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void }): SttStream | null;
+  /** v2.5: `lang` = the session language (Milestone 2 will set language_code from it; not used yet). */
+  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void; lang?: 'ru' | 'en' }): SttStream | null;
 }
 
 const isPcm16k = (mime: string) => /^audio\/pcm/.test(mime) && /rate=16000/.test(mime.replace(/\s/g, ''));

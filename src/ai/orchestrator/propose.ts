@@ -1,7 +1,9 @@
 import type { CatalogIndex } from '../catalog/index';
-import { fullConfig, lcColour, tonesOf } from '../catalog/index';
+import { fullConfig, tonesOf } from '../catalog/index';
 import type { Quote, SetConfig } from '../catalog/types';
 import { safeUri } from '../catalog/parse';
+import { t, type Lang } from '../i18n';
+import { articleName, colourLabel } from '../i18n/names';
 
 export interface ProposeArgs {
   budgetBYN?: number;
@@ -21,6 +23,8 @@ export interface Candidate {
   collection?: string;
   styleScore: number;
   topLabel?: string;
+  /** v2.5: the countertop type behind topLabel (English cards build their own label from it). */
+  topKind?: 'BuiltIn' | 'SurfaceMounted';
 }
 export interface FitResult {
   key: string;
@@ -30,11 +34,12 @@ export interface FitResult {
   reason?: string;
 }
 export type Tier = 'best_fit' | 'best_value' | 'premium';
+export const tierLabel = (tier: Tier | 'single', lang: Lang = 'ru') => t(lang, `tier.${tier}` as 'tier.premium');
 export const TIER_LABEL_RU: Record<Tier | 'single', string> = {
-  best_fit: 'Лучше всего подходит',
-  best_value: 'Выгодно',
-  premium: 'Премиум',
-  single: 'Вариант',
+  best_fit: tierLabel('best_fit'),
+  best_value: tierLabel('best_value'),
+  premium: tierLabel('premium'),
+  single: tierLabel('single'),
 };
 
 export interface Card {
@@ -111,7 +116,8 @@ export function generateCandidates(catalog: CatalogIndex, args: ProposeArgs, max
             sizeName: s.name,
             collection: p.collection,
             styleScore: styleScore(colourName, args.style),
-            topLabel: sp?.countertop.length ? (sp.countertop[top]?.kind === 'BuiltIn' ? 'с раковиной' : 'со столешницей') : undefined,
+            topLabel: sp?.countertop.length ? (sp.countertop[top]?.kind === 'BuiltIn' ? t('ru', 'top.builtIn') : t('ru', 'top.surface')) : undefined,
+            ...(sp?.countertop.length ? { topKind: sp.countertop[top]?.kind === 'BuiltIn' ? ('BuiltIn' as const) : ('SurfaceMounted' as const) } : {}),
           });
         }
       }
@@ -134,19 +140,20 @@ function bestClosetColour(p: { closetModels: { colours: { index: number; name: s
   return same?.index ?? colours[0]?.index ?? 0;
 }
 
-export function reasonRu(c: Candidate, spareCm: number, args: ProposeArgs, tier: Tier): string {
+export function reasonRu(c: Candidate, spareCm: number, args: ProposeArgs, tier: Tier, lang: Lang = 'ru'): string {
   const parts: string[] = [];
-  if (args.style && args.style !== 'any' && c.styleScore >= 1 && c.colourName) parts.push(`${c.colourName} — в выбранном стиле`);
-  else if (c.colourName) parts.push(`цвет ${lcColour(c.colourName)}`);
-  parts.push(`на стене остаётся ${Math.round(spareCm)} см`);
+  // Russian keeps the catalogue name as is in the style line (today's wording); English uses the English colour name
+  if (args.style && args.style !== 'any' && c.styleScore >= 1 && c.colourName) parts.push(t(lang, 'cardReason.style', { colour: lang === 'ru' ? c.colourName : colourLabel(lang, c.colourName) }));
+  else if (c.colourName) parts.push(t(lang, 'cardReason.colour', { colour: colourLabel(lang, c.colourName) }));
+  parts.push(t(lang, 'cardReason.spare', { cm: Math.round(spareCm) }));
   if (args.budgetBYN !== undefined) {
     const d = Math.round(args.budgetBYN - c.quote.total);
-    parts.push(d >= 0 ? `в рамках бюджета, запас ${d} BYN` : `выше бюджета на ${-d} BYN`);
+    parts.push(d >= 0 ? t(lang, 'cardReason.inBudget', { d }) : t(lang, 'cardReason.overBudget', { d: -d }));
   }
-  if (tier === 'best_value') parts.push('самый доступный из подходящих');
-  if (tier === 'premium' && c.config.closetSizeIndex >= 0) parts.push('с навесным шкафом');
-  if (c.quote.estimated) parts.push('цена уточняется');
-  else if (c.quote.unpriced.length) parts.push(`цена: ${c.quote.unpriced.map((u) => (u === 'mirror' ? 'зеркало' : u === 'sink' ? 'раковина' : u)).join(', ')} — уточняется`);
+  if (tier === 'best_value') parts.push(t(lang, 'cardReason.cheapest'));
+  if (tier === 'premium' && c.config.closetSizeIndex >= 0) parts.push(t(lang, 'cardReason.closet'));
+  if (c.quote.estimated) parts.push(t(lang, 'cardReason.estimated'));
+  else if (c.quote.unpriced.length) parts.push(t(lang, 'cardReason.unpriced', { list: c.quote.unpriced.map((u) => (u === 'mirror' ? t(lang, 'part.mirror') : u === 'sink' ? t(lang, 'part.sink') : u)).join(', ') }));
   const s = parts.join('; ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -198,38 +205,42 @@ function sameLook(a: Candidate, b: Candidate) {
 }
 
 /** v2.0 salon: an INFORMATION card (no placement, no fit check) — same card contract, placement {} and spareCm 0. */
-export function buildInfoCard(c: Candidate, tier: Tier, syncedAt: string, id: string): Card {
-  const card = buildCard({ tier, cand: c, fit: { key: c.key, fits: true, placement: { segmentId: 0, side: 'left', offsetCm: 0, spareCm: 0 } } as any }, {}, syncedAt, id);
+export function buildInfoCard(c: Candidate, tier: Tier, syncedAt: string, id: string, lang: Lang = 'ru'): Card {
+  const card = buildCard({ tier, cand: c, fit: { key: c.key, fits: true, placement: { segmentId: 0, side: 'left', offsetCm: 0, spareCm: 0 } } as any }, {}, syncedAt, id, false, lang);
   const cab = c.quote.lines.find((l) => l.component === 'cabinet')?.dimensionsCm;
   return {
     ...card,
     spareCm: 0,
     placement: {},
-    reason: cab?.width ? ['Ширина ' + Math.round(cab.width) + ' см', cab.depth ? 'глубина ' + Math.round(cab.depth) + ' см' : '', cab.height ? 'высота ' + Math.round(cab.height) + ' см' : ''].filter(Boolean).join(', ') : 'Цена из каталога oliveeka.by',
+    reason: cab?.width
+      ? [t(lang, 'info.width', { cm: Math.round(cab.width) }), cab.depth ? t(lang, 'info.depth', { cm: Math.round(cab.depth) }) : '', cab.height ? t(lang, 'info.height', { cm: Math.round(cab.height) }) : ''].filter(Boolean).join(', ')
+      : t(lang, 'info.priceSource'),
   } as Card;
 }
 
-export function buildCard(r: { tier: Tier; cand: Candidate; fit: FitResult }, args: ProposeArgs, syncedAt: string, id: string, single = false): Card {
+export function buildCard(r: { tier: Tier; cand: Candidate; fit: FitResult }, args: ProposeArgs, syncedAt: string, id: string, single = false, lang: Lang = 'ru'): Card {
   const c = r.cand;
   const pl = r.fit.placement!;
   const first = c.quote.lines[0];
-  const closet = c.config.closetSizeIndex >= 0 ? ', с навесным шкафом' : '';
+  const closet = c.config.closetSizeIndex >= 0 ? t(lang, 'title.withCloset') : '';
   const size = c.sizeName || (c.widthCm ? `${Math.round(c.widthCm)}` : '');
   const tier: Tier | 'single' = single ? 'single' : r.tier;
+  const top = lang === 'ru' ? c.topLabel : c.topKind ? t(lang, c.topKind === 'BuiltIn' ? 'top.builtIn' : 'top.surface') : c.topLabel;
+  const title = `${c.collection ?? ''} ${size}, ${colourLabel(lang, c.colourName)}${top ? `, ${top}` : ''}${closet}`.replace(/\s+/g, ' ').trim();
   return {
     cardId: id,
     tier,
-    tierLabel: TIER_LABEL_RU[tier],
-    title: `${c.collection ?? ''} ${size}, ${lcColour(c.colourName)}${c.topLabel ? `, ${c.topLabel}` : ''}${closet}`.replace(/\s+/g, ' ').trim(),
+    tierLabel: tierLabel(tier, lang),
+    title,
     collection: c.collection ?? 'Milu',
     image: safeUri(first?.image ?? c.quote.lines.find((l) => l.image)?.image ?? 'https://oliveeka.by/'),
     price: c.quote.total,
     currency: 'BYN',
     spareCm: Math.round(pl.spareCm),
-    reason: reasonRu(c, pl.spareCm, args, r.tier),
+    reason: reasonRu(c, pl.spareCm, args, r.tier, lang),
     config: c.config,
     placement: { segmentId: pl.segmentId, side: pl.side, offsetCm: pl.offsetCm },
-    items: c.quote.lines.map((l) => ({ component: l.component, articleCode: l.articleCode, name: l.name, price: l.price, ...(l.url ? { url: l.url } : {}), ...(l.dimensionsCm ? { dimensionsCm: l.dimensionsCm } : {}) })),
+    items: c.quote.lines.map((l) => ({ component: l.component, articleCode: l.articleCode, name: lang === 'ru' ? l.name : articleName(lang, l.name, title), price: l.price, ...(l.url ? { url: l.url } : {}), ...(l.dimensionsCm ? { dimensionsCm: l.dimensionsCm } : {}) })),
     state: 'available',
     catalogSyncedAt: syncedAt,
     ...(c.quote.estimated ? { estimated: true } : {}),

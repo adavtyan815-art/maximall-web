@@ -1,3 +1,5 @@
+import { t, type Lang } from '../i18n';
+
 /**
  * P3-05 (contracts v2.2 ai.say.spokenText): the short spoken summary of a consultant reply.
  *
@@ -22,8 +24,8 @@
 export const SPOKEN_MAX_CHARS = 130;
 /** Characters per second used for the duration estimate (conservative end of 13–16). */
 export const SPOKEN_CHARS_PER_SEC = 13;
-export const SPOKEN_POINTER_RU = 'Подробности — на экране.';
-export const SPOKEN_FALLBACK_RU = 'Всё написала в чате на экране.';
+export const SPOKEN_POINTER_RU = t('ru', 'speech.pointer');
+export const SPOKEN_FALLBACK_RU = t('ru', 'speech.fallback');
 
 /** How long a number takes to say, in characters of Russian words (≈ 7 per digit, 4 for a one-digit number). */
 function numberChars(digits: string): number {
@@ -77,7 +79,7 @@ function tooNumeric(s: string): boolean {
 /** Dimensions «80×50×40 см», «60×60» are never spoken (the chat and the cards show them). */
 function stripDims(s: string): string {
   return s
-    .replace(/,?\s*(?:размер(?:ом)?\s+)?\d+(?:[.,]\d+)?(?:\s*[×xх]\s*\d+(?:[.,]\d+)?)+\s*(?:см|мм|м)?(?![а-яё])/gi, '')
+    .replace(/,?\s*(?:размер(?:ом)?\s+)?\d+(?:[.,]\d+)?(?:\s*[×xх]\s*\d+(?:[.,]\d+)?)+\s*(?:см|мм|м|cm\b|mm\b)?(?![а-яё])/gi, '') // v2.5: English «cm» too
     .replace(/\s+([,.!?:;])/g, '$1')
     .replace(/,\s*([.!?])/g, '$1')
     .replace(/\s{2,}/g, ' ')
@@ -164,6 +166,11 @@ function rubles(num: string): string {
   return 'рублей';
 }
 
+/** v2.5 hook (English speech tuning is Milestone 2): only the currency is said in words, no Russian grammar. */
+function voiceFormEn(s: string): string {
+  return s.replace(/\bBYN\b/g, 'Belarusian rubles').replace(/\s{2,}/g, ' ').trim();
+}
+
 /** For the speech only: currency and symbols as they are said. */
 function voiceForm(s: string): string {
   return s
@@ -184,7 +191,10 @@ export interface SpokenSummary {
   trimmed: boolean;
 }
 
-export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS): SpokenSummary {
+export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: Lang = 'ru'): SpokenSummary {
+  const pointer = lang === 'ru' ? SPOKEN_POINTER_RU : t(lang, 'speech.pointer');
+  const fallback = lang === 'ru' ? SPOKEN_FALLBACK_RU : t(lang, 'speech.fallback');
+  const voice = lang === 'ru' ? voiceForm : voiceFormEn;
   const src = clean(fullText ?? '');
   if (!src) return { text: '', trimmed: false };
   let trimmed = false;
@@ -211,7 +221,7 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS): SpokenS
     let p = speakableOf(p1);
     // QA-094: the confirmation of what was just done is always said («Положила на пол серый керамогранит.»)
     if (idx === firstText && ACTION.test(p0) && (!p || !p.startsWith(p1.split(/\s+/)[0]))) p = confirmationOf(p0) || p;
-    if (p && (words(p) >= 2 || /[?!]$/.test(p))) speakable.push(voiceForm(p));
+    if (p && (words(p) >= 2 || /[?!]$/.test(p))) speakable.push(voice(p));
   });
   function speakableOf(p0: string): string {
     let p = p0;
@@ -242,7 +252,7 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS): SpokenS
     }
     return p;
   }
-  if (!speakable.length) return { text: SPOKEN_FALLBACK_RU, trimmed: true };
+  if (!speakable.length) return { text: fallback, trimmed: true };
 
   const len = (xs: string[]) => speechLength(xs.join(' '));
   const isQ = (x: string) => /\?$/.test(x);
@@ -310,10 +320,10 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS): SpokenS
     if (len([...out, ...closing]) <= max) out.push(...closing);
     else trimmed = true;
   }
-  if (details && len(out) + speechLength(SPOKEN_POINTER_RU) + 1 <= max) {
+  if (details && len(out) + speechLength(pointer) + 1 <= max) {
     // the pointer goes before the closing question
     const at = closing.length && out[out.length - 1] === closing[closing.length - 1] ? out.length - closing.length : out.length;
-    out.splice(at, 0, SPOKEN_POINTER_RU);
+    out.splice(at, 0, pointer);
   }
   return { text: out.join(' ').trim(), trimmed };
 }

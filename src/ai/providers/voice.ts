@@ -8,7 +8,8 @@ export const TTS_SAMPLE_RATE = 24000; // raw PCM s16le mono 24 kHz for Unreal (c
 export interface SttProvider {
   readonly name: string;
   readonly mock: boolean;
-  transcribe(audio: Buffer, mimeType: string, sessionId?: string): Promise<{ text: string; durationMs?: number }>;
+  /** v2.5: `lang` is the session language (Milestone 2 will map it to the STT language code; not used yet). */
+  transcribe(audio: Buffer, mimeType: string, sessionId?: string, lang?: 'ru' | 'en'): Promise<{ text: string; durationMs?: number }>;
 }
 export interface TtsProvider {
   readonly name: string;
@@ -16,7 +17,8 @@ export interface TtsProvider {
   /** v2.0: what synthesize() returns — raw PCM s16le mono 24 kHz (wrapped into WAV for the browser) or MP3. */
   readonly audioFormat?: 'pcm_24000' | 'mp3';
   /** Returns the audio in audioFormat (default raw PCM s16le mono 24 kHz). */
-  synthesize(text: string, sessionId?: string): Promise<Buffer>;
+  /** v2.5: `lang` is the session language (Milestone 2 will pick the TTS language / voice; not used yet). */
+  synthesize(text: string, sessionId?: string, lang?: 'ru' | 'en'): Promise<Buffer>;
 }
 
 /** v2.0: a browser-playable WAV around raw PCM s16le mono. */

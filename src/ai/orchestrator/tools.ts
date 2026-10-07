@@ -65,7 +65,7 @@ export const TOOLS: LlmTool[] = [
   },
   {
     name: 'apply_card',
-    description: 'Place one of the cards proposed in this conversation (when the visitor chooses it by voice, e.g. «давай второй»). Cards tapped on screen are applied without you.',
+    description: 'Place one of the cards proposed in this conversation (when the visitor chooses it by voice, e.g. «давай второй» / "the second one"). Cards tapped on screen are applied without you.',
     input_schema: obj({ cardId: { type: 'string' }, tier: { enum: ['best_fit', 'best_value', 'premium'] }, position: { type: 'integer', minimum: 1, maximum: 3 } }),
   },
   {
@@ -76,8 +76,8 @@ export const TOOLS: LlmTool[] = [
       setId: { type: 'string' },
       part: { enum: ['cabinet', 'closet', 'countertop', 'sink', 'faucet', 'mirror'] },
       option: { type: 'string', description: 'Model id of that part from list_options (e.g. «NewRow_3», «ForMiluStoleshka», cabinet width «80»)' },
-      colourId: { type: 'string', description: 'Colour id (SKU) or name from list_options' },
-      colour: { type: 'string', description: 'Russian colour name (cabinet / closet / part)' },
+      colourId: { type: 'string', description: 'Colour id from list_options (SKU or catalogue id)' },
+      colour: { type: 'string', description: 'Colour (cabinet / closet / part): a catalogue colour id (e.g. «walnut», «black_mdf»), or its name in Russian (e.g. «орех») or English (e.g. «walnut», «black MDF»)' },
       sizeCm: { type: 'number', description: 'Cabinet width in cm' },
       closet: { type: 'boolean', description: 'true = add the wall cabinet, false = remove it' },
       paintSystem: { enum: ['RAL', 'NCS'] },
@@ -136,7 +136,7 @@ export const TOOLS: LlmTool[] = [
   {
     name: 'list_options',
     description:
-      'The allowed options of the booth in focus (salon) or of a placed set (Constructor), exactly as the configurator offers them for its collection and width: cabinet sizes and colours, wall cabinet, countertops, sinks, faucets, mirrors — each with an id, Russian name and price. Use before changing a part, then pass option/colourId.',
+      'The allowed options of the booth in focus (salon) or of a placed set (Constructor), exactly as the configurator offers them for its collection and width: cabinet sizes and colours, wall cabinet, countertops, sinks, faucets, mirrors — each with an id, a display name in the session language (Russian or English) and price. Use before changing a part, then pass option/colourId (ids work in every language).',
     input_schema: obj({ part: { enum: ['cabinet', 'closet', 'countertop', 'sink', 'faucet', 'mirror'] }, setId: { type: 'string' }, boothId: { type: 'string' } }),
   },
   {
@@ -163,7 +163,7 @@ export const TOOLS: LlmTool[] = [
         clear: { type: 'boolean', description: 'Remove the finish (back to the default material)' },
         paintSystem: { enum: ['RAL', 'NCS'] },
         paintCode: { type: 'string' },
-        tileId: { type: 'string', description: 'DT_PlannerTiles row id: Tile_White30 (белая 30×30), Tile_Beige20 (бежевая 20×20), Tile_Sand45 (песочная 45×45), Tile_Grey60 (серый керамогранит 60×60)' },
+        tileId: { type: 'string', description: 'DT_PlannerTiles row id: Tile_White30 (белая 30×30 / glossy white 30×30), Tile_Beige20 (бежевая 20×20 / beige 20×20), Tile_Sand45 (песочная 45×45 / sand 45×45), Tile_Grey60 (серый керамогранит 60×60 / grey porcelain stoneware 60×60)' },
       },
       ['target'],
     ),
@@ -174,7 +174,7 @@ export const TOOLS: LlmTool[] = [
     input_schema: obj({ config: partialConfig, segmentId: { type: 'integer' } }, ['config']),
   },
   { name: 'undo', description: 'Undo the last change made by the consultant.', input_schema: obj({}) },
-  { name: 'reset_room', description: 'Start over: restore the room to how it was before the consultant started (visitor says «начнём сначала», «сбрось»).', input_schema: obj({}) },
+  { name: 'reset_room', description: 'Start over: restore the room to how it was before the consultant started (visitor says «начнём сначала», «сбрось» / "start over", "clear the room").', input_schema: obj({}) },
   {
     name: 'save_project',
     description: 'Save the room and prepare the dossier (PDF with plan, specification, prices and photos) with a QR code for the visitor. Use when the visitor asks to send/save everything.',
@@ -211,10 +211,10 @@ export const TOOLS: LlmTool[] = [
       boothId: { type: 'string' },
       collection: { type: 'string', enum: ['Milu', 'Urban', 'Avenu', 'Terra', 'Tuma'] },
       sizeCm: { type: 'number' },
-      colour: { type: 'string', description: 'Russian colour name from the booth options, e.g. «белый», «орех»' },
+      colour: { type: 'string', description: 'Colour from the booth options: a catalogue colour id (e.g. «white», «walnut», «black_mdf») or its name in Russian (e.g. «белый», «орех») or English (e.g. «white», «walnut»)' },
       part: { enum: ['cabinet', 'closet', 'countertop', 'sink', 'faucet', 'mirror'] },
       option: { type: 'string', description: 'Model id of that part from list_options' },
-      colourId: { type: 'string', description: 'Colour id (SKU) or name from list_options' },
+      colourId: { type: 'string', description: 'Colour id from list_options (SKU or catalogue id)' },
       closet: { type: 'boolean', description: 'true = add the wall cabinet, false = remove it' },
       paintSystem: { enum: ['RAL', 'NCS'] },
       paintCode: { type: 'string' },
@@ -223,10 +223,10 @@ export const TOOLS: LlmTool[] = [
       styleHint: { enum: ['lighter', 'darker'] },
     }),
   },
-  { name: 'booth_undo', description: 'Undo the last change of the booth in focus («верни как было»).', input_schema: obj({ boothId: { type: 'string' } }) },
+  { name: 'booth_undo', description: 'Undo the last change of the booth in focus («верни как было» / "put it back").', input_schema: obj({ boothId: { type: 'string' } }) },
   {
     name: 'offer_constructor',
-    description: 'Showroom: offer to show the model in real size in the Constructor room (buttons «Да, перейти» / «Нет, остаться»). The move happens only after the visitor says yes. One offer per topic.',
+    description: 'Showroom: offer to show the model in real size in the Constructor room (the room planner; buttons «Да, перейти» / «Нет, остаться», in English "Yes, open the room planner" / "Stay here"). The move happens only after the visitor says yes. One offer per topic.',
     input_schema: obj({ topic: { type: 'string' } }),
   },
   { name: 'exit_constructor', description: 'Constructor: leave the room and return to the salon (visitor asks to go back).', input_schema: obj({}) },

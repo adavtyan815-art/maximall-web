@@ -10,7 +10,8 @@ import { AiSocketNamespace } from './socket';
 import { DirectChannel } from './orchestrator/channel';
 import { FakeUe } from './sim/fakeUe';
 import multer from 'multer';
-import { checkMeta, RenderEvent, RenderService } from './render/service';
+import { checkMeta, RENDER_FAILED_RU, RENDER_GIVEUP_RU, RenderEvent, RenderService } from './render/service';
+import { normalizeLang, t } from './i18n';
 import { MockRender } from './render/providers';
 import { styleFromPreference } from './render/prompts';
 import { DossierError, DossierService } from './dossier/service';
@@ -81,6 +82,8 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
     if (!s) return;
     if (ev.stage === 'final' && !s.renders.includes(ev.renderId)) s.renders.push(ev.renderId);
     orchestrator.log(s, 'render', ev);
+    // v2.5: the render service's own failure lines in the session language (Russian unchanged)
+    if (s.lang !== 'ru' && ev.stage === 'failed' && (ev.reason === RENDER_GIVEUP_RU || ev.reason === RENDER_FAILED_RU)) ev = { ...ev, reason: t(s.lang, ev.reason === RENDER_GIVEUP_RU ? 'render.giveUp' : 'render.failed') };
     s.io.emit('ai.render', ev);
   };
   const render = new RenderService(providers.render ?? new MockRender(), providers.renderFallback ?? null, emitRender, opts.renderDir, publicBaseUrl);
@@ -90,7 +93,7 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
     try {
       // QA-035: the save lives under the login UE used (save_project result.username), not the page/session name.
       const placements = await orchestrator.placements(s).catch(() => ({}));
-      const { response } = await dossier.build({ sessionId: s.sessionId, username: saveUsername || s.username, saveId, renderIds: s.renders, conversationNotes: orchestrator.conversationNotes(s), placements });
+      const { response } = await dossier.build({ sessionId: s.sessionId, username: saveUsername || s.username, saveId, renderIds: s.renders, conversationNotes: orchestrator.conversationNotes(s), placements, lang: s.lang });
       orchestrator.log(s, 'dossier', response);
       s.io.emit('ai.dossier', { ...response, stage: 'ready' });
     } catch (e: any) {
@@ -315,7 +318,7 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
     const renderIds: string[] = Array.isArray(b.renderIds) ? b.renderIds.map(String) : session?.renders ?? [];
     try {
       const placements = session ? await orchestrator.placements(session).catch(() => ({})) : undefined;
-      const { response } = await dossier.build({ sessionId: b.sessionId, username, saveId: b.saveId ?? session?.lastSaveId, renderIds, conversationNotes: session ? orchestrator.conversationNotes(session) : [], placements });
+      const { response } = await dossier.build({ sessionId: b.sessionId, username, saveId: b.saveId ?? session?.lastSaveId, renderIds, conversationNotes: session ? orchestrator.conversationNotes(session) : [], placements, lang: session?.lang });
       session?.io.emit('ai.dossier', { ...response, stage: 'ready' });
       res.json(response);
     } catch (e: any) {
@@ -325,7 +328,7 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
   router.get('/api/dossier/:file', (req, res) => {
     const id = String(req.params.file).replace(/\.pdf$/, '');
     const f = dossier.pdfPath(id);
-    if (!f && dossier.isExpired(id)) return res.status(410).type('html').send(dossier.expiredPage()); // QA-058
+    if (!f && dossier.isExpired(id)) return res.status(410).type('html').send(dossier.expiredPage(dossier.langOf(id))); // QA-058
     if (!f) return res.status(404).json({ error: 'not found' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -342,15 +345,16 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
   // QA-060: «Записаться на визит в салон» on the short page -> visit request on the existing lead (consent required).
   const visitPerIp = new RateLimiter(envInt('AI_VISIT_MAX_PER_IP_10MIN', 10), 10 * 60_000);
   router.post('/d/:shortId/visit', express.json({ limit: '2kb' }), (req, res) => {
-    if (!visitPerIp.take(clientIp(req))) return res.status(429).json({ ok: false, code: 'RATE_LIMITED', message: 'Слишком много попыток — попробуйте позже.' });
+    const vLang = dossier.langOf(String(req.params.shortId));
+    if (!visitPerIp.take(clientIp(req))) return res.status(429).json({ ok: false, code: 'RATE_LIMITED', message: t(vLang, 'visit.rateLimited') });
     const r = dossier.requestVisit(String(req.params.shortId), req.body?.consent);
     if (!r.ok) return res.status(r.status).json(r);
-    res.json({ ok: true, already: r.already, message: 'Заявка на визит отправлена — салон свяжется с вами по этому проекту.' });
+    res.json({ ok: true, already: r.already, message: t(vLang, 'page.visitDone') });
   });
   router.get('/d/:shortId', (req, res) => {
     const html = dossier.shortPage(String(req.params.shortId));
-    if (!html && dossier.isExpired(String(req.params.shortId))) return res.status(410).type('html').send(dossier.expiredPage()); // QA-058
-    if (!html) return res.status(404).send('Проект не найден');
+    if (!html && dossier.isExpired(String(req.params.shortId))) return res.status(410).type('html').send(dossier.expiredPage(dossier.langOf(String(req.params.shortId)))); // QA-058
+    if (!html) return res.status(404).send(t('ru', 'page.notFound'));
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer'); // the short id is a capability; do not leak it to linked sites
@@ -368,6 +372,7 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
         const events: { event: string; payload: any }[] = [];
         // v2.0: dev sessions start in the constructor (QA room probes) unless mode:'showroom' is asked for
         const s = new AiSession(sessionId, 'dev', 'qa', new DirectChannel(new FakeUe(orchestrator.catalog, { inPlanner: req.body?.mode !== 'showroom' })), { emit: (event, payload) => events.push({ event, payload }) }, req.body?.mode === 'showroom' ? 'showroom' : 'constructor');
+        if (typeof req.body?.lang === 'string') s.lang = normalizeLang(req.body.lang); // v2.5
         d = { s, events };
         devSessions.set(sessionId, d);
       }

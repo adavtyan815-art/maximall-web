@@ -78,7 +78,8 @@ export function analyseSession(file: string): SessionAnalytics {
       case 'tool':
         if (e.name === 'apply_card' && e.ok) {
           a.applied++;
-          const t = (e.say as string | undefined)?.match(/Поставила (.+?) —/)?.[1];
+          // v2.5: the structured tool log (title of the placed set, any language); logs before v2.5: the Russian say text
+          const t = (typeof e.title === 'string' && e.title) || (e.say as string | undefined)?.match(/Поставила (.+?) —/)?.[1];
           if (t) a.tapped.push(t);
         }
         break;

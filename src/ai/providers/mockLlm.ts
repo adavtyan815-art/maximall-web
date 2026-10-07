@@ -1,29 +1,26 @@
 import type { LlmProvider, LlmRequest, LlmResponse } from './llm';
 import { parseTurn, ReplyKind } from '../orchestrator/intents';
+import { parseTurnEn } from '../orchestrator/intentsEn';
+import { t, type Lang } from '../i18n';
 
-export const CANNED_RU: Record<Exclude<ReplyKind, 'actions'>, string> = {
-  greeting: 'Здравствуйте! Я Ольга, консультант Oliveeka. Какого размера ваша ванная и на какой бюджет в BYN вы рассчитываете?',
-  guard_discount:
-    'Скидки и специальные условия я не обсуждаю — это решает менеджер салона, я позову его. Все цены, которые я называю, взяты из каталога oliveeka.by.',
-  guard_delivery:
-    'Сроки, доставку, монтаж и условия гарантии уточните, пожалуйста, у менеджера салона — не хочу обещать то, что не могу гарантировать. А комплект и расчёт я подготовлю прямо сейчас.',
-  off_topic: 'Я помогаю только с ванной комнатой: подберу мебель, отделку и сделаю фото. Расскажите, какого размера ваша ванная?',
-  ask_room: 'Подскажите размер ванной, например «2 на 2,5 метра», и примерный бюджет в BYN — и я предложу три варианта.',
-  ask_budget: 'На какой бюджет в BYN вы рассчитываете? Так я предложу подходящие варианты.',
-  unknown: 'Подскажите, пожалуйста, размер ванной (например, «2 на 2,5 метра») и примерный бюджет в BYN.',
-  showroom_unknown: 'Расскажу о любой коллекции и настрою стенд под вас: размер, цвет, навесной шкаф, покраска по RAL/NCS. О чём поговорим?',
-  need_constructor: 'Фото, досье и план комнаты делаются в комнате Конструктора.',
-};
+type Kind = Exclude<ReplyKind, 'actions'>;
+const KINDS: Kind[] = ['greeting', 'guard_discount', 'guard_delivery', 'off_topic', 'ask_room', 'ask_budget', 'unknown', 'showroom_unknown', 'need_constructor'];
+/** v2.5: canned replies in the session language (Russian unchanged). */
+export const cannedReplies = (lang: Lang): Record<Kind, string> => Object.fromEntries(KINDS.map((k) => [k, t(lang, `mock.${k}` as 'mock.greeting')])) as Record<Kind, string>;
+export const cannedShowroom = (lang: Lang): Partial<Record<Kind, string>> => ({
+  greeting: t(lang, 'mock.showroom.greeting'),
+  off_topic: t(lang, 'mock.showroom.off_topic'),
+  ask_room: t(lang, 'mock.showroom.fallback'),
+  unknown: t(lang, 'mock.showroom.fallback'),
+});
+export const CANNED_RU: Record<Kind, string> = cannedReplies('ru');
 
 /** v2.0 showroom wording of the general answers (no room questions in the salon). */
-export const CANNED_SHOWROOM_RU: Partial<Record<Exclude<ReplyKind, 'actions'>, string>> = {
-  greeting: 'Здравствуйте! Я Ольга, консультант Oliveeka. Расскажу о коллекциях и настрою любой стенд салона под вас.',
-  off_topic: 'Я помогаю только с мебелью для ванной: коллекции, цены, размеры, настройка стендов. О чём рассказать?',
-  ask_room: CANNED_RU_SHOWROOM_FALLBACK(),
-  unknown: CANNED_RU_SHOWROOM_FALLBACK(),
-};
-function CANNED_RU_SHOWROOM_FALLBACK() {
-  return 'Расскажу о любой коллекции и настрою стенд под вас: размер, цвет, навесной шкаф, покраска по RAL/NCS. О чём поговорим?';
+export const CANNED_SHOWROOM_RU: Partial<Record<Kind, string>> = cannedShowroom('ru');
+
+/** v2.5: the session language is visible from the system prompt (English: «Always answer in English»). */
+export function langOfSystem(system?: string): Lang {
+  return /Always answer in English/.test(system ?? '') ? 'en' : 'ru';
 }
 
 function textOf(content: any): string | null {
@@ -62,7 +59,8 @@ export class MockLlm implements LlmProvider {
       .join('\n');
     // v2.0: the mode is visible from the tools the orchestrator offers (room tools only in «Конструктор»).
     const mode = (req.tools ?? []).some((t: any) => t.name === 'build_room') ? 'constructor' : 'showroom';
-    const parsed = parseTurn(visitorText, mode);
+    const lang = langOfSystem(req.system);
+    const parsed = lang === 'en' ? parseTurnEn(visitorText, mode) : parseTurn(visitorText, mode);
     const allowed = new Set((req.tools ?? []).map((t: any) => t.name));
     if (req.tools) parsed.calls = parsed.calls.filter((c) => allowed.has(c.name));
     const after = msgs.slice(start + 1);
@@ -79,7 +77,8 @@ export class MockLlm implements LlmProvider {
     let reply: string;
     if (parsed.calls.length === 0 && results.length === 0) {
       const k = (parsed.reply === 'actions' ? 'unknown' : parsed.reply) as Exclude<ReplyKind, 'actions'>;
-      reply = (mode === 'showroom' ? CANNED_SHOWROOM_RU[k] : undefined) ?? CANNED_RU[k] ?? CANNED_RU.unknown;
+      const canned = lang === 'ru' ? CANNED_RU : cannedReplies(lang);
+      reply = (mode === 'showroom' ? (lang === 'ru' ? CANNED_SHOWROOM_RU : cannedShowroom(lang))[k] : undefined) ?? canned[k] ?? canned.unknown;
     }
     else {
       const says = results
@@ -92,7 +91,7 @@ export class MockLlm implements LlmProvider {
           }
         })
         .filter((s): s is string => !!s);
-      reply = says.length ? says.join(' ') : 'Готово.';
+      reply = says.length ? says.join(' ') : t(lang, 'done');
     }
     return { content: [{ type: 'text', text: reply }], stopReason: 'end_turn', model: this.model };
   }

@@ -1,5 +1,6 @@
 import type { EnvelopeResult } from '../sim/fakeUe';
 import type { FakeUe } from '../sim/fakeUe';
+import { t, type Lang } from '../i18n';
 
 export type { EnvelopeResult };
 export type Origin = 'card_tap' | 'model' | 'ui' | 'scripted_fallback' | 'test';
@@ -25,7 +26,7 @@ export function newRequestId() {
 }
 
 export function timeoutResult(req: EnvelopeRequest): EnvelopeResult {
-  return { type: 'result', id: req.id, cmd: req.cmd, ok: false, reasonCode: 'TIMEOUT', reason: 'Нет ответа от комнаты', state_rev: 0 };
+  return { type: 'result', id: req.id, cmd: req.cmd, ok: false, reasonCode: 'TIMEOUT', reason: t('ru', 'room.noAnswer'), state_rev: 0 };
 }
 
 /** Page-mediated channel: emits ai.command, resolves on ai.command.result with the same id. */
@@ -33,12 +34,13 @@ export function timeoutResult(req: EnvelopeRequest): EnvelopeResult {
 export const PAGE_QUEUE_WAIT_MS = Number(process.env.AI_PAGE_QUEUE_WAIT_MS ?? 30000);
 
 /** QA-044 / CR-AI-05: the separate "waiting for the room" status (not the thinking indicator). */
-export const ROOM_WAIT_TEXT_RU = 'Подключаюсь к 3D-комнате…';
+export const ROOM_WAIT_TEXT_RU = t('ru', 'room.wait');
 export type RoomWaitEnd = 'sent' | 'result' | 'timeout' | 'closed';
 
 export class SocketChannel implements CommandChannel {
   private pending = new Map<string, { resolve: (r: EnvelopeResult) => void; timer: NodeJS.Timeout; req: EnvelopeRequest; execMs: number; state: 'pending' | 'queued' | 'sent' }>();
-  constructor(private emit: (event: string, payload: any) => void) {}
+  /** v2.5: `lang` = the session language of the visitor this channel serves (the «waiting for the room» line). */
+  constructor(private emit: (event: string, payload: any) => void, private lang: () => Lang = () => 'ru') {}
   /**
    * QA-043 / CR-AI-04: the timeout covers the page queue + execution. Until the page reports `ai.command.status sent`,
    * the deadline is PAGE_QUEUE_WAIT_MS + execution time; on `sent` the execution timeout restarts from that moment.
@@ -75,7 +77,7 @@ export class SocketChannel implements CommandChannel {
       p.state = 'sent';
     } else if (state === 'queued' && p.state === 'pending') {
       p.state = 'queued';
-      this.emit('ai.command.wait', { id, cmd: p.req.cmd, on: true, text: ROOM_WAIT_TEXT_RU });
+      this.emit('ai.command.wait', { id, cmd: p.req.cmd, on: true, text: t(this.lang(), 'room.wait') });
     }
     return p.state;
   }
@@ -96,7 +98,7 @@ export class SocketChannel implements CommandChannel {
     for (const [id, p] of this.pending) {
       clearTimeout(p.timer);
       this.waitOff(id, p, 'closed');
-      p.resolve({ type: 'result', id, cmd: '', ok: false, reasonCode: 'TIMEOUT', reason: 'Соединение закрыто', state_rev: 0 });
+      p.resolve({ type: 'result', id, cmd: '', ok: false, reasonCode: 'TIMEOUT', reason: t('ru', 'room.closed'), state_rev: 0 });
     }
     this.pending.clear();
   }
