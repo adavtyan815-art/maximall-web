@@ -32,11 +32,11 @@
     },
     "tierLabel": {
       "type": "string",
-      "description": "Russian: «Лучше всего подходит», «Выгодно», «Премиум»"
+      "description": "In the session language (v2.5; Russian default): «Лучше всего подходит», «Выгодно», «Премиум»"
     },
     "title": {
       "type": "string",
-      "description": "Russian, e.g. «Milu 80, орех, с пеналом»"
+      "description": "In the session language (v2.5; Russian default), e.g. «Milu 80, орех, с пеналом»"
     },
     "collection": {
       "enum": [
@@ -63,7 +63,7 @@
     },
     "reason": {
       "type": "string",
-      "description": "One Russian line, e.g. «Орех подходит к дубовому полу; остаётся 18 см»"
+      "description": "One line in the session language (v2.5; Russian default), e.g. «Орех подходит к дубовому полу; остаётся 18 см»"
     },
     "config": {
       "$ref": "commands.schema.json#/$defs/config"

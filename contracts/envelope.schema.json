@@ -101,7 +101,16 @@
         },
         "reason": {
           "type": "string",
-          "description": "Russian, human readable; empty when ok"
+          "description": "Russian, human readable; empty when ok. v2.5 §7: unchanged (compatibility) — the backend renders the visitor text in the session language from reasonCode + reasonParams."
+        },
+        "reasonParams": {
+          "type": "object",
+          "description": "v2.5 §7: only on refusals. `detail` (UPPER_SNAKE) names the exact template + numbers / ids (UE_REASON_CODES_v2.5.md). Also on refused check_fit candidates and enter_constructor result.carry.",
+          "properties": {
+            "detail": {
+              "type": "string"
+            }
+          }
         },
         "result": {
           "type": "object",

@@ -235,3 +235,26 @@ AShowroomBooth functions a human click uses (no rewrite of their logic). Non-bre
    shop products); opening swing/style; planner door-leaf open/close (local to one machine); ceiling visibility, lighting presets/exposure and
    2D/3D camera (local, per machine; lighting is another session's fresh work); loading a saved project; AR export, studio view, product link;
    redo (no manual redo exists).
+
+## v2.5 (coordinator, 2026-10-07 13:25) — English alongside Russian (Artur approved the 4-milestone plan; additive, Russian unchanged)
+Plan and placement: `ENGLISH_SUPPORT_GUIDE_2026-10-07.md` + the 4 milestones approved 2026-10-07. Default language stays `ru`; every Russian
+output must stay byte-identical (existing tests are the proof).
+1. **Language value:** `lang` ∈ `"ru" | "en"` (anything else → `"ru"`). Source: player URL `?lang=` (set by the landing toggle, remembered in
+   `localStorage['maximall.lang']`; landing default = browser language `en*` → `en`, else `ru`).
+2. **`ai.session.start`** gains optional `lang`. **`ai.session.ready`** gains `lang` (the language the session is now in); `greeting` is in that language.
+3. **New client→server `ai.lang` `{ lang }`** — live switch from the consultant panel. Applies from the NEXT turn (reply text, TTS voice, STT
+   language of the next utterance); history is kept; a reply/clip already in flight finishes in the old language. Server answers
+   **`ai.lang.changed` `{ lang }`** (and stores it on the session; survives reconnect/F5 like the rest of the session).
+4. **New client→server `ai.action` `{ action, optionId?, offerId? }`** (`offerId` = the `ai.offer` id, sent with `offer_answer`; added 2026-10-07 after the page build) — buttons send actions, not Russian phrases. `action` ∈
+   `undo` · `reset_room` · `other_collections` · `offer_answer` (with `optionId` from the `ai.offer` options). Server executes the same logic the
+   phrase used to trigger and replies in the session language. (Photo/dossier chips already use `ai.render.request` / `ai.dossier.request`.)
+5. **All server→client text** (`ai.message`, `ai.say` text + spokenText + audio, `ai.thinking` steps, `ai.cards` labels/reasons, `ai.offer`
+   options, `ai.error` messages, `ai.render` / `ai.dossier` captions, the dossier PDF + QR page) is in the session language. Currency stays
+   `BYN`; units stay metric (English formatting `2,773 BYN`, `80 cm`, `3 × 2.5 m`).
+6. **Voice:** STT `language_code` and TTS `language_code` follow the session language; `ELEVENLABS_VOICE_ID_EN` (optional) selects the
+   English voice, else the same voice id. The Russian STT correction dictionary is applied only to `ru`.
+7. **Unreal → backend (no visitor text from UE):** every AI command result that is refused keeps today's Russian `reason` (compatibility) and
+   adds **`reasonCode`** (stable UPPER_SNAKE id) + **`reasonParams`** (object of numbers / ids, e.g. `{maxShiftCm:103, obstacle:"WALL"}`);
+   colours are reported as ids (`colourId`) next to today's Russian names. The backend renders the visitor text from `reasonCode` +
+   `reasonParams` in the session language, falling back to `reason` when a code is unknown.
+8. Dossier / leads store `lang`.

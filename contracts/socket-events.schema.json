@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "maximall/ai/socket-events.schema.json",
   "title": "Socket.io events between player page and maximall-web orchestrator (namespace /ai)",
-  "description": "Connect to `${BACKEND}/ai` with auth {sessionId, instanceUuid, username}. The existing default-namespace back-channel (display-start, join-instance, heartbeat, idle events) is unchanged. All text is Russian.",
+  "description": "Connect to `${BACKEND}/ai` with auth {sessionId, instanceUuid, username}. The existing default-namespace back-channel (display-start, join-instance, heartbeat, idle events) is unchanged. v2.5: all visitor text is in the session language (`lang`, \"ru\" default | \"en\"); currency stays BYN, units metric.",
   "x-client-to-server": {
     "ai.session.start": {
       "type": "object",
@@ -22,6 +22,11 @@
             "mobile",
             "desktop"
           ]
+        },
+        "lang": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "v2.5: the visitor language, \"ru\" | \"en\"; any other value is treated as \"ru\". Absent: a resumed session keeps its language, a new one is \"ru\"."
         }
       },
       "description": "CR-WEB-01: may be sent again with the UE-reported username; backend merges the guest session. UE username 'guest_tester' (no login) is treated as a guest, not a lead."
@@ -149,6 +154,47 @@
         }
       },
       "description": "v2.1 CR-WEB-04: salon info card «Показать в комнате» — backend starts the constructor offer for that card's config (never enters directly)"
+    },
+    "ai.lang": {
+      "type": "object",
+      "required": [
+        "lang"
+      ],
+      "properties": {
+        "lang": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "v2.5: the visitor language, \"ru\" | \"en\"; any other value is treated as \"ru\"."
+        }
+      },
+      "description": "v2.5: live language switch from the consultant panel. Applies from the NEXT turn (reply text, TTS, STT of the next utterance); history is kept; a reply already in flight finishes in the old language. Answered with ai.lang.changed."
+    },
+    "ai.action": {
+      "type": "object",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "undo",
+            "reset_room",
+            "other_collections",
+            "offer_answer"
+          ]
+        },
+        "optionId": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "offer_answer: the option id from ai.offer"
+        },
+        "offerId": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "offer_answer: the ai.offer id (amended 2026-10-07); absent -> the currently open offer"
+        }
+      },
+      "description": "v2.5: page buttons send actions instead of Russian phrases; the backend runs the same logic the phrase triggered and replies in the session language."
     }
   },
   "x-server-to-client": {
@@ -170,8 +216,30 @@
         "mock": {
           "type": "object",
           "description": "Which providers are mocked: {llm, stt, tts, render}"
+        },
+        "lang": {
+          "enum": [
+            "ru",
+            "en"
+          ],
+          "description": "v2.5: the language the session is now in; greeting is in that language"
         }
       }
+    },
+    "ai.lang.changed": {
+      "type": "object",
+      "required": [
+        "lang"
+      ],
+      "properties": {
+        "lang": {
+          "enum": [
+            "ru",
+            "en"
+          ]
+        }
+      },
+      "description": "v2.5: answer to ai.lang; the session stores it (survives reconnect / F5)"
     },
     "ai.message": {
       "type": "object",
@@ -207,7 +275,7 @@
         },
         "step": {
           "type": "string",
-          "description": "Russian ticked action step, e.g. «Проверяю, что помещается на стене»"
+          "description": "Ticked action step in the session language (v2.5), e.g. «Проверяю, что помещается на стене»"
         }
       }
     },
@@ -439,7 +507,7 @@
         },
         "text": {
           "type": "string",
-          "description": "Russian status line, e.g. «Подключаюсь к 3D-комнате…»"
+          "description": "Status line in the session language (v2.5), e.g. «Подключаюсь к 3D-комнате…»"
         },
         "reason": {
           "enum": [
