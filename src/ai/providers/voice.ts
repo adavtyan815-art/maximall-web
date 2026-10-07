@@ -8,7 +8,7 @@ export const TTS_SAMPLE_RATE = 24000; // raw PCM s16le mono 24 kHz for Unreal (c
 export interface SttProvider {
   readonly name: string;
   readonly mock: boolean;
-  /** v2.5: `lang` is the session language (Milestone 2 will map it to the STT language code; not used yet). */
+  /** v2.5: `lang` = the language of the utterance (taken when it started); sets the STT language code. */
   transcribe(audio: Buffer, mimeType: string, sessionId?: string, lang?: 'ru' | 'en'): Promise<{ text: string; durationMs?: number }>;
 }
 export interface TtsProvider {
@@ -17,7 +17,7 @@ export interface TtsProvider {
   /** v2.0: what synthesize() returns — raw PCM s16le mono 24 kHz (wrapped into WAV for the browser) or MP3. */
   readonly audioFormat?: 'pcm_24000' | 'mp3';
   /** Returns the audio in audioFormat (default raw PCM s16le mono 24 kHz). */
-  /** v2.5: `lang` is the session language (Milestone 2 will pick the TTS language / voice; not used yet). */
+  /** v2.5: `lang` = the session language when the clip is made; sets the TTS language code and the voice. */
   synthesize(text: string, sessionId?: string, lang?: 'ru' | 'en'): Promise<Buffer>;
 }
 
@@ -40,6 +40,27 @@ export function wavFromPcm(pcm: Buffer, rate = TTS_SAMPLE_RATE): Buffer {
   return Buffer.concat([h, pcm]);
 }
 
+/** v2.5: the batch STT language code (ISO 639-3) for a session language. */
+export const sttLanguageCode = (lang: 'ru' | 'en' = 'ru') => (lang === 'en' ? 'eng' : 'rus');
+/** v2.5: the TTS / realtime STT language code (ISO 639-1). */
+export const ttsLanguageCode = (lang: 'ru' | 'en' = 'ru') => (lang === 'en' ? 'en' : 'ru');
+/** v2.5: ELEVENLABS_VOICE_ID_EN (optional) speaks English; otherwise the one voice ELEVENLABS_VOICE_ID. */
+export function ttsVoiceId(lang: 'ru' | 'en' = 'ru', env: NodeJS.ProcessEnv = process.env): string {
+  if (lang === 'en' && env.ELEVENLABS_VOICE_ID_EN) return env.ELEVENLABS_VOICE_ID_EN;
+  return env.ELEVENLABS_VOICE_ID ?? 'EXAVITQu4vr4xnSDxMaL'; // replace with an approved Russian female voice
+}
+
+/** What a real provider last sent (language code, voice, model) — for logs and the paid check; never the key. */
+export interface VoiceRequestInfo {
+  provider: string;
+  model: string;
+  languageCode: string;
+  voiceId?: string;
+  outputFormat?: string;
+  chars?: number;
+  bytes?: number;
+}
+
 export function pcmDurationMs(pcm: Buffer, rate = TTS_SAMPLE_RATE) {
   return Math.round((pcm.length / 2 / rate) * 1000);
 }
@@ -51,10 +72,10 @@ export function pcmDurationMs(pcm: Buffer, rate = TTS_SAMPLE_RATE) {
 export class MockStt implements SttProvider {
   readonly name = 'mock';
   readonly mock = true;
-  async transcribe(audio: Buffer): Promise<{ text: string }> {
+  async transcribe(audio: Buffer, _mimeType?: string, _sessionId?: string, lang: 'ru' | 'en' = 'ru'): Promise<{ text: string }> {
     const head = audio.subarray(0, 9).toString('utf8');
     if (head === 'MOCKTEXT:') return { text: audio.subarray(9).toString('utf8').trim() };
-    return { text: 'Покажите варианты для моей ванной' };
+    return { text: lang === 'en' ? 'Show me options for my bathroom' : 'Покажите варианты для моей ванной' };
   }
 }
 
@@ -80,12 +101,13 @@ export class MockTts implements TtsProvider {
 
 const EL_BASE = 'https://api.elevenlabs.io/v1';
 
-/** ElevenLabs speech-to-text (batch, model scribe_v1, language rus). Cost estimate: ELEVENLABS_STT_USD_PER_HOUR (default 0.40). */
+/** ElevenLabs speech-to-text (batch, model scribe_v1, language rus | eng by the utterance). Cost estimate: ELEVENLABS_STT_USD_PER_HOUR (default 0.40). */
 export class ElevenLabsStt implements SttProvider {
   readonly name = 'elevenlabs';
   readonly mock = false;
-  constructor(private ledger: CostLedger, private apiKey = process.env.ELEVENLABS_API_KEY ?? '') {}
-  async transcribe(audio: Buffer, mimeType: string, sessionId?: string) {
+  lastRequest?: VoiceRequestInfo;
+  constructor(private ledger: CostLedger, private apiKey = process.env.ELEVENLABS_API_KEY ?? '', private base = EL_BASE) {}
+  async transcribe(audio: Buffer, mimeType: string, sessionId?: string, lang: 'ru' | 'en' = 'ru') {
     const perHour = Number(process.env.ELEVENLABS_STT_USD_PER_HOUR ?? 0.4);
     // Duration estimate: PCM 16 kHz s16le = 32000 B/s; compressed audio ~ 4000 B/s (conservative upper bound).
     const seconds = mimeType.startsWith('audio/pcm') ? audio.length / 32000 : audio.length / 4000;
@@ -93,11 +115,13 @@ export class ElevenLabsStt implements SttProvider {
     const r = this.ledger.reserve('elevenlabs', 'speech-to-text scribe_v1', est, sessionId);
     try {
       const form = new FormData();
-      form.append('model_id', process.env.ELEVENLABS_STT_MODEL ?? 'scribe_v1');
-      form.append('language_code', 'rus');
+      const model = process.env.ELEVENLABS_STT_MODEL ?? 'scribe_v1';
+      form.append('model_id', model);
+      form.append('language_code', sttLanguageCode(lang));
+      this.lastRequest = { provider: 'elevenlabs-stt', model, languageCode: sttLanguageCode(lang), bytes: audio.length };
       if (mimeType.startsWith('audio/pcm')) form.append('file_format', 'pcm_s16le_16');
       form.append('file', new Blob([new Uint8Array(audio)], { type: mimeType.split(';')[0] }), 'turn.audio');
-      const res = await fetch(`${EL_BASE}/speech-to-text`, { method: 'POST', headers: { 'xi-api-key': this.apiKey }, body: form });
+      const res = await fetch(`${this.base}/speech-to-text`, { method: 'POST', headers: { 'xi-api-key': this.apiKey }, body: form });
       if (!res.ok) throw new Error(`ElevenLabs STT HTTP ${res.status}`);
       const j: any = await res.json();
       r.settle(est, true);
@@ -109,21 +133,31 @@ export class ElevenLabsStt implements SttProvider {
   }
 }
 
-/** ElevenLabs text-to-speech, v2.0: output_format mp3_44100_128 (the browser plays it). Cost: ELEVENLABS_TTS_USD_PER_1K_CHARS (default 0.30). */
+/**
+ * ElevenLabs text-to-speech, v2.0: output_format mp3_44100_128 (the browser plays it). Cost: ELEVENLABS_TTS_USD_PER_1K_CHARS
+ * (default 0.30). v2.5: language_code and the voice follow the session language (ELEVENLABS_VOICE_ID_EN optional).
+ * `outputFormat` 'pcm_16000' (raw s16le 16 kHz) is for tools that feed the audio to STT (the paid English check).
+ */
 export class ElevenLabsTts implements TtsProvider {
   readonly name = 'elevenlabs';
   readonly mock = false;
-  readonly audioFormat = 'mp3' as const;
-  constructor(private ledger: CostLedger, private apiKey = process.env.ELEVENLABS_API_KEY ?? '') {}
-  async synthesize(text: string, sessionId?: string): Promise<Buffer> {
+  readonly audioFormat: 'mp3' | 'pcm_24000';
+  lastRequest?: VoiceRequestInfo;
+  constructor(private ledger: CostLedger, private apiKey = process.env.ELEVENLABS_API_KEY ?? '', private opts: { outputFormat?: 'mp3_44100_128' | 'pcm_16000' | 'pcm_24000'; base?: string } = {}) {
+    this.audioFormat = (opts.outputFormat ?? 'mp3_44100_128').startsWith('mp3') ? 'mp3' : 'pcm_24000';
+  }
+  async synthesize(text: string, sessionId?: string, lang: 'ru' | 'en' = 'ru'): Promise<Buffer> {
     const est = (text.length / 1000) * Number(process.env.ELEVENLABS_TTS_USD_PER_1K_CHARS ?? 0.3);
-    const r = this.ledger.reserve('elevenlabs', 'text-to-speech mp3_44100_128', est, sessionId);
-    const voice = process.env.ELEVENLABS_VOICE_ID ?? 'EXAVITQu4vr4xnSDxMaL'; // replace with an approved Russian female voice
+    const format = this.opts.outputFormat ?? 'mp3_44100_128';
+    const r = this.ledger.reserve('elevenlabs', `text-to-speech ${format}`, est, sessionId);
+    const voice = ttsVoiceId(lang);
+    const model = process.env.ELEVENLABS_TTS_MODEL ?? 'eleven_flash_v2_5';
+    this.lastRequest = { provider: 'elevenlabs-tts', model, languageCode: ttsLanguageCode(lang), voiceId: voice, outputFormat: format, chars: text.length };
     try {
-      const res = await fetch(`${EL_BASE}/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+      const res = await fetch(`${this.opts.base ?? EL_BASE}/text-to-speech/${voice}?output_format=${format}`, {
         method: 'POST',
         headers: { 'xi-api-key': this.apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, model_id: process.env.ELEVENLABS_TTS_MODEL ?? 'eleven_flash_v2_5', language_code: 'ru' }),
+        body: JSON.stringify({ text, model_id: model, language_code: ttsLanguageCode(lang) }),
       });
       if (!res.ok) throw new Error(`ElevenLabs TTS HTTP ${res.status}`);
       const pcm = Buffer.from(await res.arrayBuffer());

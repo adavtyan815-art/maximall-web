@@ -9,8 +9,8 @@ import type { SttProvider, TtsProvider } from '../providers/voice';
 import { ClipStore } from '../providers/voice';
 import { CommandChannel, EnvelopeRequest, EnvelopeResult, newRequestId, Origin } from './channel';
 import { guardReply, moneyAmounts } from './guardrails';
-import { estimateSpokenSeconds, spokenSummary, SPOKEN_FALLBACK_RU } from './speech';
-import { applySttCorrection } from '../voice/sttCorrect';
+import { estimateSpokenSeconds, spokenCharsPerSec, spokenSummary, SPOKEN_FALLBACK_RU } from './speech';
+import { applySttCorrectionFor } from '../voice/sttCorrect';
 import { buildCard, buildInfoCard, Card, generateCandidates, ProposeArgs, rankTiers } from './propose';
 import { TOOLS, toolsFor } from './tools';
 import {
@@ -427,11 +427,11 @@ export class Orchestrator {
     let audioUrl: string | undefined;
     let durationMs: number | undefined;
     const spokenText = this.spokenFor(text, s.lang);
-    this.log(s, 'say', { turnId, chars: text.length, spokenChars: spokenText.length, spokenSecEst: estimateSpokenSeconds(spokenText), spokenText });
+    this.log(s, 'say', { turnId, chars: text.length, spokenChars: spokenText.length, spokenSecEst: s.lang === 'ru' ? estimateSpokenSeconds(spokenText) : estimateSpokenSeconds(spokenText, spokenCharsPerSec(s.lang), s.lang), spokenText });
     try {
       // v2.0: a clip the BROWSER plays (WAV around the PCM, or MP3 from a live TTS); the 3D consultant is gone.
       // v2.2: the audio contains only the spoken summary; the chat shows the full text.
-      // v2.5 hook (Milestone 2): the session language is passed on; the providers do not use it yet.
+      // v2.5: the clip is made in the session language at this moment (a switch during it applies to the next clip)
       const audio = await this.deps.tts.synthesize(spokenText || text, s.sessionId, s.lang);
       const clip = this.clips.saveAudio(audio, this.deps.tts.audioFormat ?? 'pcm_24000');
       durationMs = clip.durationMs;
@@ -1855,20 +1855,20 @@ export class Orchestrator {
     }
   }
 
-  async handleAudio(s: AiSession, audio: Buffer, mimeType: string) {
+  /** Batch STT of one utterance. v2.5: `lang` = the session language when the utterance started (default: now). */
+  async handleAudio(s: AiSession, audio: Buffer, mimeType: string, lang: Lang = s.lang) {
     const t0 = Date.now();
     let text = '';
     try {
-      // v2.5 hook (Milestone 2): the session language is passed on; the providers do not use it yet.
-      text = (await this.deps.stt.transcribe(audio, mimeType, s.sessionId, s.lang)).text;
+      text = (await this.deps.stt.transcribe(audio, mimeType, s.sessionId, lang)).text;
     } catch (e: any) {
       this.log(s, 'stt_error', { message: e.message });
       s.io.emit('ai.error', { code: 'STT_FAILED', message: t(s.lang, 'stt.failed') });
       return;
     }
-    const fixed = applySttCorrection(text);
+    const fixed = applySttCorrectionFor(text, lang); // v2.5: the Russian dictionary only for Russian utterances
     text = fixed.text;
-    this.log(s, 'stt', { ms: Date.now() - t0, bytes: audio.length, text, ...fixed.logFields });
+    this.log(s, 'stt', { ms: Date.now() - t0, bytes: audio.length, text, ...fixed.logFields, ...(lang !== 'ru' ? { lang } : {}) });
     s.io.emit('ai.transcript', { final: true, text });
     if (text.trim()) await this.handleTurn(s, text, 'voice');
   }

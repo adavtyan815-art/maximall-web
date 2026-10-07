@@ -10,7 +10,7 @@ import { DirectChannel } from '../orchestrator/channel';
 import { FakeUe } from '../sim/fakeUe';
 import { ANTHROPIC_PRICES } from '../util/costLedger';
 import { PHRASES, Phrase } from './phrases';
-import { SPOKEN_MAX_CHARS, speechLength } from '../orchestrator/speech';
+import { spokenMaxChars, speechLength } from '../orchestrator/speech';
 
 /** Token estimate without an API call: Cyrillic ≈ 2.5 chars/token, other text/JSON ≈ 3.5 chars/token (conservative). */
 export function estimateTokens(s: string): number {
@@ -122,7 +122,7 @@ export async function runHarness(catalog: CatalogIndex, llm: LlmProvider = new M
     const ROOM = ['build_room', 'add_opening', 'check_fit', 'apply_config', 'configure_set', 'swap_set', 'remove_set', 'finish_surface', 'undo', 'reset', 'save_project', 'capture'];
     if (p.expect.noRoom && roomCmds.some((c) => ROOM.includes(c))) why.push(`room command sent: ${roomCmds.filter((c) => ROOM.includes(c)).join(',')}`);
     // v2.2 P3-05: the voice never says more than the 10 s cap, and only what the chat text contains
-    if (speechLength(spoken) > SPOKEN_MAX_CHARS) why.push(`spoken summary too long (${speechLength(spoken)} speech chars)`);
+    if (speechLength(spoken, lang) > spokenMaxChars(lang)) why.push(`spoken summary too long (${speechLength(spoken, lang)} speech chars)`);
     if (mode === 'showroom' && ue.log.some((l) => !l.ok && /NOT_IN_PLANNER/.test(JSON.stringify(l)))) why.push('UE refused a room command (NOT_IN_PLANNER)');
     results.push({ id: p.id, group: p.group, text: p.text, pass: why.length === 0, tools, reply, spoken, why, ms });
   }

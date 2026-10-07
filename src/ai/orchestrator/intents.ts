@@ -64,6 +64,7 @@ export function parseRoomSizeEn(t: string): { widthCm: number; depthCm: number }
   const words: Record<string, number> = { 'one and a half': 1.5, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6 };
   let s = t.toLowerCase();
   for (const [w, v] of Object.entries(words)) s = s.replace(new RegExp(`(^|\\s)${w}(?=\\s|$)`, 'g'), `$1${v}`);
+  s = s.replace(/(\d+) and a half/g, (_m, d: string) => `${d}.5`); // «two and a half» -> 2.5
   const m = s.match(/(\d+(?:\.\d+)?)\s*(?:m\b|metres?|meters?|cm\b|centimet(?:re|er)s?)?\s*(?:by|x|×|\*)\s*(\d+(?:\.\d+)?)\s*(m\b|metres?|meters?|cm\b|centimet(?:re|er)s?)?/);
   if (!m) return null;
   let a = Number(m[1]);

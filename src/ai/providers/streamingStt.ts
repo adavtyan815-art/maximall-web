@@ -24,7 +24,7 @@ export interface StreamingSttProvider {
   readonly name: string;
   readonly mock: boolean;
   /** Returns null when the audio format is not supported (the caller then uses batch STT). */
-  /** v2.5: `lang` = the session language (Milestone 2 will set language_code from it; not used yet). */
+  /** v2.5: `lang` = the session language when the utterance starts (sets language_code; a later switch applies to the next one). */
   start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void; lang?: 'ru' | 'en' }): SttStream | null;
 }
 
@@ -37,7 +37,7 @@ const isPcm16k = (mime: string) => /^audio\/pcm/.test(mime) && /rate=16000/.test
 export class MockStreamingStt implements StreamingSttProvider {
   readonly name = 'mock-stream';
   readonly mock = true;
-  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void }): SttStream | null {
+  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void; lang?: 'ru' | 'en' }): SttStream | null {
     if (!isPcm16k(opts.mimeType)) return null;
     const parts: Buffer[] = [];
     const text = () => {
@@ -54,7 +54,7 @@ export class MockStreamingStt implements StreamingSttProvider {
           opts.onPartial(t);
         }
       },
-      end: async () => ({ text: text() || 'Покажите варианты для моей ванной' }),
+      end: async () => ({ text: text() || (opts.lang === 'en' ? 'Show me options for my bathroom' : 'Покажите варианты для моей ванной') }),
       cancel: () => undefined,
       stats: () => ({ openMs: 0, heldBeforeOpen: 0, forwardedLive: parts.length, partials, commitToFinalMs: 0, finalBy: 'committed' }),
     };
@@ -73,13 +73,19 @@ export class MockStreamingStt implements StreamingSttProvider {
 export class ElevenLabsRealtimeStt implements StreamingSttProvider {
   readonly name = 'elevenlabs-realtime';
   readonly mock = false;
+  /** v2.5: model + language code of the last stream (logs / the paid check; never the key). */
+  lastRequest?: { provider: string; model: string; languageCode: string };
   constructor(private ledger: CostLedger, private apiKey = process.env.ELEVENLABS_API_KEY ?? '', private url = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime') {}
 
-  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void }): SttStream | null {
+  start(opts: { sessionId: string; mimeType: string; onPartial: (text: string) => void; lang?: 'ru' | 'en' }): SttStream | null {
     if (!isPcm16k(opts.mimeType)) return null;
     const perSec = Number(process.env.ELEVENLABS_STT_USD_PER_HOUR ?? 0.4) / 3600;
-    const reservation = this.ledger.reserve('elevenlabs', 'stt realtime scribe_v2_realtime', perSec * 30, opts.sessionId);
-    const q = new URLSearchParams({ model_id: 'scribe_v2_realtime', audio_format: 'pcm_16000', language_code: 'ru', commit_strategy: 'manual' });
+    // v2.5: the model is configurable; the language is the session's when the utterance starts
+    const model = process.env.ELEVENLABS_STT_REALTIME_MODEL || 'scribe_v2_realtime';
+    const languageCode = opts.lang === 'en' ? 'en' : 'ru';
+    this.lastRequest = { provider: 'elevenlabs-stt-realtime', model, languageCode };
+    const reservation = this.ledger.reserve('elevenlabs', `stt realtime ${model}`, perSec * 30, opts.sessionId);
+    const q = new URLSearchParams({ model_id: model, audio_format: 'pcm_16000', language_code: languageCode, commit_strategy: 'manual' });
     const t0 = Date.now();
     const ws = new WebSocket(`${this.url}?${q}`, { headers: { 'xi-api-key': this.apiKey } });
     // P3-04: chunks are forwarded the moment they arrive; only while the socket is still connecting are they held here

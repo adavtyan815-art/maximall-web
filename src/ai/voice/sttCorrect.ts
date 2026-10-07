@@ -192,6 +192,15 @@ export function applySttCorrection(raw: string, env: NodeJS.ProcessEnv = process
   return { text: r.text, logFields: r.corrections.length ? { rawText: raw, corrections: r.corrections } : {} };
 }
 
+/**
+ * v2.5: the correction dictionary is Russian (mishearings, Russian number words): it runs only on Russian utterances.
+ * An English utterance passes unchanged (an English list from real transcripts may come later).
+ */
+export function applySttCorrectionFor(raw: string, lang: 'ru' | 'en' = 'ru', env: NodeJS.ProcessEnv = process.env): { text: string; logFields: Record<string, unknown> } {
+  if (lang !== 'ru') return { text: raw, logFields: {} };
+  return applySttCorrection(raw, env);
+}
+
 export function correctTranscript(raw: string): CorrectedTranscript {
   const corrections: SttCorrection[] = [];
   let text = applyRules(raw, RULES, corrections);

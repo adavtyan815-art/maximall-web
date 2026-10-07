@@ -24,6 +24,11 @@ import { t, type Lang } from '../i18n';
 export const SPOKEN_MAX_CHARS = 130;
 /** Characters per second used for the duration estimate (conservative end of 13–16). */
 export const SPOKEN_CHARS_PER_SEC = 13;
+/** v2.5 English: ~170 speech characters at ~15 chars/s (English TTS reads faster per character). */
+export const SPOKEN_MAX_CHARS_EN = 170;
+export const SPOKEN_CHARS_PER_SEC_EN = 15;
+export const spokenMaxChars = (lang: Lang = 'ru') => (lang === 'en' ? SPOKEN_MAX_CHARS_EN : SPOKEN_MAX_CHARS);
+export const spokenCharsPerSec = (lang: Lang = 'ru') => (lang === 'en' ? SPOKEN_CHARS_PER_SEC_EN : SPOKEN_CHARS_PER_SEC);
 export const SPOKEN_POINTER_RU = t('ru', 'speech.pointer');
 export const SPOKEN_FALLBACK_RU = t('ru', 'speech.fallback');
 
@@ -33,16 +38,23 @@ function numberChars(digits: string): number {
   return n <= 1 ? 4 : n * 7;
 }
 
-/** Length in "speech characters": numbers count as the words they are read as. */
-export function speechLength(s: string): number {
+/** English number words: ≈ 6 characters per digit, 4 for a one-digit number. */
+function numberCharsEn(digits: string): number {
+  const n = digits.replace(/\D/g, '').length;
+  return n <= 1 ? 4 : n * 6;
+}
+
+/** Length in "speech characters": numbers count as the words they are read as (`lang` given: that language's rule). */
+export function speechLength(s: string, lang?: Lang): number {
+  const nc = lang ? RULES[lang].numberChars : R.numberChars;
   let len = s.length;
-  for (const m of s.matchAll(/\d+(?:[.,]\d+)?/g)) len += numberChars(m[0]) - m[0].length;
+  for (const m of s.matchAll(/\d+(?:[.,]\d+)?/g)) len += nc(m[0]) - m[0].length;
   return len;
 }
 
 /** Estimated audio seconds for a spoken text. */
-export function estimateSpokenSeconds(s: string, charsPerSec = SPOKEN_CHARS_PER_SEC): number {
-  return Math.round((speechLength(s) / charsPerSec) * 10) / 10;
+export function estimateSpokenSeconds(s: string, charsPerSec = SPOKEN_CHARS_PER_SEC, lang?: Lang): number {
+  return Math.round((speechLength(s, lang) / charsPerSec) * 10) / 10;
 }
 
 function clean(text: string): string {
@@ -68,7 +80,7 @@ function digitsOf(s: string): string[] {
 
 /** Too many figures to say in a short summary (sizes «80×50×40», several prices, codes like TER70R). */
 function tooNumeric(s: string): boolean {
-  if (/[A-ZА-Я]{2,}\d|\d[A-ZА-Я]{1,}\d|\d\s*[×x]\s*\d/.test(s)) return true;
+  if (R.codeOrDims.test(s)) return true;
   const nums = digitsOf(s);
   if (nums.length === 0) return false;
   const long = nums.filter((n) => n.replace(/\D/g, '').length >= 4).length;
@@ -79,7 +91,17 @@ function tooNumeric(s: string): boolean {
 /** Dimensions «80×50×40 см», «60×60» are never spoken (the chat and the cards show them). */
 function stripDims(s: string): string {
   return s
-    .replace(/,?\s*(?:размер(?:ом)?\s+)?\d+(?:[.,]\d+)?(?:\s*[×xх]\s*\d+(?:[.,]\d+)?)+\s*(?:см|мм|м|cm\b|mm\b)?(?![а-яё])/gi, '') // v2.5: English «cm» too
+    .replace(/,?\s*(?:размер(?:ом)?\s+)?\d+(?:[.,]\d+)?(?:\s*[×xх]\s*\d+(?:[.,]\d+)?)+\s*(?:см|мм|м)?(?![а-яё])/gi, '')
+    .replace(/\s+([,.!?:;])/g, '$1')
+    .replace(/,\s*([.!?])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** v2.5 English: only a three-part size («80 × 50 × 40 cm») is left to the chat; «3 × 2.5 m» is read as «3 by 2.5 metres». */
+function stripDimsEn(s: string): string {
+  return s
+    .replace(/,?\s*(?:sized?\s+)?\d+(?:\.\d+)?(?:\s*[×x]\s*\d+(?:\.\d+)?){2,}\s*(?:cm|mm|m)?\b/gi, '')
     .replace(/\s+([,.!?:;])/g, '$1')
     .replace(/,\s*([.!?])/g, '$1')
     .replace(/\s{2,}/g, ' ')
@@ -116,10 +138,10 @@ function pieces(text: string): string[] {
 /** QA-094: a first-person action confirmation («Поставила …», «Положила …», «Готово …») is always spoken. */
 const ACTION = /^(?:я\s+)?(?:готово|[а-яё]+(?:ла|ли))(?=[\s,:.])/i;
 function confirmationOf(sentence: string): string {
-  const s = stripDims(sentence);
+  const s = R.stripDims(sentence);
   const i = s.indexOf(':');
   if (i > 0 && s.slice(0, i).split(/\s+/).length >= 2 && !tooNumeric(s.slice(0, i))) return endPunct(s.slice(0, i).trim());
-  if (!tooNumeric(s) && speechLength(s) <= 100) return endPunct(s);
+  if (!tooNumeric(s) && speechLength(s) <= R.confirmMax) return endPunct(s);
   const m = /^(.*?)(?:,\s|\s[—–]\s)/.exec(s);
   if (m && m[1].split(/\s+/).length >= 2 && !tooNumeric(m[1])) return endPunct(m[1].trim());
   return '';
@@ -141,7 +163,7 @@ function shorten(s: string, max: number, mode: 'any' | 'clause' | 'strong' = 'an
   for (const m of s.matchAll(mode === 'strong' ? /[;:]\s|\s[—–]\s/g : /[,;:—–]\s|\s[—–]\s/g)) {
     const h = s.slice(0, m.index).trim();
     const next = s.slice((m.index ?? 0) + m[0].length).trim();
-    if (speechLength(h) <= max - 1 && h.split(/\s+/).length >= 3 && !(SUBORDINATE.test(next) && DEMONSTRATIVE.test(h))) head = h;
+    if (speechLength(h) <= max - 1 && h.split(/\s+/).length >= 3 && !(R.subordinate.test(next) && R.demonstrative.test(h))) head = h;
   }
   if (!head && mode !== 'any') return '';
   if (!head) {
@@ -166,9 +188,25 @@ function rubles(num: string): string {
   return 'рублей';
 }
 
-/** v2.5 hook (English speech tuning is Milestone 2): only the currency is said in words, no Russian grammar. */
+/**
+ * v2.5 English: how figures are said — «≈ 2,040 BYN» -> «about 2,040 Belarusian rubles», «№ 3» -> «number 3», «80 cm» ->
+ * «80 centimetres», «3 × 2.5 m» -> «3 by 2.5 metres», «m²» -> «square metres». No Russian grammar.
+ */
 function voiceFormEn(s: string): string {
-  return s.replace(/\bBYN\b/g, 'Belarusian rubles').replace(/\s{2,}/g, ' ').trim();
+  return s
+    .replace(/≈\s*/g, 'about ')
+    .replace(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/g, '$1 by $2')
+    .replace(/(\d)\s*m²/g, '$1 square metres')
+    .replace(/\bm²/g, 'square metres')
+    .replace(/(\d)\s*cm(?=\s+(?:room|set|vanity|unit|cabinet|mirror|wall|basin|worktop|display|gap|shift)\b)/g, '$1 centimetre')
+    .replace(/(\d)\s*cm\b/g, (_m, d: string) => `${d} centimetres`)
+    .replace(/(\d)\s*mm\b/g, (_m, d: string) => `${d} millimetres`)
+    .replace(/(\d)\s*m\b/g, (_m, d: string) => `${d} metres`)
+    .replace(/\b1 (centimetres|metres|millimetres)/g, (_m, u: string) => `1 ${u.slice(0, -1)}`)
+    .replace(/\bBYN\b/g, 'Belarusian rubles')
+    .replace(/\s*№\s*/g, ' number ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /** For the speech only: currency and symbols as they are said. */
@@ -185,17 +223,90 @@ function voiceForm(s: string): string {
 /** One-word introductions that still make a spoken sentence («Готово: пол — плитка 60×60» -> «Готово.»). */
 const ACK = /^(готово|хорошо|отлично|поняла|сделала|поставила|покрасила|добавила|убрала|поменяла)$/i;
 
+/**
+ * v2.5: the language-specific pieces of the summary. Russian = today's rules (unchanged objects and functions); English =
+ * its own rule set with the same structure (first sentence + action + closing question).
+ */
+interface SpeechRules {
+  max: number;
+  numberChars: (digits: string) => number;
+  clean: (text: string) => string;
+  stripDims: (s: string) => string;
+  codeOrDims: RegExp;
+  action: RegExp;
+  ack: RegExp;
+  confirmMax: number;
+  subordinate: RegExp;
+  demonstrative: RegExp;
+  voiceForm: (s: string) => string;
+  pointer: () => string;
+  fallback: () => string;
+  /** the short closing question that names the Constructor / room planner («Перейдём в Конструктор?») */
+  roomQuestion: (sentence: string, question: string) => string | undefined;
+  /** a closing question this short keeps its sentence with it («Перейдём?» / «Shall we go?») */
+  shortQuestionWords: number;
+}
+const RU_RULES: SpeechRules = {
+  max: SPOKEN_MAX_CHARS,
+  numberChars,
+  clean,
+  stripDims,
+  codeOrDims: /[A-ZА-Я]{2,}\d|\d[A-ZА-Я]{1,}\d|\d\s*[×x]\s*\d/,
+  action: ACTION,
+  ack: ACK,
+  confirmMax: 100,
+  subordinate: SUBORDINATE,
+  demonstrative: DEMONSTRATIVE,
+  voiceForm,
+  pointer: () => SPOKEN_POINTER_RU,
+  fallback: () => SPOKEN_FALLBACK_RU,
+  shortQuestionWords: 2,
+  roomQuestion: (s, q) => (/конструктор/i.test(s) && /^перейд[её]м\?$/i.test(q) ? 'Перейдём в Конструктор?' : undefined),
+};
+const EN_RULES: SpeechRules = {
+  max: SPOKEN_MAX_CHARS_EN,
+  numberChars: numberCharsEn,
+  // «≈ 2,040 BYN (estimate)» keeps «≈» (said «about»); the parentheses go to the chat like in Russian
+  clean: (text) => clean(text.replace(/(\d[\d,]*(?:\.\d+)?\s*BYN)\s*\((?:price to be confirmed|estimate)\)/gi, '≈ $1').replace(/≈\s*≈/g, '≈')),
+  stripDims: stripDimsEn,
+  // article codes and three-part sizes are too numeric; a two-part size is read as «3 by 2.5»
+  codeOrDims: /[A-ZА-Я]{2,}\d|\d[A-ZА-Я]{1,}\d|\d\s*[×x]\s*\d+(?:\.\d+)?\s*[×x]\s*\d/,
+  action: /^(?:i've|i have|i'll|i will|done|we're|we are|starting over)(?=[\s,:.])/i,
+  ack: /^(done|fine|great|ok|okay|good|sure|right)$/i,
+  confirmMax: 130,
+  subordinate: /^(that|which|who|whom|if|when|where|how|than|while|because|so that|until)(?![a-z])/i,
+  demonstrative: /(?:^|\s)(that|so|such|there|then|this|those|these)$/i,
+  voiceForm: voiceFormEn,
+  pointer: () => t('en', 'speech.pointer'),
+  fallback: () => t('en', 'speech.fallback'),
+  shortQuestionWords: 3,
+  roomQuestion: (s, q) => (/room planner/i.test(s) && /^shall we( go)?\?$/i.test(q) ? 'Shall we open the room planner?' : undefined),
+};
+const RULES: Record<Lang, SpeechRules> = { ru: RU_RULES, en: EN_RULES };
+/** The rule set of the summary being built (spokenSummary is synchronous; Russian outside it). */
+let R: SpeechRules = RU_RULES;
+
 export interface SpokenSummary {
   text: string;
   /** something of the full reply is not spoken (list, figures, extra sentences) */
   trimmed: boolean;
 }
 
-export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: Lang = 'ru'): SpokenSummary {
-  const pointer = lang === 'ru' ? SPOKEN_POINTER_RU : t(lang, 'speech.pointer');
-  const fallback = lang === 'ru' ? SPOKEN_FALLBACK_RU : t(lang, 'speech.fallback');
-  const voice = lang === 'ru' ? voiceForm : voiceFormEn;
-  const src = clean(fullText ?? '');
+export function spokenSummary(fullText: string, max?: number, lang: Lang = 'ru'): SpokenSummary {
+  const prev = R;
+  R = RULES[lang] ?? RU_RULES;
+  try {
+    return summarise(fullText, max ?? R.max);
+  } finally {
+    R = prev;
+  }
+}
+
+function summarise(fullText: string, max: number): SpokenSummary {
+  const pointer = R.pointer();
+  const fallback = R.fallback();
+  const voice = R.voiceForm;
+  const src = R.clean(fullText ?? '');
   if (!src) return { text: '', trimmed: false };
   let trimmed = false;
   /** a list, figures or details were left to the chat -> the pointer «Подробности — на экране» */
@@ -205,7 +316,7 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: La
     const i = p.indexOf(':');
     const intro = i > 0 ? p.slice(0, i).trim() : '';
     if (!intro || tooNumeric(intro) || INLINE_LIST.test(intro)) return '';
-    if (ACK.test(intro)) return speakable.length ? '' : endPunct(intro); // «Готово.» once, only as the opening
+    if (R.ack.test(intro)) return speakable.length ? '' : endPunct(intro); // «Готово.» once, only as the opening
     return intro.split(/\s+/).length >= 2 ? endPunct(intro) : '';
   };
   const all = pieces(src);
@@ -216,11 +327,11 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: La
       trimmed = details = true; // bullet / numbered line: chat only
       return;
     }
-    const p1 = stripDims(p0);
+    const p1 = R.stripDims(p0);
     if (p1 !== p0) trimmed = details = true;
     let p = speakableOf(p1);
     // QA-094: the confirmation of what was just done is always said («Положила на пол серый керамогранит.»)
-    if (idx === firstText && ACTION.test(p0) && (!p || !p.startsWith(p1.split(/\s+/)[0]))) p = confirmationOf(p0) || p;
+    if (idx === firstText && R.action.test(p0) && (!p || !p.startsWith(p1.split(/\s+/)[0]))) p = confirmationOf(p0) || p;
     if (p && (words(p) >= 2 || /[?!]$/.test(p))) speakable.push(voice(p));
   });
   function speakableOf(p0: string): string {
@@ -267,7 +378,7 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: La
   let closing: string[] = [];
   if (rest.length && isQ(rest[rest.length - 1])) {
     const q = rest[rest.length - 1];
-    closing = q.split(/\s+/).length <= 2 && rest.length >= 2 && !isQ(rest[rest.length - 2]) ? [rest[rest.length - 2], q] : [q];
+    closing = q.split(/\s+/).length <= R.shortQuestionWords && rest.length >= 2 && !isQ(rest[rest.length - 2]) ? [rest[rest.length - 2], q] : [q];
   }
   const middle = rest.slice(0, rest.length - closing.length);
   // A bare greeting / acknowledgement («Здравствуйте!», «Поняла.») is not a summary: the next sentence joins the lead.
@@ -278,12 +389,8 @@ export function spokenSummary(fullText: string, max = SPOKEN_MAX_CHARS, lang: La
   if (closing.length === 2 && len([first, ...closing]) > max) {
     // «Могу сохранить проект …, чтобы … . Сохранить?» -> its first clause, else «Перейдём в Конструктор?» / the bare question
     const prev = shorten(closing[0], max - speechLength(first) - speechLength(closing[1]) - 2, 'clause');
-    closing =
-      prev && prev.split(/\s+/).length >= 3
-        ? [prev, closing[1]]
-        : /конструктор/i.test(closing[0]) && /^перейд[её]м\?$/i.test(closing[1])
-          ? ['Перейдём в Конструктор?']
-          : [closing[1]];
+    const roomQ = R.roomQuestion(closing[0], closing[1]);
+    closing = prev && prev.split(/\s+/).length >= 3 ? [prev, closing[1]] : roomQ ? [roomQ] : [closing[1]];
     trimmed = true;
   }
   if (closing.length && len([first, ...closing]) > max) {

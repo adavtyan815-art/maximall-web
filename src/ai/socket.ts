@@ -9,7 +9,7 @@ import { checkClientPayload, knownClientEvents } from './contractValidation';
 /** Client events whose contract has no required field: a missing payload counts as {}. */
 const OPTIONAL_PAYLOAD = new Set(['ai.audio.start', 'ai.audio.end', 'ai.audio.cancel', 'ai.reset', 'ai.render.request', 'ai.dossier.request']);
 import type { StreamingSttProvider, SttStream } from './providers/streamingStt';
-import { applySttCorrection } from './voice/sttCorrect';
+import { applySttCorrectionFor } from './voice/sttCorrect';
 
 const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
 const MAX_CHUNK = 32 * 1024;
@@ -133,7 +133,8 @@ export class AiSocketNamespace {
      * `stt` log then proves where time goes: chunkSpanMs ≈ holdMs means the page streamed while the button was held;
      * chunkSpanMs ≈ 0 with all chunks just before ai.audio.end means the page sent the audio at release.
      */
-    let audio: { chunks: Buffer[]; bytes: number; mimeType: string; stream: SttStream | null; t0: number; firstAt: number; lastAt: number; n: number; maxGapMs: number } | null = null;
+    /** v2.5: `lang` = the session language when the utterance STARTED (an ai.lang switch mid-utterance applies to the next one). */
+    let audio: { chunks: Buffer[]; bytes: number; mimeType: string; stream: SttStream | null; t0: number; firstAt: number; lastAt: number; n: number; maxGapMs: number; lang: Lang } | null = null;
     /** chunks that arrive after ai.audio.end of the last utterance (dropped; counted for the log) */
     let ended: { at: number; late: number; maxMs: number; loggedLate: number | null } | null = null;
     const auth = (socket.handshake.auth ?? {}) as { sessionId?: string; instanceUuid?: string; username?: string; hostToken?: string; lang?: string };
@@ -271,14 +272,15 @@ export class AiSocketNamespace {
         return socket.emit('ai.error', RATE_LIMITED_());
       }
       const mimeType = String(p?.mimeType ?? 'audio/pcm;rate=16000');
+      const uttLang: Lang = session?.lang ?? 'ru';
       let stream: SttStream | null = null;
       try {
         // Streaming STT (partials as ai.transcript final:false) for PCM 16 kHz; other formats use batch STT on release.
-        stream = session && this.opts.sttStream ? this.opts.sttStream.start({ sessionId: session.sessionId, mimeType, lang: session.lang, onPartial: (text) => socket.emit('ai.transcript', { final: false, text }) }) : null;
+        stream = session && this.opts.sttStream ? this.opts.sttStream.start({ sessionId: session.sessionId, mimeType, lang: uttLang, onPartial: (text) => socket.emit('ai.transcript', { final: false, text }) }) : null;
       } catch (e: any) {
         if (session) this.orch.log(session, 'stt_stream_error', { message: e.message });
       }
-      audio = { chunks: [], bytes: 0, mimeType, stream, t0: Date.now(), firstAt: 0, lastAt: 0, n: 0, maxGapMs: 0 };
+      audio = { chunks: [], bytes: 0, mimeType, stream, t0: Date.now(), firstAt: 0, lastAt: 0, n: 0, maxGapMs: 0, lang: uttLang };
       ended = null;
     });
     socket.on('ai.audio.chunk', (chunk: any) => {
@@ -315,7 +317,7 @@ export class AiSocketNamespace {
       }
       const buf = Buffer.concat(audio.chunks);
       const a = audio;
-      const { mimeType: mime, stream, t0 } = a;
+      const { mimeType: mime, stream, t0, lang: uttLang } = a;
       const tEnd = Date.now();
       audio = null;
       const lateRef = (ended = { at: tEnd, late: 0, maxMs: 0, loggedLate: null as number | null });
@@ -331,7 +333,7 @@ export class AiSocketNamespace {
         const s = session;
         void stream.end().then(async ({ text: rawText }) => {
           const tFinal = Date.now();
-          const { text, logFields: fixed } = applySttCorrection(rawText);
+          const { text, logFields: fixed } = applySttCorrectionFor(rawText, uttLang);
           lateRef.loggedLate = lateRef.late;
           // P3-04: msAfterRelease is now measured from ai.audio.end (before 2026-10-02 it was from ai.audio.start, i.e. it
           // included the whole hold; that number is msFromStart).
@@ -352,12 +354,13 @@ export class AiSocketNamespace {
             provider: stream.stats?.(),
             text,
             ...fixed,
+            ...(uttLang !== 'ru' ? { lang: uttLang } : {}),
           });
           socket.emit('ai.transcript', { final: true, text });
           if (text.trim()) await this.orch.handleTurn(s, text, 'voice');
           else socket.emit('ai.error', { code: 'STT_EMPTY', message: t(s.lang, 'stt.failed') });
         });
-      } else void this.orch.handleAudio(session, buf, mime);
+      } else void this.orch.handleAudio(session, buf, mime, uttLang);
     });
     socket.on('ai.audio.cancel', () => {
       audio?.stream?.cancel();

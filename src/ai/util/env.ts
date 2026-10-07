@@ -48,6 +48,22 @@ export function hydrateProviderKeys(opts: { envFile?: string; skipWindows?: bool
   return present;
 }
 
+/**
+ * v2.5 paid English check: like hydrateProviderKeys, but the Windows User scope values go into process.env ONLY (nothing
+ * is written to disk). Returns which keys are present (booleans), never their values.
+ */
+export function hydrateProviderKeysInMemory(): Record<ProviderEnvVar, boolean> {
+  const present = {} as Record<ProviderEnvVar, boolean>;
+  for (const name of PROVIDER_ENV_VARS) {
+    if (!process.env[name]) {
+      const v = readWindowsUserEnv(name);
+      if (v) process.env[name] = v;
+    }
+    present[name] = !!process.env[name];
+  }
+  return present;
+}
+
 export function flag(name: string, def = false): boolean {
   const v = process.env[name];
   if (v === undefined) return def;

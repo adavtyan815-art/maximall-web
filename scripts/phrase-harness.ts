@@ -16,7 +16,7 @@ import { MockLlm } from '../src/ai/providers/mockLlm';
 import { AnthropicLlm, LlmProvider } from '../src/ai/providers/llm';
 import { CostLedger } from '../src/ai/util/costLedger';
 import { hydrateProviderKeys, flag } from '../src/ai/util/env';
-import { speechLength, estimateSpokenSeconds, SPOKEN_MAX_CHARS } from '../src/ai/orchestrator/speech';
+import { speechLength, estimateSpokenSeconds, spokenMaxChars } from '../src/ai/orchestrator/speech';
 
 const args = process.argv.slice(2);
 const li = args.indexOf('--live');
@@ -49,15 +49,15 @@ const outDir = process.env.HARNESS_OUT ?? 'D:/awsTemplate_GameLift/docs/AI_Consu
   // v2.2 P3-05: the spoken summary (ai.say.spokenText) of every scored reply
   const pct = (xs: number[], q: number) => xs[Math.min(xs.length - 1, Math.floor(q * xs.length))];
   const chars = r.results.map((x) => x.spoken.length).sort((a, b) => a - b);
-  const sp = r.results.map((x) => speechLength(x.spoken)).sort((a, b) => a - b);
-  const sec13 = r.results.map((x) => estimateSpokenSeconds(x.spoken, 13)).sort((a, b) => a - b);
-  const sec15 = r.results.map((x) => estimateSpokenSeconds(x.spoken, 15)).sort((a, b) => a - b);
+  const sp = r.results.map((x) => speechLength(x.spoken, lang)).sort((a, b) => a - b);
+  const sec13 = r.results.map((x) => estimateSpokenSeconds(x.spoken, 13, lang)).sort((a, b) => a - b);
+  const sec15 = r.results.map((x) => estimateSpokenSeconds(x.spoken, 15, lang)).sort((a, b) => a - b);
   const full = r.results.map((x) => x.reply.length).sort((a, b) => a - b);
   const row = (name: string, xs: number[]) => `| ${name} | ${xs[0]} | ${pct(xs, 0.5)} | ${pct(xs, 0.9)} | ${xs[xs.length - 1]} |`;
   const spokenMd = [
     '## Spoken summary (P3-05, ai.say.spokenText)',
     '',
-    `${r.results.length} scored replies. Cap ${SPOKEN_MAX_CHARS} speech characters (numbers counted as the words they are read as). Over 10 s at 13 chars/s: **${sec13.filter((x) => x > 10).length}**.`,
+    `${r.results.length} scored replies. Cap ${spokenMaxChars(lang)} speech characters (numbers counted as the words they are read as). Over 10 s at 13 chars/s: **${sec13.filter((x) => x > 10).length}**.`,
     '',
     '| Measure | min | p50 | p90 | max |',
     '|---|---|---|---|---|',
