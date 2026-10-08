@@ -144,6 +144,10 @@
         },
         "yawDeg": {
           "type": "number"
+        },
+        "config": {
+          "description": "Sets only: the drag's config (the UE ghost validates and solves the set the commit will place). m2.2 review fix.",
+          "$ref": "commands.schema.json#/$defs/config"
         }
       },
       "additionalProperties": false
@@ -158,7 +162,8 @@
           "$ref": "#/$defs/dragId"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Ends the drag's preview: UE drops its ghost and every later preview of that dragId. A page drag that leaves the picture and comes back continues under a new dragId (seq from 0)."
     },
     "args_placement_commit": {
       "type": "object",

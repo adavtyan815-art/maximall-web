@@ -87,6 +87,13 @@ describe('M3: page → UE requests (drag bridge, AI path)', () => {
     ok(R, { type: 'MaxiMallPlacement', v: 1, id: 'p-1791487781798-5', cmd: 'object_transform', origin: 'model', args: { instanceId: 'AB12CD34', location: { x: -10020, y: -40, z: 0 } } });
     bad(R, { type: 'MaxiMallPlacement', v: 1, id: 'r-1790000000000-9', cmd: 'placement_commit', origin: 'model', args: { kind: 'set', itemId: 'Milu', x: 0.5, y: 0.5 } });
   });
+  it('review fix: a set preview carries the card config (UE ghost = commit); a drag re-entering the picture uses a new dragId', () => {
+    ok(R, { type: 'MaxiMallPlacement', v: 1, cmd: 'placement_preview', args: { dragId: 'd-1791487781798-1', seq: 0, kind: 'set', itemId: 'Milu', x: 0.5, y: 0.5, snapEnabled: true, config: MILU } });
+    ok(R, { type: 'MaxiMallPlacement', v: 1, cmd: 'placement_cancel', args: { dragId: 'd-1791487781798-1' } });
+    ok(R, { type: 'MaxiMallPlacement', v: 1, cmd: 'placement_preview', args: { dragId: 'd-1791487781799-2', seq: 0, kind: 'set', itemId: 'Milu', x: 0.52, y: 0.5, snapEnabled: true, config: MILU } });
+    bad(R, { type: 'MaxiMallPlacement', v: 1, cmd: 'placement_preview', args: { dragId: 'd-1', seq: 0, kind: 'set', itemId: 'Milu', x: 0.5, y: 0.5, config: 'Milu' } });
+    bad(R, { type: 'MaxiMallPlacement', v: 1, cmd: 'placement_preview', args: { dragId: 'd-1', seq: 0, kind: 'set', itemId: 'Milu', x: 0.5, y: 0.5, config: { ...MILU, sizeIndex: 'big' } } });
+  });
   it('a tile is not a placement (UE answers NOT_SUPPORTED / TILE_IS_FINISH)', () => {
     bad(R, { type: 'MaxiMallPlacement', v: 1, id: 'p-1-1', cmd: 'placement_commit', args: { kind: 'tile', itemId: 'Tile_Grey60', x: 0.5, y: 0.5 } });
   });
