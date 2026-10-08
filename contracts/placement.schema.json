@@ -33,6 +33,7 @@
       "maxLength": 64
     },
     "kind": {
+      "description": "object = a DT_PlannerObjects row, set = a DT_FurnitureCatalog product. A tile is a surface finish, not a placement: a request with kind \"tile\" is outside this schema and UE answers it with NOT_SUPPORTED / TILE_IS_FINISH (§5.5).",
       "enum": [
         "object",
         "set"
@@ -657,10 +658,30 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/requestId"
+          "description": "The request's id as sent. A malformed id (not p-<ms>-<n>) is echoed with BAD_ARGS / BAD_ID so the sender can still match it (m2.2, M3).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/requestId"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          ]
         },
         "cmd": {
-          "$ref": "#/$defs/commandName"
+          "description": "The request's cmd as sent (the delete alias stays \"delete\"). An unknown cmd is echoed with BAD_ARGS / UNKNOWN_CMD (m2.2, M3).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/commandName"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          ]
         },
         "ok": {
           "type": "boolean"
