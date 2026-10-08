@@ -138,6 +138,7 @@
           "const": "event"
         },
         "event": {
+          "description": "m2.2 events: no state_rev (placement_result carries stateRev). Payloads: placement.schema.json#/$defs/event.",
           "enum": [
             "ready",
             "state_changed",
@@ -145,7 +146,11 @@
             "capture_progress",
             "selection_changed",
             "planner_mode",
-            "booth_focus"
+            "booth_focus",
+            "placement_result",
+            "placement_preview_state",
+            "room_roster_update",
+            "room_estimate_state"
           ]
         },
         "state_rev": {

@@ -1,0 +1,598 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/estimate-api.schema.json",
+  "title": "Room estimate (смета) API: POST /api/ai/estimate (page -> backend), contracts v2.7-draft / MONTH2_SPEC m2.2 §11",
+  "description": "Pure and read-only: no session, no writes, no paid calls, no PII stored. The route exists only with AI_ENABLED=1 (the catalog loads only then). The page posts the aggregated room_estimate_state with credentials:'omit'. Money is BYN; retail prices include VAT (vatIncluded true, no tax line). Lines without a price (priceBYN 0 / missing) are status 'unpriced', shown «цена уточняется» and left out of the total; 'estimated' lines are counted and flagged approximate (≈). url is set only for article codes in the scraped site list (index.json products[]) whose own URL is https on oliveeka.by; ue.*.colours[].url (category pages) is never used. Never returned: note, estimatedFrom, unmapped, match, image.",
+  "$defs": {
+    "money": {
+      "type": "number",
+      "minimum": 0
+    },
+    "finish": {
+      "description": "MaxiClientLocal::FinishString format: tile:<id>, a paint code (RAL …, S …), #RRGGBBAA, or \"\" for none.",
+      "type": "string",
+      "maxLength": 40
+    },
+    "partnerUrl": {
+      "description": "The product's own oliveeka.by page (https only).",
+      "type": "string",
+      "pattern": "^https://oliveeka\\.by/",
+      "maxLength": 2048
+    },
+    "configIndex": {
+      "type": "integer",
+      "minimum": -1,
+      "maximum": 99
+    },
+    "config": {
+      "description": "commands.schema.json#/$defs/config, the booth-resolved index space (as UAiCommandDispatcher::SetConfigToJson). Request limit: integers in [-1, 99].",
+      "type": "object",
+      "required": [
+        "productId",
+        "sizeIndex",
+        "colourIndex"
+      ],
+      "properties": {
+        "productId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "sizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "colourIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "countertopSizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "countertopColourIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "closetSizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "closetColourIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "sinkSizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "sinkColourIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "faucetSizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "faucetColourIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "mirrorSizeIndex": {
+          "$ref": "#/$defs/configIndex"
+        },
+        "mirrorColourIndex": {
+          "$ref": "#/$defs/configIndex"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "description": "§11.3 request (Content-Type application/json, body <= 64 KB). Any violation -> 400 {ok:false,error:'BAD_REQUEST',field}. Also: setIds <= 100 ids in total over all sets (checked by the route). 413 TOO_LARGE above 64 KB, 429 RATE_LIMITED above 600 requests per minute per IP.",
+      "type": "object",
+      "properties": {
+        "lang": {
+          "enum": [
+            "ru",
+            "en"
+          ]
+        },
+        "rev": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "sets": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "required": [
+              "qty",
+              "config"
+            ],
+            "properties": {
+              "setIds": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "maxLength": 64
+                }
+              },
+              "qty": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "config": {
+                "$ref": "#/$defs/config"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "objects": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "qty"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "qty": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "surfaces": {
+          "type": "array",
+          "maxItems": 400,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "areaM2"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "wall",
+                  "floor",
+                  "ceiling"
+                ]
+              },
+              "areaM2": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "finish": {
+                "$ref": "#/$defs/finish"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "baseboards": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": [
+              "lengthM"
+            ],
+            "properties": {
+              "lengthM": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "finish": {
+                "$ref": "#/$defs/finish"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "description": "priced: price > 0, exact (counted). estimated: price > 0 borrowed from a similar article (counted, approximate:true, «≈»). unpriced: price 0 / missing (amount 0, «цена уточняется», not counted). info: not a purchase (e.g. «Без отделки: N м²»), not counted.",
+      "enum": [
+        "priced",
+        "estimated",
+        "unpriced",
+        "info"
+      ]
+    },
+    "dimensionsMm": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "line": {
+      "description": "One estimate line. Lines with the same non-empty articleCode are merged across sets (qty summed, setIds united); lines without an article code merge by component + name.",
+      "type": "object",
+      "required": [
+        "key",
+        "kind",
+        "status",
+        "amountBYN"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "article",
+            "part",
+            "object",
+            "finish",
+            "info"
+          ]
+        },
+        "articleCode": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "component": {
+          "enum": [
+            "cabinet",
+            "closet",
+            "countertop",
+            "sink",
+            "faucet",
+            "mirror"
+          ]
+        },
+        "includes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "cabinet",
+              "closet",
+              "countertop",
+              "sink",
+              "faucet",
+              "mirror"
+            ]
+          }
+        },
+        "setIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assetId": {
+          "type": "string"
+        },
+        "finish": {
+          "$ref": "#/$defs/finish"
+        },
+        "surface": {
+          "enum": [
+            "wall",
+            "floor",
+            "ceiling",
+            "baseboard"
+          ]
+        },
+        "unit": {
+          "enum": [
+            "pcs",
+            "m2",
+            "m"
+          ]
+        },
+        "quantity": {
+          "description": "Area (m2) or length (m) for finish lines, 2 decimals.",
+          "type": "number",
+          "minimum": 0
+        },
+        "qty": {
+          "description": "Pieces.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "unitPriceBYN": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "amountBYN": {
+          "$ref": "#/$defs/money"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "approximate": {
+          "description": "true exactly for status estimated: a similar article, not an exact purchase («≈ похожая позиция»).",
+          "type": "boolean"
+        },
+        "url": {
+          "$ref": "#/$defs/partnerUrl"
+        },
+        "dimensionsMm": {
+          "$ref": "#/$defs/dimensionsMm"
+        }
+      },
+      "additionalProperties": false
+    },
+    "partnerItem": {
+      "type": "object",
+      "required": [
+        "articleCode",
+        "name",
+        "qty",
+        "priceBYN",
+        "approximate",
+        "url"
+      ],
+      "properties": {
+        "articleCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "qty": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "priceBYN": {
+          "$ref": "#/$defs/money"
+        },
+        "approximate": {
+          "type": "boolean"
+        },
+        "url": {
+          "$ref": "#/$defs/partnerUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "section": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "subtotalBYN",
+        "lines"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "sanitary",
+            "finishing"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtotalBYN": {
+          "$ref": "#/$defs/money"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/line"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "okResponse": {
+      "type": "object",
+      "required": [
+        "ok",
+        "currency",
+        "vatIncluded",
+        "catalogSyncedAt",
+        "source",
+        "lang",
+        "sections",
+        "totalBYN",
+        "pricedCount",
+        "estimatedCount",
+        "unpricedCount",
+        "partner"
+      ],
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "currency": {
+          "const": "BYN"
+        },
+        "vatIncluded": {
+          "const": true
+        },
+        "catalogSyncedAt": {
+          "type": "string"
+        },
+        "source": {
+          "const": "https://oliveeka.by"
+        },
+        "lang": {
+          "enum": [
+            "ru",
+            "en"
+          ]
+        },
+        "rev": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        },
+        "totalBYN": {
+          "description": "Sum of the amounts of priced + estimated lines, rounded to 0.01.",
+          "$ref": "#/$defs/money"
+        },
+        "pricedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimatedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unpricedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "partner": {
+          "type": "object",
+          "required": [
+            "name",
+            "url",
+            "items"
+          ],
+          "properties": {
+            "name": {
+              "const": "oliveeka.by"
+            },
+            "url": {
+              "const": "https://oliveeka.by/"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/partnerItem"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "errorResponse": {
+      "type": "object",
+      "required": [
+        "ok",
+        "error"
+      ],
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "enum": [
+            "BAD_REQUEST",
+            "TOO_LARGE",
+            "RATE_LIMITED",
+            "CATALOG_UNAVAILABLE"
+          ]
+        },
+        "field": {
+          "description": "BAD_REQUEST only: the offending field path.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "response": {
+      "description": "200 okResponse; 400 BAD_REQUEST, 413 TOO_LARGE, 429 RATE_LIMITED, 503 CATALOG_UNAVAILABLE errorResponse.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/okResponse"
+        },
+        {
+          "$ref": "#/$defs/errorResponse"
+        }
+      ]
+    },
+    "basket": {
+      "description": "«Скопировать корзину (JSON)» payload of the «Купить всё на сайте партнёра» dialog (no partner cart API exists): partner.items, approximate items flagged.",
+      "type": "object",
+      "required": [
+        "format",
+        "partner",
+        "createdAt",
+        "currency",
+        "vatIncluded",
+        "items",
+        "totalBYN",
+        "unpricedCount"
+      ],
+      "properties": {
+        "format": {
+          "const": "maximall.basket.v1"
+        },
+        "partner": {
+          "const": "oliveeka.by"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "currency": {
+          "const": "BYN"
+        },
+        "vatIncluded": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/partnerItem"
+          }
+        },
+        "totalBYN": {
+          "$ref": "#/$defs/money"
+        },
+        "unpricedCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-rules": [
+    "Pricing per set entry: CatalogIndex.quote(config) (bundle first, de-duplicated within the set), quantities x qty; every component in quote().missing becomes one unpriced line named componentLabel(component, lang).",
+    "DT_PlannerObjects objects are not shop products: one unpriced line per assetId (qty summed) in section sanitary, no link.",
+    "Finishes grouped by (finish, surface kind) in m2 (walls/floor/ceiling) or m (baseboards); prices only from the optional data/catalog/finish_prices.json (absent: unpriced, never invented). Surfaces with finish \"\" sum into one info line «Без отделки: N м²».",
+    "The page re-checks every url (https + hostname oliveeka.by) before rendering a link and renders it with target=_blank rel=\"noopener noreferrer\"."
+  ]
+}

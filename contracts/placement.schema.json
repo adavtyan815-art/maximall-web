@@ -1,0 +1,1406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "maximall/ai/placement.schema.json",
+  "title": "MaxiMallPlacement data channel (page <-> UE client), contracts v2.7-draft / MONTH2_SPEC m2.2 §7",
+  "description": "Page -> UE: stream.emitUIInteraction(request) with type \"MaxiMallPlacement\" (not a MaxiMallAI envelope). UE -> page: 'MaxiMallAI:' + compact JSON of an event (type \"event\") — the existing UeBridge prefix. Units on the wire: cm, degrees, m2, m; x / y are normalized coordinates of the visible video picture (origin top-left, y down, letterbox removed). Every request with an id gets exactly one placement_result, whatever the room state (it is a reply, never room-gated). Month-2 events carry no state_rev; placement_result carries the AI revision as stateRev (-1 = none). Every event stays under 16,000 characters of compact JSON.",
+  "$defs": {
+    "requestId": {
+      "description": "Page request id, distinct from the AI ids (r-…).",
+      "type": "string",
+      "pattern": "^p-[0-9]+-[0-9]+$",
+      "maxLength": 40
+    },
+    "dragId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "itemId": {
+      "description": "DT_PlannerObjects AssetID (kind object) or DT_FurnitureCatalog ProductID (kind set). Raw asset paths are refused (UNKNOWN_ITEM / RAW_ASSET_PATH).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "instanceId": {
+      "description": "Opaque placed-item id (UE InstanceID).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "sku": {
+      "description": "Informational only.",
+      "type": "string",
+      "maxLength": 64
+    },
+    "kind": {
+      "enum": [
+        "object",
+        "set"
+      ]
+    },
+    "normalized": {
+      "description": "Normalized video coordinate (4 decimals). Outside [0,1]: preview invalid / commit refused with NO_TARGET, detail OUTSIDE_VIDEO.",
+      "type": "number"
+    },
+    "finishId": {
+      "description": "\"RAL …\", \"S …\" (NCS), \"#RRGGBB\" or \"\" (clear).",
+      "type": "string",
+      "maxLength": 40
+    },
+    "vec3": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "origin": {
+      "description": "ui (default) = manual edit semantics (never PLANNER_BUSY). model = AI-driven: PLANNER_BUSY ownership + one undo snapshot per changing op (§7.7). Grants no catalog rights.",
+      "enum": [
+        "ui",
+        "model"
+      ],
+      "default": "ui"
+    },
+    "category": {
+      "enum": [
+        "Other",
+        "SinkVanity",
+        "MirrorWallCabinet",
+        "BathtubShowerTray",
+        "Tile"
+      ]
+    },
+    "commandName": {
+      "enum": [
+        "m2_hello",
+        "placement_preview",
+        "placement_cancel",
+        "placement_commit",
+        "object_transform",
+        "object_delete",
+        "delete",
+        "object_select",
+        "object_replace",
+        "object_finish"
+      ]
+    },
+    "args_m2_hello": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "args_placement_preview": {
+      "type": "object",
+      "required": [
+        "dragId",
+        "seq",
+        "kind",
+        "itemId",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "dragId": {
+          "$ref": "#/$defs/dragId"
+        },
+        "seq": {
+          "description": "Increasing per dragId; UE drops seq <= last.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        },
+        "sku": {
+          "$ref": "#/$defs/sku"
+        },
+        "x": {
+          "$ref": "#/$defs/normalized"
+        },
+        "y": {
+          "$ref": "#/$defs/normalized"
+        },
+        "snapEnabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "yawDeg": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_placement_cancel": {
+      "type": "object",
+      "required": [
+        "dragId"
+      ],
+      "properties": {
+        "dragId": {
+          "$ref": "#/$defs/dragId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_placement_commit": {
+      "type": "object",
+      "required": [
+        "kind",
+        "itemId",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "dragId": {
+          "$ref": "#/$defs/dragId"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        },
+        "sku": {
+          "$ref": "#/$defs/sku"
+        },
+        "x": {
+          "$ref": "#/$defs/normalized"
+        },
+        "y": {
+          "$ref": "#/$defs/normalized"
+        },
+        "snapEnabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "yawDeg": {
+          "type": "number"
+        },
+        "finishId": {
+          "description": "Objects only.",
+          "$ref": "#/$defs/finishId"
+        },
+        "config": {
+          "description": "Sets only.",
+          "$ref": "commands.schema.json#/$defs/config"
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_object_transform": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "location"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "location": {
+          "description": "Item pivot (footprint centre at the item's base), world cm. |location.z - stored pivot Z| > 0.5 sets bChangeHeight.",
+          "$ref": "#/$defs/vec3"
+        },
+        "rotation": {
+          "description": "|pitch| or |roll| > 0.5 -> BAD_ARGS / ONLY_YAW.",
+          "type": "object",
+          "required": [
+            "yaw"
+          ],
+          "properties": {
+            "pitch": {
+              "type": "number"
+            },
+            "yaw": {
+              "type": "number"
+            },
+            "roll": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "yawDeg": {
+          "description": "Wins over rotation.yaw.",
+          "type": "number"
+        },
+        "snapEnabled": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_object_delete": {
+      "type": "object",
+      "required": [
+        "instanceId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_object_select": {
+      "type": "object",
+      "required": [
+        "instanceId"
+      ],
+      "properties": {
+        "instanceId": {
+          "description": "\"\" clears the selection.",
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_object_replace": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "itemId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "args_object_finish": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "finishId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "finishId": {
+          "$ref": "#/$defs/finishId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "description": "One oneOf branch per cmd. id is required for every command except placement_preview and placement_cancel. delete is an alias of object_delete.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/request_m2_hello"
+        },
+        {
+          "$ref": "#/$defs/request_placement_preview"
+        },
+        {
+          "$ref": "#/$defs/request_placement_cancel"
+        },
+        {
+          "$ref": "#/$defs/request_placement_commit"
+        },
+        {
+          "$ref": "#/$defs/request_object_transform"
+        },
+        {
+          "$ref": "#/$defs/request_object_delete"
+        },
+        {
+          "$ref": "#/$defs/request_object_select"
+        },
+        {
+          "$ref": "#/$defs/request_object_replace"
+        },
+        {
+          "$ref": "#/$defs/request_object_finish"
+        }
+      ]
+    },
+    "request_m2_hello": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "m2_hello"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_m2_hello"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_placement_preview": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "placement_preview"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_placement_preview"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_placement_cancel": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "placement_cancel"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_placement_cancel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_placement_commit": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "placement_commit"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_placement_commit"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_object_transform": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "object_transform"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_object_transform"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_object_delete": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "enum": [
+            "object_delete",
+            "delete"
+          ]
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_object_delete"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_object_select": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "object_select"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_object_select"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_object_replace": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "object_replace"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_object_replace"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_object_finish": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "id",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "const": "object_finish"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "args": {
+          "$ref": "#/$defs/args_object_finish"
+        }
+      },
+      "additionalProperties": false
+    },
+    "reasonCode": {
+      "description": "§7.9. Existing codes keep their meaning. reason is Russian (from UE); the page localizes from reasonCode (m2.reason.<CODE>). Set refusals from FPlannerFitSolver keep its codes and v2.5 reasonParams (NO_FIT, CATALOG_OPTION_INVALID, NO_WALL, INTERNAL / MEASURE_FAILED). TIMEOUT is page-only.",
+      "enum": [
+        "BAD_ARGS",
+        "UNKNOWN_ITEM",
+        "NO_TARGET",
+        "WALL_ONLY",
+        "OUTSIDE_ROOM",
+        "OVERLAP",
+        "WALL_COLLISION",
+        "OPENING_CONFLICT",
+        "HEIGHT_OUT_OF_RANGE",
+        "LIMIT_REACHED",
+        "NO_ITEM",
+        "ITEM_LOCKED",
+        "NOT_IN_PLANNER",
+        "NOT_IN_ROOM",
+        "NOT_ANALOG",
+        "NO_FIT",
+        "NO_WALL",
+        "CATALOG_OPTION_INVALID",
+        "NOT_SUPPORTED",
+        "PLANNER_BUSY",
+        "RATE_LIMITED",
+        "TIMEOUT",
+        "INTERNAL"
+      ]
+    },
+    "result": {
+      "description": "§7.4: the data of a placement_result event. Exactly one per command id (client dedup: the last 32 ids; server dedup: (PlayerId, OpId) for 60 s).",
+      "type": "object",
+      "required": [
+        "id",
+        "cmd",
+        "ok",
+        "stateRev"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/requestId"
+        },
+        "cmd": {
+          "$ref": "#/$defs/commandName"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "reasonCode": {
+          "description": "On refusals. Absent or \"\" when ok.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reasonCode"
+            },
+            {
+              "const": ""
+            }
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "reasonParams": {
+          "description": "detail (UPPER_SNAKE) + numbers / ids, e.g. {detail:'PENETRATION', depthCm, otherId}; detail HEIGHT_CLAMPED is information with ok:true.",
+          "type": "object",
+          "properties": {
+            "detail": {
+              "type": "string"
+            }
+          }
+        },
+        "result": {
+          "description": "Command-specific, see #/$defs/result_<cmd> (when ok).",
+          "type": "object"
+        },
+        "stateRev": {
+          "description": "Server AI revision after the op for origin model (UAiCommandDispatcher::GetStateRev); -1 otherwise and for refusals decided on the client.",
+          "type": "integer",
+          "minimum": -1
+        },
+        "elapsedMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "result_m2_hello": {
+      "type": "object",
+      "required": [
+        "contract",
+        "features",
+        "inPlanner",
+        "view"
+      ],
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "inPlanner": {
+          "type": "boolean"
+        },
+        "view": {
+          "enum": [
+            "2D",
+            "3D",
+            null
+          ]
+        }
+      }
+    },
+    "result_placement_commit": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "kind",
+        "itemId",
+        "target",
+        "heightCm",
+        "location",
+        "yawDeg",
+        "snapped"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        },
+        "target": {
+          "enum": [
+            "wall",
+            "floor"
+          ]
+        },
+        "segmentId": {
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "heightCm": {
+          "type": "number"
+        },
+        "location": {
+          "$ref": "#/$defs/vec3"
+        },
+        "yawDeg": {
+          "type": "number"
+        },
+        "snapped": {
+          "$ref": "#/$defs/snapped"
+        }
+      }
+    },
+    "result_object_transform": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "location",
+        "yawDeg",
+        "heightCm"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "location": {
+          "$ref": "#/$defs/vec3"
+        },
+        "yawDeg": {
+          "type": "number"
+        },
+        "heightCm": {
+          "type": "number"
+        }
+      }
+    },
+    "result_object_delete": {
+      "type": "object",
+      "required": [
+        "instanceId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        }
+      }
+    },
+    "result_object_select": {
+      "type": "object",
+      "required": [
+        "selected"
+      ],
+      "properties": {
+        "selected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/selection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "result_object_replace": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "itemId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        }
+      }
+    },
+    "result_object_finish": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "finishId"
+      ],
+      "properties": {
+        "instanceId": {
+          "$ref": "#/$defs/instanceId"
+        },
+        "finishId": {
+          "$ref": "#/$defs/finishId"
+        }
+      }
+    },
+    "snapped": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "wall",
+          "corner",
+          "height"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "selection": {
+      "description": "selection_changed data (also object_select result.selected).",
+      "type": "object",
+      "required": [
+        "kind",
+        "instanceId",
+        "itemId",
+        "category",
+        "mount",
+        "lockedByPlayerId",
+        "view"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "object",
+            "set",
+            "none"
+          ]
+        },
+        "instanceId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "itemId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/category"
+            },
+            {
+              "const": ""
+            }
+          ]
+        },
+        "mount": {
+          "enum": [
+            "wall",
+            "floor",
+            ""
+          ]
+        },
+        "lockedByPlayerId": {
+          "type": "integer",
+          "minimum": -1
+        },
+        "view": {
+          "enum": [
+            "2D",
+            "3D"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "previewState": {
+      "description": "placement_preview_state data: sent when (valid, reasonCode, target, snapped) changes, at most 10 Hz.",
+      "type": "object",
+      "required": [
+        "dragId",
+        "seq",
+        "valid",
+        "kind",
+        "itemId",
+        "target",
+        "category",
+        "snapped"
+      ],
+      "properties": {
+        "dragId": {
+          "$ref": "#/$defs/dragId"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "reasonCode": {
+          "$ref": "#/$defs/reasonCode"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "itemId": {
+          "$ref": "#/$defs/itemId"
+        },
+        "target": {
+          "enum": [
+            "wall",
+            "floor",
+            "none"
+          ]
+        },
+        "category": {
+          "$ref": "#/$defs/category"
+        },
+        "heightCm": {
+          "type": "number"
+        },
+        "snapped": {
+          "$ref": "#/$defs/snapped"
+        }
+      },
+      "additionalProperties": false
+    },
+    "roster": {
+      "description": "room_roster_update data (§10.3). Participants sorted by playerId; rev = CRC32 hex of the signature PlayerId|PlayerName|host|you|editing. Names are untrusted user data (page: textContent only); guests have name \"\" and are shown as «Гость {guestIndex}».",
+      "type": "object",
+      "required": [
+        "rev",
+        "count",
+        "hostId",
+        "youId",
+        "participants"
+      ],
+      "properties": {
+        "rev": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hostId": {
+          "type": "string"
+        },
+        "youId": {
+          "type": "string"
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "playerId",
+              "name",
+              "isHost",
+              "isGuest",
+              "guestIndex",
+              "isYou",
+              "isEditing"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "playerId": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "isHost": {
+                "type": "boolean"
+              },
+              "isGuest": {
+                "type": "boolean"
+              },
+              "guestIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "isYou": {
+                "type": "boolean"
+              },
+              "isEditing": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "finishKey": {
+      "description": "MaxiClientLocal::FinishString format: tile:<id>, a paint code, #RRGGBBAA, or \"\" for none.",
+      "type": "string",
+      "maxLength": 40
+    },
+    "estimateState": {
+      "description": "room_estimate_state data (§11.2): aggregated (objects by assetId, sets by identical productId + config + customColours, surfaces by kind + finish, baseboards by finish). rev = CRC32 hex of the compact JSON without rev; counts are the true totals before truncation.",
+      "type": "object",
+      "required": [
+        "rev",
+        "plannerInstanceId",
+        "units",
+        "sets",
+        "objects",
+        "surfaces",
+        "baseboards",
+        "counts",
+        "truncated"
+      ],
+      "properties": {
+        "rev": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "plannerInstanceId": {
+          "type": "string"
+        },
+        "units": {
+          "type": "object",
+          "properties": {
+            "area": {
+              "const": "m2"
+            },
+            "length": {
+              "const": "m"
+            },
+            "height": {
+              "const": "cm"
+            }
+          }
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "instanceIds",
+              "qty",
+              "productId",
+              "config"
+            ],
+            "properties": {
+              "instanceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 64
+                }
+              },
+              "qty": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "productId": {
+                "type": "string"
+              },
+              "config": {
+                "$ref": "commands.schema.json#/$defs/config"
+              },
+              "productName": {
+                "type": "string"
+              },
+              "sku": {
+                "type": "string"
+              },
+              "customColours": {
+                "type": "array"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "qty"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string"
+              },
+              "category": {
+                "$ref": "#/$defs/category"
+              },
+              "mount": {
+                "enum": [
+                  "wall",
+                  "floor"
+                ]
+              },
+              "qty": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "finish",
+              "areaM2"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "wall",
+                  "floor",
+                  "ceiling"
+                ]
+              },
+              "finish": {
+                "$ref": "#/$defs/finishKey"
+              },
+              "faces": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "grossM2": {
+                "type": "number",
+                "minimum": 0
+              },
+              "openingsM2": {
+                "type": "number",
+                "minimum": 0
+              },
+              "areaM2": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "baseboards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "finish",
+              "lengthM"
+            ],
+            "properties": {
+              "finish": {
+                "$ref": "#/$defs/finishKey"
+              },
+              "lengthM": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "rooms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "roomId",
+              "areaM2"
+            ],
+            "properties": {
+              "roomId": {
+                "type": "integer"
+              },
+              "areaM2": {
+                "type": "number",
+                "minimum": 0
+              },
+              "perimeterM": {
+                "type": "number",
+                "minimum": 0
+              },
+              "ceilingHeightCm": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "counts": {
+          "type": "object",
+          "required": [
+            "sets",
+            "objects"
+          ],
+          "properties": {
+            "sets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "objects": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "description": "§7.6 UE -> page Month-2 events ('MaxiMallAI:' prefix, no state_rev). Unsolicited events (all but placement_result) are sent only while the viewer is in a room (v2.6 gate); room_estimate_state also only while the local planner is open. They never enter the AI event ring and the page does not forward them to the backend (selection_changed excepted).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event",
+            "data"
+          ],
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "const": "placement_result"
+            },
+            "data": {
+              "$ref": "#/$defs/result"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event",
+            "data"
+          ],
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "const": "placement_preview_state"
+            },
+            "data": {
+              "$ref": "#/$defs/previewState"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event",
+            "data"
+          ],
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "const": "selection_changed"
+            },
+            "data": {
+              "$ref": "#/$defs/selection"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event",
+            "data"
+          ],
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "const": "room_roster_update"
+            },
+            "data": {
+              "$ref": "#/$defs/roster"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event",
+            "data"
+          ],
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "const": "room_estimate_state"
+            },
+            "data": {
+              "$ref": "#/$defs/estimateState"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/request",
+  "x-rules": [
+    "The page times out a request after 8000 ms with a local TIMEOUT; while emitUIInteraction returns false, commits are re-sent every 250 ms for at most 2000 ms with the same id.",
+    "placement_preview: <= 20/s from the page (50 ms throttle, latest wins); UE handles at most one preview per tick and answers with placement_preview_state (<= 10 Hz, on change).",
+    "Gating on the UE client, before anything else: not in a room -> NOT_IN_ROOM (the reply is still sent); local planner closed (any cmd but m2_hello) -> NOT_IN_PLANNER / PLANNER_CLOSED; maxi.Month2.Enable 0 -> NOT_SUPPORTED / M2_DISABLED.",
+    "A pre-Month-2 UE drops MaxiMallPlacement messages; the page waits 3000 ms for the m2_hello reply and keeps the drag bridge off without it."
+  ]
+}
