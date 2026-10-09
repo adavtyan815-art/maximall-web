@@ -18,6 +18,14 @@ export interface StyleGuide {
   avoid: string[]; // style-specific things we do not want
 }
 
+/**
+ * Artur's proven render instruction (2026-10-09), lightly edited (spelling; "furnish in minimal" as minimal styling, since adding
+ * furniture would contradict the rest). It leads every prompt: the preview model (FLUX.2 klein edit) follows instructions, and
+ * the preview is usually what the visitor gets.
+ */
+export const BASE_INSTRUCTION =
+  'Render this scene with increased realism, achieving a natural daylight photography aesthetic. Maintain the existing composition, camera viewpoint, dimensions and furniture layout exactly as they are: do not add, remove, move or modify any furniture items, and do not change the colour of the furniture. Enhance the scene with realistic natural lighting, soft shadows and improved textures to create an authentic photographic look. Keep the styling minimal: clean surfaces, little decor, no clutter.';
+
 export const PRESERVE =
   'Keep the bathroom furniture exactly as in the input image: same vanity cabinet, countertop, basin, faucet, mirror and wall cabinet, same shape, size, proportions, position, materials and colours. Do not add, remove, move or restyle any furniture. Leave the mirror and what it reflects unchanged. Keep the room geometry, walls, door and window positions and the camera viewpoint unchanged.';
 
@@ -70,9 +78,11 @@ export function renderPrompt(meta: { style?: string; finishes?: any; preset?: st
   const g = STYLES[style];
   const view = meta.preset === 'wide' ? 'low wide-angle view' : meta.preset === 'frontal' ? 'eye-level frontal view, 24mm lens' : 'eye-level corner view, 24mm lens';
   return [
-    `Photorealistic editorial interior photograph of a small bathroom, ${g.en}.`,
+    BASE_INSTRUCTION,
+    // the visitor's style only accents decor and mood; the furniture and its colours stay as captured
+    `The room is a small bathroom. Style accents for decor and mood only, never for the furniture: ${g.en}.`,
     `${meta.hasWindow ? g.lightWindow : g.light}.`,
-    `Architectural photography, ${view}, realistic materials, global illumination and reflections, high detail.`,
+    `Photographic details: ${view}, realistic materials, global illumination and reflections, high detail.`,
     PRESERVE,
     `Avoid: ${[...COMMON_AVOID, ...g.avoid].join(', ')}.`,
   ].join(' ');

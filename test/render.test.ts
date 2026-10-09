@@ -92,7 +92,7 @@ describe('render compositing (task 6)', () => {
 });
 
 import { FalFluxRender } from '../src/ai/render/providers';
-import { renderPrompt, styleFromPreference, PRESERVE, STYLES } from '../src/ai/render/prompts';
+import { renderPrompt, styleFromPreference, PRESERVE, STYLES, BASE_INSTRUCTION } from '../src/ai/render/prompts';
 import { CostLedger } from '../src/ai/util/costLedger';
 
 describe('fal request bodies (documented endpoints only) and the prompt style guide', () => {
@@ -143,5 +143,20 @@ describe('TA look-dev review (prompts)', () => {
     expect(p).toContain('Leave the mirror and what it reflects unchanged');
     for (const t of ['extra mirrors', 'extra basins', 'objects on the countertop covering the basin', 'new windows']) expect(p).toContain(t);
     expect(renderPrompt({ style: 'scandi', preset: 'wide' })).toContain('low wide-angle view');
+  });
+});
+
+describe("Artur's render instruction (2026-10-09)", () => {
+  it('leads every prompt; furniture layout and colours are kept; minimal styling; no window wording without a window', () => {
+    for (const s of Object.keys(STYLES)) {
+      const p = renderPrompt({ style: s });
+      expect(p.startsWith(BASE_INSTRUCTION)).toBe(true);
+      expect(p).toContain(PRESERVE);
+    }
+    expect(BASE_INSTRUCTION).toContain('natural daylight photography aesthetic');
+    expect(BASE_INSTRUCTION).toContain('do not add, remove, move or modify any furniture items');
+    expect(BASE_INSTRUCTION).toContain('do not change the colour of the furniture');
+    expect(BASE_INSTRUCTION).toContain('Keep the styling minimal');
+    expect(renderPrompt({ style: 'classic' })).not.toMatch(/from the window/);
   });
 });
