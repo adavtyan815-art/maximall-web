@@ -210,6 +210,37 @@ describe('M6 estimate pricing (§11.4)', () => {
   });
 });
 
+describe('M6 the real UE room_estimate_state (real run 2026-10-09, dedicated server + client, the §11.1 room built by the AI commands)', () => {
+  // Client A's event data, verbatim from its log ([M2] estimate=…): 300 × 250 × 270, a centred door and window, Milu 80, tiled walls,
+  // a RAL 9010 floor. Client B built the same rev from the replicated layout and booths.
+  const UE_STATE = {"rev":"e95f1161","plannerInstanceId":"planner","units":{"area":"m2","length":"m","height":"cm"},"sets":[{"instanceIds":["MLBggkqA834c-qeX9rzQtQ"],"qty":1,"productId":"Milu","config":{"productId":"Milu","sizeIndex":0,"colourIndex":0,"countertopSizeIndex":0,"countertopColourIndex":0,"closetSizeIndex":-1,"closetColourIndex":0,"sinkSizeIndex":0,"sinkColourIndex":0,"faucetSizeIndex":0,"faucetColourIndex":0,"mirrorSizeIndex":3,"mirrorColourIndex":0},"productName":"Тумба под раковину Oliveeka Milu Орех 80","sku":"MIL80A","customColours":[]}],"objects":[],"surfaces":[{"kind":"wall","finish":"tile:Tile_Grey60","faces":4,"grossM2":29.7,"openingsM2":3.33,"areaM2":26.37},{"kind":"floor","finish":"RAL 9010","faces":1,"areaM2":7.5},{"kind":"ceiling","finish":"","faces":1,"areaM2":7.5}],"baseboards":[{"finish":"","lengthM":10.1}],"rooms":[{"roomId":1,"areaM2":7.5,"perimeterM":11,"ceilingHeightCm":270}],"counts":{"sets":1,"objects":0},"truncated":false};
+  it('validates against placement.schema.json#/$defs/estimateState and as an envelope event', () => {
+    const vs = ajv.getSchema('maximall/ai/placement.schema.json#/$defs/estimateState')!;
+    expect(vs(UE_STATE), JSON.stringify(vs.errors)).toBe(true);
+    const ve = ajv.getSchema('maximall/ai/envelope.schema.json#/$defs/event')!;
+    expect(ve({ type: 'event', event: 'room_estimate_state', data: UE_STATE })).toBe(true);
+    expect(UE_STATE.surfaces.find((s: any) => s.kind === 'wall')).toMatchObject({ faces: 4, grossM2: 29.7, openingsM2: 3.33, areaM2: 26.37 });
+  });
+  it('priced as the page posts it: Milu 3230 BYN, tiled walls 26.37 m² and the RAL 9010 floor unpriced, the bare ceiling an info line', () => {
+    const body = {
+      lang: 'ru', rev: UE_STATE.rev, truncated: UE_STATE.truncated,
+      sets: UE_STATE.sets.map((s: any) => ({ setIds: s.instanceIds, qty: s.qty, config: s.config })),
+      objects: UE_STATE.objects.map((o: any) => ({ assetId: o.assetId, name: o.name ?? '', qty: o.qty })),
+      surfaces: UE_STATE.surfaces.map((s: any) => ({ kind: s.kind, areaM2: s.areaM2, finish: s.finish })),
+      baseboards: UE_STATE.baseboards.map((b: any) => ({ lengthM: b.lengthM, finish: b.finish })),
+    };
+    valid('request', body);
+    const v = validateEstimateRequest(body);
+    expect(v.ok).toBe(true);
+    const r = buildEstimate((v as any).req, deps);
+    expect(r.totalBYN).toBe(3230);
+    expect(line(r, 'fin:tile:Tile_Grey60:wall')).toMatchObject({ quantity: 26.37, status: 'unpriced' });
+    expect(line(r, 'fin:RAL 9010:floor')).toMatchObject({ quantity: 7.5, status: 'unpriced' });
+    expect(line(r, 'info:unfinished')).toMatchObject({ quantity: 7.5, status: 'info' });
+    valid('okResponse', r);
+  });
+});
+
 describe('M6 estimate request validation (§11.3)', () => {
   const ok = (b: unknown) => expect(validateEstimateRequest(b)).toMatchObject({ ok: true });
   const bad = (b: unknown, field: string) => expect(validateEstimateRequest(b)).toEqual({ ok: false, field });
