@@ -119,6 +119,35 @@ describe('M6 estimate pricing (§11.4)', () => {
     expect(m.totalBYN).toBe(3230 + 2985);
   });
 
+  it('M7: an article exact in one colour and estimated in another stays two purchases (status, ≈ flag and name per line), in both orders', () => {
+    const p = catalog.getProduct('Urban')!;
+    const colours = catalog.colourIndicesForSize(p, URBAN.sizeIndex);
+    const exactColour = colours.find((ci) => catalog.quote({ ...URBAN, colourIndex: ci }).lines.some((l) => l.articleCode === 'URB80M' && !l.estimated && l.price > 0));
+    expect(exactColour, 'a colour whose URB80M is an exact purchase').toBeDefined();
+    const GREY = { ...URBAN, colourIndex: exactColour };
+    expect(catalog.quote(URBAN).lines.find((l) => l.articleCode === 'URB80M')?.estimated).toBe(true); // the default colour: an estimate
+    for (const order of [[GREY, URBAN], [URBAN, GREY]]) {
+      const r = buildEstimate(req({ sets: order.map((c, i) => ({ setIds: [`S${i}`], qty: 1, config: c })) }), deps);
+      const urb = lines(r).filter((l) => l.articleCode === 'URB80M');
+      expect(urb).toHaveLength(2);
+      const exact = urb.find((l) => l.status === 'priced')!;
+      const approx = urb.find((l) => l.status === 'estimated')!;
+      expect(exact).toMatchObject({ qty: 1, approximate: false, unitPriceBYN: 1297 });
+      expect(approx).toMatchObject({ qty: 1, approximate: true, unitPriceBYN: 1297 });
+      expect(approx.name).not.toBe(exact.name); // the estimate names the colour it stands in for
+      expect(new Set(urb.map((l) => l.key)).size).toBe(2);
+      expect(r.totalBYN).toBe(quoteTotal(GREY) + quoteTotal(URBAN));
+      const items = r.partner.items.filter((i) => i.articleCode === 'URB80M');
+      expect(items.map((i) => i.approximate).sort()).toEqual([false, true]);
+      expect(items.every((i) => i.qty === 1)).toBe(true);
+      valid('okResponse', r);
+    }
+    // The same variant twice still merges into one line.
+    const twice = buildEstimate(req({ sets: [{ setIds: ['A'], qty: 1, config: URBAN }, { setIds: ['B'], qty: 1, config: URBAN }] }), deps);
+    expect(lines(twice).filter((l) => l.articleCode === 'URB80M')).toHaveLength(1);
+    expect(line(twice, 'art:URB80M')).toMatchObject({ qty: 2, status: 'estimated', approximate: true, setIds: ['A', 'B'] });
+  });
+
   it('a component quote() cannot map becomes one unpriced line named by componentLabel', () => {
     const r = buildEstimate(req({ sets: [{ setIds: ['X'], qty: 1, config: { ...MILU, mirrorSizeIndex: 42 } }] }), deps);
     const m = lines(r).find((l) => l.component === 'mirror')!;

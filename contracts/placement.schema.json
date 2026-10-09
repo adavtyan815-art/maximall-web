@@ -96,7 +96,8 @@
         "delete",
         "object_select",
         "object_replace",
-        "object_finish"
+        "object_finish",
+        "ui_insets"
       ]
     },
     "args_m2_hello": {
@@ -164,6 +165,21 @@
       },
       "additionalProperties": false,
       "description": "Ends the drag's preview: UE drops its ghost and every later preview of that dragId. A page drag that leaves the picture and comes back continues under a new dragId (seq from 0)."
+    },
+    "args_ui_insets": {
+      "description": "M7 (MONTH2_SPEC §18.5): the page's right column (chat + portrait) starts at this normalized video x; 1 = no column. UE keeps its selection action strip left of it (clamped to >= 0.25). No id, no reply; taken in every room / planner state; sent only to a UE whose m2_hello lists the feature \"uiInsets\".",
+      "type": "object",
+      "required": [
+        "rightEdgeX"
+      ],
+      "properties": {
+        "rightEdgeX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
     },
     "args_placement_commit": {
       "type": "object",
@@ -341,6 +357,9 @@
         },
         {
           "$ref": "#/$defs/request_object_finish"
+        },
+        {
+          "$ref": "#/$defs/request_ui_insets"
         }
       ]
     },
@@ -431,6 +450,30 @@
         },
         "args": {
           "$ref": "#/$defs/args_placement_cancel"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request_ui_insets": {
+      "type": "object",
+      "required": [
+        "type",
+        "v",
+        "cmd",
+        "args"
+      ],
+      "properties": {
+        "type": {
+          "const": "MaxiMallPlacement"
+        },
+        "v": {
+          "const": 1
+        },
+        "cmd": {
+          "const": "ui_insets"
+        },
+        "args": {
+          "$ref": "#/$defs/args_ui_insets"
         }
       },
       "additionalProperties": false

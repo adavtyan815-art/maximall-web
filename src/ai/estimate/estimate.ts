@@ -287,6 +287,24 @@ export function buildEstimate(req: EstimateRequest, deps: EstimateDeps): Estimat
   // ── sanitary: sets ──
   const merged = new Map<string, EstimateLine>();
   const order: string[] = [];
+  // M7 (D4, §11.4): one article can be an exact purchase in one colour and an estimate («≈ похожая позиция») in another (URB80M,
+  // URB100M, UPM110, six bundles). Lines merge only when they are the same purchase: the same article, status and unit price (and,
+  // for an estimate, the same name: it names the colour it stands in for). Another variant gets its own line (key suffix ~2, ~3 …),
+  // so neither the drawer nor partner.items turn an estimate into an exact purchase or the other way round.
+  const variantSig = (status: string, unitPrice: number | null, name: string) => `${status}|${unitPrice ?? ''}|${status === 'estimated' ? name : ''}`;
+  const variantOf = new Map<string, string>();
+  const articleKey = (code: string, sig: string): string => {
+    const base = `art:${code}`;
+    for (let n = 1; ; n++) {
+      const key = n === 1 ? base : `${base}~${n}`;
+      const known = variantOf.get(key);
+      if (known === undefined) {
+        variantOf.set(key, sig);
+        return key;
+      }
+      if (known === sig) return key;
+    }
+  };
   const add = (key: string, make: () => EstimateLine, qty: number, setIds: string[]) => {
     let l = merged.get(key);
     if (!l) {
@@ -306,7 +324,8 @@ export function buildEstimate(req: EstimateRequest, deps: EstimateDeps): Estimat
       const code = (ql.articleCode ?? '').trim();
       const own = code ? links.ownArticle(code) : undefined;
       const name = articleName(lang, ql.name) || ql.name;
-      const key = code ? `art:${code}` : `part:${ql.component}:${ql.name}`;
+      const unitPrice = unitPriceOf({ price: ql.price, estimated: ql.estimated, unpriced: ql.unpriced });
+      const key = code ? articleKey(code, variantSig(status, unitPrice, name)) : `part:${ql.component}:${ql.name}`;
       add(
         key,
         () => {
@@ -318,7 +337,7 @@ export function buildEstimate(req: EstimateRequest, deps: EstimateDeps): Estimat
             name,
             component: ql.component,
             ...(ql.includes?.length ? { includes: [...ql.includes] } : {}),
-            unitPriceBYN: unitPriceOf({ price: ql.price, estimated: ql.estimated, unpriced: ql.unpriced }),
+            unitPriceBYN: unitPrice,
             amountBYN: 0,
             status,
             approximate: isApproximate(status),
