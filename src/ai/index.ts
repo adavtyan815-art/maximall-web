@@ -21,6 +21,8 @@ import path from 'path';
 import sharp from 'sharp';
 import { RateLimiter, clientIp, envInt } from './util/rateLimit';
 import { RetentionResult, retentionAgesFromEnv, runRetention } from './util/retention';
+import { buildEstimate, estimateJsonParser, ESTIMATE_PATH, loadFinishPrices, validateEstimateRequest } from './estimate/estimate';
+import { CatalogLinks } from './estimate/catalogLinks';
 
 export interface AiModule {
   router: express.Router;
@@ -191,6 +193,24 @@ export function createAiModule(opts: { providers?: Providers; catalog?: CatalogI
     const out = await avatar.createSession(sessionId);
     orchestrator.log(s, 'avatar_session', out.provider === 'simli' ? { provider: 'simli', faceId: out.faceId, maxSessionLength: out.maxSessionLength, maxIdleTime: out.maxIdleTime } : out);
     res.json(out);
+  });
+
+  // MONTH2_SPEC m2.2 §11.3 (REQ-31/32): the room estimate. Pure and read-only (no session, no writes, no paid calls, nothing logged
+  // beyond the count); exists only with the AI layer (the catalog loads only then). The page posts UE's room_estimate_state with
+  // credentials:'omit'. app.ts mounts the same 64 KB parser before its global 25 MB one; here it covers module-only apps (tests).
+  const estimatePerIp = new RateLimiter(envInt('AI_ESTIMATE_MAX_PER_IP_MIN', 600), 60_000);
+  const finishPrices = loadFinishPrices(); // optional data/catalog/finish_prices.json (absent: every finishing line unpriced)
+  let estimateLinks: { catalog: CatalogIndex; links: CatalogLinks } | null = null;
+  router.post(ESTIMATE_PATH, ...estimateJsonParser(), (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!estimatePerIp.take(clientIp(req))) return res.status(429).json({ ok: false, error: 'RATE_LIMITED' });
+    const cat = orchestrator.catalog;
+    if (!cat) return res.status(503).json({ ok: false, error: 'CATALOG_UNAVAILABLE' });
+    if (!req.is('application/json')) return res.status(400).json({ ok: false, error: 'BAD_REQUEST', field: 'contentType' });
+    const v = validateEstimateRequest(req.body);
+    if (!v.ok) return res.status(400).json({ ok: false, error: 'BAD_REQUEST', field: v.field });
+    if (!estimateLinks || estimateLinks.catalog !== cat) estimateLinks = { catalog: cat, links: CatalogLinks.fromIndex(cat.data) };
+    res.json(buildEstimate(v.req, { catalog: cat, links: estimateLinks.links, finishPrices }));
   });
 
   // Cost dashboard (task 10, minimal): totals per provider and per session from the spend ledger.

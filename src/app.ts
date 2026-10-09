@@ -19,6 +19,7 @@ import { adminAuthMode, safeEqual, verifyAdminLogin } from './services/adminAuth
 import { adminOriginGuard } from './services/adminOrigin';
 import { RateLimiter, clientIp, envInt } from './ai/util/rateLimit';
 import type { AiModule } from './ai';
+import { ESTIMATE_PATH, estimateJsonParser } from './ai/estimate/bodyParser'; // express only: no AI layer code
 
 const app = express();
 app.disable('x-powered-by');
@@ -80,6 +81,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning'],
 }));
 app.options('*', cors());    // Pre-flight for all routes
+// MONTH2_SPEC m2.2 §11.3: POST /api/ai/estimate has its own 64 KB JSON limit. It must parse before the global 25 MB parser below
+// (body-parser then skips the already-parsed body); a per-route parser in the AI router alone would never run. AI layer only.
+if (AI_ENABLED) app.use(ESTIMATE_PATH, ...estimateJsonParser());
 app.use(express.json({ limit: '25mb' })); // save records carry a thumbnail + metrics (save_project)
 app.use(express.urlencoded({ extended: true }));
 
