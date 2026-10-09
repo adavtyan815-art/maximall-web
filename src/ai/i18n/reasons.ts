@@ -75,6 +75,8 @@ export const REASON_DETAILS_RU: Record<string, Tpl> = {
   PLANNER_NOT_RUNNING: () => 'Планировщик комнаты не запущен',
   OPEN_CONSTRUCTOR_FIRST: () => 'Комнату меняют в «Конструкторе». Сначала откройте его.',
   PLANNER_BUSY: () => 'Конструктор сейчас занят другим посетителем. Подождите немного или попросите консультанта в салоне.',
+  // Month 2 (MONTH2_SPEC §8.1): another participant of the room holds the set's item lock (moving it); the planner is not busy.
+  'PLANNER_BUSY.ITEM_LOCKED': () => 'Этот гарнитур сейчас передвигает другой участник — попробуйте через несколько секунд',
   RATE_LIMITED: (p) => `Слишком много команд: не больше ${p.maxPerSecond} в секунду`,
   SERVER_ONLY: () => 'Команды ИИ выполняются только на сервере',
   INTERNAL_ERROR: () => 'Внутренняя ошибка',
@@ -210,6 +212,7 @@ export const REASON_DETAILS_EN: Record<string, Tpl> = {
   PLANNER_NOT_RUNNING: () => 'the room planner is not running',
   OPEN_CONSTRUCTOR_FIRST: () => 'the room is changed in the room planner — please open it first',
   PLANNER_BUSY: () => 'another visitor is using the room planner — please try again shortly',
+  'PLANNER_BUSY.ITEM_LOCKED': () => 'Another participant is moving this set right now — try again in a few seconds',
   RATE_LIMITED: (p) => `too many commands: no more than ${p.maxPerSecond} per second`,
   SERVER_ONLY: () => 'an internal error in the room',
   INTERNAL_ERROR: () => 'an internal error in the room',

@@ -194,6 +194,14 @@ export interface OrchestratorDeps {
   mockFlags?: Record<string, boolean>;
 }
 
+/**
+ * Month 2 (MONTH2_SPEC §8.1, M5): PLANNER_BUSY with reasonParams.detail ITEM_LOCKED means another participant of the room is moving that
+ * set right now (its item lock) — the planner itself is not busy, so the sticky plannerBusy state is not set by it.
+ */
+export function isItemLockBusy(r: { reasonCode?: string; reasonParams?: Record<string, any> } | undefined | null): boolean {
+  return r?.reasonCode === 'PLANNER_BUSY' && r?.reasonParams?.detail === 'ITEM_LOCKED';
+}
+
 /** CR-UE-02: commands UE refuses with PLANNER_BUSY when another visitor owns the planner (consultant_summon only in mode planner). */
 const PLANNER_GUARDED = new Set([
   'build_room',
@@ -354,7 +362,7 @@ export class Orchestrator {
     const t0 = Date.now();
     const res = await s.channel.send(req, timeoutMs);
     this.log(s, 'command', { req, ok: res.ok, reasonCode: res.reasonCode, reason: res.reason, ms: Date.now() - t0, state_rev: res.state_rev });
-    if (res.reasonCode === 'PLANNER_BUSY') {
+    if (res.reasonCode === 'PLANNER_BUSY' && !isItemLockBusy(res)) {
       s.plannerBusy = true;
       s.plannerBusyTurn = turnId;
       s.busyHits++;
@@ -962,7 +970,7 @@ export class Orchestrator {
     this.log(s, 'card_tap', { cardId: tap.cardId, requestId: tap.requestId, ok: tap.result?.ok, reasonCode: tap.result?.reasonCode });
     if (!card) return;
     const turnId = `t-${++s.turnSeq}`;
-    if (tap.result && !tap.result.ok && tap.result.reasonCode === 'PLANNER_BUSY') {
+    if (tap.result && !tap.result.ok && tap.result.reasonCode === 'PLANNER_BUSY' && !isItemLockBusy(tap.result)) {
       s.plannerBusy = true;
       s.plannerBusyTurn = turnId;
       s.notes.push(t(s.lang, 'note.cardBusy', { title: card.title }));
